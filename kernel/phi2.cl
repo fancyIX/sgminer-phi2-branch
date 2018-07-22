@@ -113,11 +113,12 @@ typedef union {
 
 // cubehash_80
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search(__global unsigned char* block, __global hash_t* hashes)
+__kernel void search(__global unsigned char* block, __global hash_t* hashes, uint has_roots)
 {
     uint gid = get_global_id(0);
     __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
+    if (!has_roots) {
 // cubehash512_cuda_hash_80
     #ifdef DEBUG_PRINT
     if (gid == 0x12345) {
@@ -193,23 +194,9 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes)
     }
     #endif
     barrier(CLK_GLOBAL_MEM_FENCE);
-}
 
-
-// cubehash_144
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search0(__global unsigned char* block, __global hash_t* hashes)
-{
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-// cubehash512_cuda_hash_80
-    #ifdef DEBUG_PRINT
-    if (gid == 0x12345) {
-        printf("input: \n");
-        printblock(block, 80);
-    }
-    #endif
+    } else {
+    // cubehash512_cuda_hash_144
 
     sph_u32 x0 = SPH_C32(0x2AEA2A61), x1 = SPH_C32(0x50F494D4), x2 = SPH_C32(0x2D538B8B), x3 = SPH_C32(0x4167D83E);
     sph_u32 x4 = SPH_C32(0x3FEE2313), x5 = SPH_C32(0xC701CF8C), x6 = SPH_C32(0xCC39968E), x7 = SPH_C32(0x50AC5695);
@@ -295,12 +282,14 @@ __kernel void search0(__global unsigned char* block, __global hash_t* hashes)
 
     #ifdef DEBUG_PRINT
     if (gid == 0x12345) {
-        printf("cubehash_80 output: \n");
+        printf("cubehash_144 output: \n");
         printhash(*hash);
     }
     #endif
     barrier(CLK_GLOBAL_MEM_FENCE);
+    }
 }
+
 
 
 /// lyra2 algo 

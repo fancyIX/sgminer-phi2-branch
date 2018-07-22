@@ -494,19 +494,20 @@ static cl_int queue_phi2_kernel(struct __clState *clState, struct _dev_blk_ctx *
 
   le_target = *(cl_ulong *)(blk->work->device_target + 24);
   
-  bool has_roots = flip144(clState->cldata, blk->work->data);
-  if (has_roots) applog(LOG_WARNING, "=================== has_roots: %d \n", has_roots);  
+  unsigned int has_roots = flip144(clState->cldata, blk->work->data);
+ 
   sph_cubehash512_context ctx_cubehash;
 	sph_cubehash512_init(&ctx_cubehash);
 	sph_cubehash512(&ctx_cubehash, (void*)clState->cldata, 64);
 
   status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
 
-  // cubehash512_cuda_hash_80 - search
+  // cubehash512_cuda_hash_80/144 - search
   kernel = &clState->kernel;
   num = 0;
   CL_SET_ARG(clState->CLbuffer0);
   CL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(has_roots);
   
   kernel = clState->extra_kernels;
   // lyra2_cuda_hash_64 - search1

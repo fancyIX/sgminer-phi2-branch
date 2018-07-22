@@ -1,4 +1,4 @@
-# sgminer
+# sgminer-phi2-branch
 
 
 ## Introduction
@@ -8,18 +8,12 @@ This is a multi-threaded multi-pool GPU miner with ATI GPU monitoring,
 based on cgminer by Con Kolivas (ckolivas), which is in turn based on
 cpuminer by Jeff Garzik (jgarzik).
 
-**releases**: https://github.com/sgminer-dev/sgminer/releases
-
-**git tree**: https://github.com/sgminer-dev/sgminer
-
-**bugtracker**: https://github.com/sgminer-dev/sgminer/issues
-
-**irc**: `#sgminer` and `#sgminer-dev` on freenode
-
-**mailing lists**: https://sourceforge.net/p/sgminer/mailman/
+This is a branch that intends to support PHI2 algorithm. The base code is
+copied from https://github.com/216k155/sgminer-phi1612-Implemented. Also,
+some codes are copied from https://github.com/djm34/sgminer-msvc2015 and
+https://github.com/aceneun/sgminer-gm-x16r.
 
 License: GPLv3.  See `COPYING` for details.
-
 
 ## Documentation
 
@@ -470,4 +464,3 @@ For example (this is wrapped, but it's all on one line for real):
     000000004a4366808f81d44f26df3d69d7dc4b3473385930462d9ab707b50498
     f681634a4f1f63d01a0cd43fb338000000000080000000000000000000000000
     0000000000000000000000000000000000000000000000000000000080020000
-# sgminer-phi2-branch
