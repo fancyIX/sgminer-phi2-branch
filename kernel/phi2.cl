@@ -305,6 +305,7 @@ __kernel void search1(__global uchar* hashes,__global uchar* matrix)
 
 //  uint offset = (4 * memshift * 4 * 4 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS))/32;
   ulong4 state[4];
+  __local ulong4 temp[24*WORKSIZE];
 
   state[0].x = hash->h8[0]; //password
   state[0].y = hash->h8[1]; //password
@@ -331,41 +332,43 @@ __kernel void search1(__global uchar* hashes,__global uchar* matrix)
 	  for (int j = 0; j < 3; j++)
 		  (DMatrix)[j+s1] = state[j];
 
+    for (int j = 0; j < 3; j++)
+		  temp[3*(7-i)+j+24* get_local_id(0)] = state[j];
+
 	  round_lyra(state);
   }
 
-  reduceDuplexf(state, DMatrix);
+  ///// reduceduplexrow1 ////////////
+  reduceDuplexf_tmp(state,DMatrix,temp + 24 * get_local_id(0));
  
-  reduceDuplexRowSetupf(1, 0, 2, state, DMatrix);
-  reduceDuplexRowSetupf(2, 1, 3, state, DMatrix);
-  reduceDuplexRowSetupf(3, 0, 4, state, DMatrix);
-  reduceDuplexRowSetupf(4, 3, 5, state, DMatrix);
-  reduceDuplexRowSetupf(5, 2, 6, state, DMatrix);
-  reduceDuplexRowSetupf(6, 1, 7, state, DMatrix);
+  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 24 * get_local_id(0));
 
   uint rowa;
 
   rowa = state[0].x & 7;
-  reduceDuplexRowf(7, rowa, 0, state, DMatrix);
+  reduceDuplexRowf_tmp(7, rowa, 0, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(0, rowa, 3, state, DMatrix);
+  reduceDuplexRowf_tmp(0, rowa, 3, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(3, rowa, 6, state, DMatrix);
+  reduceDuplexRowf_tmp(3, rowa, 6, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(6, rowa, 1, state, DMatrix);
+  reduceDuplexRowf_tmp(6, rowa, 1, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(1, rowa, 4, state, DMatrix);
+  reduceDuplexRowf_tmp(1, rowa, 4, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(4, rowa, 7, state, DMatrix);
+  reduceDuplexRowf_tmp(4, rowa, 7, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(7, rowa, 2, state, DMatrix);
+  reduceDuplexRowf_tmp(7, rowa, 2, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(2, rowa, 5, state, DMatrix);
-
-  uint shift = (memshift * 8 * rowa);
+  reduceDuplexRowf_tmp2(2, rowa, 5, state, DMatrix, temp + 24 * get_local_id(0));
 
   for (int j = 0; j < 3; j++)
-	  state[j] ^= (DMatrix)[j+shift];
+	  state[j] ^= temp[j + 24 * get_local_id(0)]; //(DMatrix)[j+shift];
 
   for (int i = 0; i < 12; i++)
 	  round_lyra(state);
@@ -383,7 +386,7 @@ state[0].x = hash->h8[0 + 4]; //password
   state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
 
-for (int i = 0; i<12; i++) { round_lyra(state); } 
+  for (int i = 0; i<12; i++) { round_lyra(state); } 
 
   //state[0] ^= (ulong4)(0x20,0x20,0x20,0x01);
   //state[1] ^= (ulong4)(0x08,0x08,0x80,0x0100000000000000);
@@ -399,39 +402,42 @@ for (int i = 0; i<12; i++) { round_lyra(state); }
 	  for (int j = 0; j < 3; j++)
 		  (DMatrix)[j+s1] = state[j];
 
+    for (int j = 0; j < 3; j++)
+		  temp[3*(7-i)+j+24* get_local_id(0)] = state[j];
+
 	  round_lyra(state);
   }
 
-  reduceDuplexf(state, DMatrix);
+  ///// reduceduplexrow1 ////////////
+  reduceDuplexf_tmp(state,DMatrix,temp + 24 * get_local_id(0));
  
-  reduceDuplexRowSetupf(1, 0, 2, state, DMatrix);
-  reduceDuplexRowSetupf(2, 1, 3, state, DMatrix);
-  reduceDuplexRowSetupf(3, 0, 4, state, DMatrix);
-  reduceDuplexRowSetupf(4, 3, 5, state, DMatrix);
-  reduceDuplexRowSetupf(5, 2, 6, state, DMatrix);
-  reduceDuplexRowSetupf(6, 1, 7, state, DMatrix);
+  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 24 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 24 * get_local_id(0));
+
 
   rowa = state[0].x & 7;
-  reduceDuplexRowf(7, rowa, 0, state, DMatrix);
+  reduceDuplexRowf_tmp(7, rowa, 0, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(0, rowa, 3, state, DMatrix);
+  reduceDuplexRowf_tmp(0, rowa, 3, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(3, rowa, 6, state, DMatrix);
+  reduceDuplexRowf_tmp(3, rowa, 6, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(6, rowa, 1, state, DMatrix);
+  reduceDuplexRowf_tmp(6, rowa, 1, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(1, rowa, 4, state, DMatrix);
+  reduceDuplexRowf_tmp(1, rowa, 4, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(4, rowa, 7, state, DMatrix);
+  reduceDuplexRowf_tmp(4, rowa, 7, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(7, rowa, 2, state, DMatrix);
+  reduceDuplexRowf_tmp(7, rowa, 2, state, DMatrix, temp + 24 * get_local_id(0));
   rowa = state[0].x & 7;
-  reduceDuplexRowf(2, rowa, 5, state, DMatrix);
-
-  shift = (memshift * 8 * rowa);
+  reduceDuplexRowf_tmp2(2, rowa, 5, state, DMatrix, temp + 24 * get_local_id(0));
 
   for (int j = 0; j < 3; j++)
-	  state[j] ^= (DMatrix)[j+shift];
+	  state[j] ^= temp[j + 24 * get_local_id(0)]; //(DMatrix)[j+shift];
 
   for (int i = 0; i < 12; i++)
 	  round_lyra(state);
