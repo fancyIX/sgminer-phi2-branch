@@ -9,6 +9,7 @@
 
 #include "algorithm.h"
 #include "sph/sph_sha2.h"
+#include "sph/sph_cubehash.h"
 #include "ocl.h"
 #include "ocl/build_kernel.h"
 
@@ -45,6 +46,7 @@
 #include "algorithm/lbry.h"
 #include "algorithm/sibcoin.h"
 #include "algorithm/phi.h"
+#include "algorithm/phi2.h"
 
 #include "compat.h"
 
@@ -82,6 +84,7 @@ const char *algorithm_type_str[] = {
   "Vanilla",
   "Lbry",
   "Phi1612",
+  "Phi2",
   "Sibcoin"
 };
 
@@ -482,6 +485,62 @@ static cl_int queue_phi_kernel(struct __clState *clState, struct _dev_blk_ctx *b
   return status;
 }
 
+static cl_int queue_phi2_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+  cl_kernel *kernel;
+  unsigned int num;
+  cl_ulong le_target;
+  cl_int status = 0;
+
+  le_target = *(cl_ulong *)(blk->work->device_target + 24);
+  
+  bool has_roots = flip144(clState->cldata, blk->work->data);
+  if (has_roots) applog(LOG_WARNING, "=================== has_roots: %d \n", has_roots);  
+  sph_cubehash512_context ctx_cubehash;
+	sph_cubehash512_init(&ctx_cubehash);
+	sph_cubehash512(&ctx_cubehash, (void*)clState->cldata, 64);
+
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
+
+  // cubehash512_cuda_hash_80 - search
+  kernel = &clState->kernel;
+  num = 0;
+  CL_SET_ARG(clState->CLbuffer0);
+  CL_SET_ARG(clState->padbuffer8);
+  
+  kernel = clState->extra_kernels;
+  // lyra2_cuda_hash_64 - search1
+  num = 0;
+  CL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->buffer3);
+  // quark_jh512_cpu_hash_64 - search2
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // phi_filter_cuda - search3
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(clState->buffer2);
+  // streebog_cpu_hash_64 - search4
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // x11_echo512_cpu_hash_64 search5
+  CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
+  // x11_echo512_cpu_hash_64 search6
+  CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
+  // phi_merge_cuda search7
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(clState->buffer2);
+  // quark_skein512_cpu_hash_64 search8
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // phi_final_compress_cuda search9
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->outputBuffer);
+  CL_SET_ARG(le_target);
+
+  return status;
+}
 
 static cl_int queue_sibcoin_mod_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
@@ -1243,6 +1302,7 @@ static algorithm_settings_t algos[] = {
   { "talkcoin-mod", ALGO_NIST, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 8 * 16 * 4194304, 0, talkcoin_regenhash, NULL, NULL, queue_talkcoin_mod_kernel, gen_hash, append_x11_compiler_options },
 
   { "phi", ALGO_PHI, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 5, 8 * 16 * 4194304, 0, phi_regenhash, NULL, NULL, queue_phi_kernel, gen_hash, append_x11_compiler_options },
+  { "phi2", ALGO_PHI2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 9, 8 * 16 * 4194304, 0, phi2_regenhash, NULL, NULL, queue_phi2_kernel, gen_hash, append_x11_compiler_options },
 
   { "fresh", ALGO_FRESH, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 4 * 16 * 4194304, 0, fresh_regenhash, NULL, NULL, queue_fresh_kernel, gen_hash, NULL },
 

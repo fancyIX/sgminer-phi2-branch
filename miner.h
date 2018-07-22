@@ -716,6 +716,20 @@ static inline void flip80(void *dest_p, const void *src_p)
     dest[i] = swab32(src[i]);
 }
 
+static inline bool flip144(void *dest_p, const void *src_p)
+{
+  uint32_t *dest = (uint32_t *)dest_p;
+  const uint32_t *src = (uint32_t *)src_p;
+  int i;
+  bool ret = false;
+
+  for (i = 0; i < 20; i++) {
+    dest[i] = swab32(src[i]);
+    if (i >= 20 && src[i]) ret = true;
+  }
+    return ret;
+}
+
 static inline void flip112(void *dest_p, const void *src_p)
 {
   uint32_t *dest = (uint32_t *)dest_p;

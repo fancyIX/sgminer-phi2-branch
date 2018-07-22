@@ -439,7 +439,7 @@ char *set_profile_worksize(const char *arg)
 /***************************************
 * Helper Functions
 ****************************************/
-json_t *json_sprintf(const char *fmt, ...)
+json_t *sgminer_json_sprintf(const char *fmt, ...)
 {
   va_list args;
   char *buf;
@@ -452,7 +452,7 @@ json_t *json_sprintf(const char *fmt, ...)
   va_end(args);
 
   if(!(buf = (char *)malloc(++bufsize)))
-    quit(1, "Malloc failure in config_parser::json_sprintf().");
+    quit(1, "Malloc failure in config_parser::sgminer_json_sprintf().");
 
   //zero out buffer
   memset(buf, '\0', bufsize);
@@ -1315,7 +1315,7 @@ static json_t *build_pool_json()
     // add quota/url
     if(pool->quota != 1)
     {
-      json_pool_add(obj, "quota", json_sprintf("%s%s%s%d;%s",
+      json_pool_add(obj, "quota", sgminer_json_sprintf("%s%s%s%d;%s",
         ((pool->rpc_proxy)?(char *)proxytype(pool->rpc_proxytype):""),
         ((pool->rpc_proxy)?pool->rpc_proxy:""),
         ((pool->rpc_proxy)?"|":""),
@@ -1324,7 +1324,7 @@ static json_t *build_pool_json()
     }
     else
     {
-      json_pool_add(obj, "url", json_sprintf("%s%s%s%s",
+      json_pool_add(obj, "url", sgminer_json_sprintf("%s%s%s%s",
         ((pool->rpc_proxy)?(char *)proxytype(pool->rpc_proxytype):""),
         ((pool->rpc_proxy)?pool->rpc_proxy:""),
         ((pool->rpc_proxy)?"|":""),
@@ -1345,7 +1345,7 @@ static json_t *build_pool_json()
 
     // if priority isnt the same as array index, specify it
     if (pool->prio != i)
-      json_pool_add(obj, "priority", json_sprintf("%d", pool->prio), pool->pool_no);
+      json_pool_add(obj, "priority", sgminer_json_sprintf("%d", pool->prio), pool->pool_no);
 
     // if a profile was specified, add it then compare pool/profile settings to see what we write
     if (!empty_string(pool->profile))
@@ -1371,7 +1371,7 @@ static json_t *build_pool_json()
 
       // save nfactor also
       if (pool->algorithm.type == ALGO_NSCRYPT)
-        json_pool_add(obj, "nfactor", json_sprintf("%d", profile->algorithm.nfactor), pool->pool_no);
+        json_pool_add(obj, "nfactor", sgminer_json_sprintf("%d", profile->algorithm.nfactor), pool->pool_no);
     }
 
     // if pool and profile value doesn't match below, add it
@@ -1488,7 +1488,7 @@ static json_t *build_profile_settings_json(json_t *object, struct profile *profi
 
     // save nfactor also
     if (profile->algorithm.type == ALGO_NSCRYPT)
-      json_profile_add(object, "nfactor", json_sprintf("%u", profile->algorithm.nfactor), parentkey, profile->profile_no);
+      json_profile_add(object, "nfactor", sgminer_json_sprintf("%u", profile->algorithm.nfactor), parentkey, profile->profile_no);
   }
 
   // devices
@@ -1671,7 +1671,7 @@ void write_config(const char *filename)
       json_add(config, "round-robin", json_true());
       break;
     case POOL_ROTATE:
-      json_add(config, "rotate", json_sprintf("%d", opt_rotate_period));
+      json_add(config, "rotate", sgminer_json_sprintf("%d", opt_rotate_period));
       break;
     //default failover only
     default:
@@ -1703,14 +1703,14 @@ void write_config(const char *filename)
         int startd = i;
 
         if(extra_devs)
-          obj = json_sprintf("%s%s", json_string_value(obj), ",");
+          obj = sgminer_json_sprintf("%s%s", json_string_value(obj), ",");
 
         while (i < MAX_DEVICES && devices_enabled[i + 1])
           ++i;
 
-        obj = json_sprintf("%s%d", json_string_value(obj), startd);
+        obj = sgminer_json_sprintf("%s%d", json_string_value(obj), startd);
         if(i > startd)
-          obj = json_sprintf("%s-%d", json_string_value(obj), i);
+          obj = sgminer_json_sprintf("%s-%d", json_string_value(obj), i);
       }
     }
 
@@ -1731,19 +1731,19 @@ void write_config(const char *filename)
     #ifdef HAVE_ADL
       //temp-cutoff
       for(i = 0;i < nDevs; i++)
-        obj = json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), gpus[i].cutofftemp);
+        obj = sgminer_json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), gpus[i].cutofftemp);
 
       json_add(config, "temp-cutoff", obj);
 
       //temp-overheat
       for(i = 0;i < nDevs; i++)
-        obj = json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), gpus[i].adl.overtemp);
+        obj = sgminer_json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), gpus[i].adl.overtemp);
 
       json_add(config, "temp-overheat", obj);
 
       //temp-target
       for(i = 0;i < nDevs; i++)
-        obj = json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), gpus[i].adl.targettemp);
+        obj = sgminer_json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), gpus[i].adl.targettemp);
 
       json_add(config, "temp-target", obj);
 
@@ -1753,7 +1753,7 @@ void write_config(const char *filename)
 
       //gpu-memdiff - FIXME: should be moved to pool/profile options
       for(i = 0;i < nDevs; i++)
-        obj = json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), (int)gpus[i].gpu_memdiff);
+        obj = sgminer_json_sprintf("%s%s%d", ((i > 0)?json_string_value(obj):""), ((i > 0)?",":""), (int)gpus[i].gpu_memdiff);
 
       json_add(config, "gpu-memdiff", obj);
     #endif
@@ -1761,7 +1761,7 @@ void write_config(const char *filename)
 
   //add other misc options
   //shares
-  json_add(config, "shares", json_sprintf("%d", opt_shares));
+  json_add(config, "shares", sgminer_json_sprintf("%d", opt_shares));
 
   #if defined(unix) || defined(__APPLE__)
     //monitor
@@ -1782,11 +1782,11 @@ void write_config(const char *filename)
 
   //sched-time
   if(schedstart.enable)
-    json_add(config, "sched-time", json_sprintf("%d:%d", schedstart.tm.tm_hour, schedstart.tm.tm_min));
+    json_add(config, "sched-time", sgminer_json_sprintf("%d:%d", schedstart.tm.tm_hour, schedstart.tm.tm_min));
 
   //stop-time
   if(schedstop.enable)
-    json_add(config, "stop-time", json_sprintf("%d:%d", schedstop.tm.tm_hour, schedstop.tm.tm_min));
+    json_add(config, "stop-time", sgminer_json_sprintf("%d:%d", schedstop.tm.tm_hour, schedstop.tm.tm_min));
 
   //socks-proxy
   if(opt_socks_proxy && *opt_socks_proxy)
@@ -1847,7 +1847,7 @@ void write_config(const char *filename)
           (void *)opt->cb_arg == (void *)set_int_0_to_10 ||
           (void *)opt->cb_arg == (void *)set_int_1_to_10) && opt->desc != opt_hidden)
         {
-          json_add(config, p+2, json_sprintf("%d", *(int *)opt->u.arg));
+          json_add(config, p+2, sgminer_json_sprintf("%d", *(int *)opt->u.arg));
           break;  //exit for loop... so we don't enter a duplicate value if an option has multiple names
         }
       }
