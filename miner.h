@@ -723,9 +723,9 @@ static inline unsigned int flip144(void *dest_p, const void *src_p)
   int i;
   unsigned int ret = 0;
 
-  for (i = 0; i < 20; i++) {
+  for (i = 0; i < 36; i++) {
     dest[i] = swab32(src[i]);
-    if (i >= 20 && src[i]) ret = 1;
+    if (i > 20 && i <= 28 && src[i]) ret = 1;
   }
     return ret;
 }

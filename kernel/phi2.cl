@@ -25,6 +25,7 @@
  * ===========================(LICENSE END)=============================
  *
  * @author tpruvot 2016
+ * @author fancyIX 2018
  */
 
 #if __ENDIAN_LITTLE__
@@ -197,6 +198,12 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 
     } else {
     // cubehash512_cuda_hash_144
+    #ifdef DEBUG_PRINT
+    if (gid == 0x12345) {
+        printf("input: \n");
+        printblock(block, 144);
+    }
+    #endif
 
     sph_u32 x0 = SPH_C32(0x2AEA2A61), x1 = SPH_C32(0x50F494D4), x2 = SPH_C32(0x2D538B8B), x3 = SPH_C32(0x4167D83E);
     sph_u32 x4 = SPH_C32(0x3FEE2313), x5 = SPH_C32(0xC701CF8C), x6 = SPH_C32(0xCC39968E), x7 = SPH_C32(0x50AC5695);

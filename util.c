@@ -1501,6 +1501,7 @@ static char *json_array_string(json_t *val, unsigned int entry)
 }
 
 static char *blank_merkel = "0000000000000000000000000000000000000000000000000000000000000000";
+static char *workpadding = "000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000";
 
 static bool parse_notify(struct pool *pool, json_t *val)
 {
@@ -1594,27 +1595,59 @@ static bool parse_notify(struct pool *pool, json_t *val)
     pool->nonce2 = 0;
   pool->merkle_offset = strlen(pool->swork.bbversion) +
             strlen(pool->swork.prev_hash);
-  pool->merkle_offset /= 2;
-  header = (char *)alloca(257);
-  snprintf(header, 257,
-    "%s%s%s%s%s%s%s",
-    pool->swork.bbversion,
-    pool->swork.prev_hash,
-    blank_merkel,
-    has_trie ? trie : "",
-    pool->swork.ntime,
-    pool->swork.nbit,
-    "00000000" /* nonce */
-  );
-  header_len = strlen(header);
-  memset(header + header_len, '0', 256 - header_len);
-  header[256] = '\0';
-  if (unlikely(!hex2bin(pool->header_bin, header, 128))) {
-    applog(LOG_WARNING, "%s: Failed to convert header to header_bin, got %s", __func__, header);
-    pool_failed(pool);
-    // TODO: memory leaks? goto out, clean up there?
-    return false;
-  }
+  if(has_trie)
+  {
+	  pool->swork.header_len = pool->merkle_offset + 32 + 32 + strlen(pool->swork.ntime) + strlen(pool->swork.nbit) + 8 + 96;
+	  pool->merkle_offset /= 2;
+	  pool->swork.header_len = pool->swork.header_len * 2 + 1;
+	  align_len(&pool->swork.header_len);
+	  header = (char *)alloca(pool->swork.header_len);
+	  
+	  snprintf(header, pool->swork.header_len,
+		"%s%s%s%s%s%s%s",
+		pool->swork.bbversion,
+		pool->swork.prev_hash,
+		blank_merkel,
+		trie,
+		pool->swork.ntime,
+		pool->swork.nbit,
+		"00000000", /* nonce */
+		workpadding);
+	  if (unlikely(!hex2bin(pool->header_bin, header, strlen(header) / 2))) {
+		applog(LOG_WARNING, "%s: Failed to convert header to header_bin, got %s", __func__, header);
+		pool_failed(pool);
+		// TODO: memory leaks? goto out, clean up there?
+		return false;
+	  }
+	}
+  else
+  {
+	  pool->swork.header_len = pool->merkle_offset +
+	  /* merkle_hash */  32 +
+			 strlen(pool->swork.ntime) +
+			 strlen(pool->swork.nbit) +
+	  /* nonce */    8 +
+	  /* workpadding */  96;
+	  pool->merkle_offset /= 2;
+	  pool->swork.header_len = pool->swork.header_len * 2 + 1;
+	  align_len(&pool->swork.header_len);
+	  header = (char *)alloca(pool->swork.header_len);
+	  snprintf(header, pool->swork.header_len,
+		"%s%s%s%s%s%s%s",
+		pool->swork.bbversion,
+		pool->swork.prev_hash,
+		blank_merkel,
+		pool->swork.ntime,
+		pool->swork.nbit,
+		"00000000", /* nonce */
+		workpadding);
+	  if (unlikely(!hex2bin(pool->header_bin, header, 128))) {
+		applog(LOG_WARNING, "%s: Failed to convert header to header_bin, got %s", __func__, header);
+		pool_failed(pool);
+		// TODO: memory leaks? goto out, clean up there?
+		return false;
+	  }
+	}
 
   cb1 = (unsigned char *)calloc(cb1_len, 1);
   if (unlikely(!cb1))
