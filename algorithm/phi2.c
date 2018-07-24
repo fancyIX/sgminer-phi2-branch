@@ -54,8 +54,14 @@ static void phi2hash(void *state, const void *input)
 	sph_echo512_context ctx_echo;
 	sph_skein512_context ctx_skein;
 
+    bool has_roots = false;
+    const uint32_t *src = (uint32_t *)input;
+    for (int i = 0; i < 20; i++) {
+      if (i >= 20 && src[i]) has_roots = true;
+    }
+
 	sph_cubehash512_init(&ctx_cubehash);
-	sph_cubehash512(&ctx_cubehash, input, false ? 144 : 80);
+	sph_cubehash512(&ctx_cubehash, input, has_roots ? 144 : 80);
 	sph_cubehash512_close(&ctx_cubehash, (void*)hashB);
 
 	LYRA2(&hashA[ 0], 32, &hashB[ 0], 32, &hashB[ 0], 32, 1, 8, 8);
