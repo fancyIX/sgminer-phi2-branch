@@ -25,6 +25,8 @@
  *
  * This file was originally written by Colin Percival as part of the Tarsnap
  * online backup system.
+ * 
+ * @author fancyIX 2018
  */
 
 #include "config.h"
@@ -54,11 +56,8 @@ static void phi2hash(void *state, const void *input)
 	sph_echo512_context ctx_echo;
 	sph_skein512_context ctx_skein;
 
-    bool has_roots = false;
-    const uint32_t *src = (uint32_t *)input;
-    for (int i = 0; i < 20; i++) {
-      if (i >= 20 && src[i]) has_roots = true;
-    }
+    uint64_t* in64 = (uint64_t*)(input);
+    bool has_roots = in64[11] != 0 || in64[12] != 0;
 
 	sph_cubehash512_init(&ctx_cubehash);
 	sph_cubehash512(&ctx_cubehash, input, has_roots ? 144 : 80);
@@ -123,11 +122,11 @@ int phi2_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t nonce
 
 void phi2_regenhash(struct work *work)
 {
-        uint32_t data[20];
+        uint32_t data[36];
         uint32_t *nonce = (uint32_t *)(work->data + 76);
         uint32_t *ohash = (uint32_t *)(work->hash);
 
-        be32enc_vect(data, (const uint32_t *)work->data, 19);
+        be32enc_vect(data, (const uint32_t *)work->data, 36);
         data[19] = htobe32(*nonce);
         phi2hash(ohash, data);
 }
