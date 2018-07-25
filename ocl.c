@@ -827,8 +827,9 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     }
   }
   else if (algorithm->type == ALGO_PHI2) {
-    buf3size = LYRA2Z_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
-    bufsize = 8 * 16 * cgpu->thread_concurrency; //matrix
+    buf3size = LYRA2Z_SCRATCHBUF_SIZE * cgpu->thread_concurrency; //matrix
+    buf2size = 1 * cgpu->thread_concurrency;
+    bufsize = 8 * 8 * cgpu->thread_concurrency; 
 
     readbufsize = 144;
 
@@ -888,7 +889,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
         return NULL;
       }
-      clState->buffer2 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status); // we don't need that much just tired...
+      clState->buffer2 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf2size, NULL, &status); // we don't need that much just tired...
       if (status != CL_SUCCESS && !clState->buffer2) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer2), decrease TC or increase LG", status);
         return NULL;
