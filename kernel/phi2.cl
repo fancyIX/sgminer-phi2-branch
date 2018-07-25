@@ -307,28 +307,23 @@ __kernel void search1(__global uchar* hashes,__global uchar* matrix)
 {
  uint gid = get_global_id(0);
  // __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-  __global hash_t *hash = (__global hash_t *)(hashes + (8 * sizeof(ulong)* (gid - get_global_offset(0))));
+  __global hash_t *hash = (__global hash_t *)(hashes + (8 * 8 * sizeof(ulong)* (gid - get_global_offset(0))));
   __global ulong4 *DMatrix = (__global ulong4 *)(matrix + (4 * memshift * 8 * 8 * 8 * (gid - get_global_offset(0))));
 
 //  uint offset = (4 * memshift * 4 * 4 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS))/32;
   ulong4 state[4];
   __local ulong4 temp[24*WORKSIZE];
 
-  state[0].x = hash->h8[0]; //password
-  state[0].y = hash->h8[1]; //password
-  state[0].z = hash->h8[2]; //password
-  state[0].w = hash->h8[3]; //password
+  for (int index = 0; index < 8; index++) {
+  state[0].x = hash[index].h8[0]; //password
+  state[0].y = hash[index].h8[1]; //password
+  state[0].z = hash[index].h8[2]; //password
+  state[0].w = hash[index].h8[3]; //password
   state[1] = state[0];
   state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
   state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
-
-  //state[0] ^= (ulong4)(0x20,0x20,0x20,0x01);
-  //state[1] ^= (ulong4)(0x08,0x08,0x80,0x0100000000000000);
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
+  for (int i = 0; i<24; i++) { round_lyra(state); } 
 
 // reducedsqueezedrow0
   uint ps1 = (memshift * 7);
@@ -380,25 +375,19 @@ __kernel void search1(__global uchar* hashes,__global uchar* matrix)
   for (int i = 0; i < 12; i++)
 	  round_lyra(state);
 
-  for (int i = 0; i<4; i++) {hash->h8[i] = ((ulong*)state)[i];} 
+  for (int i = 0; i<4; i++) {hash[index].h8[i] = ((ulong*)state)[i];} 
 
 //================================================= 2nd half
 
-state[0].x = hash->h8[0 + 4]; //password
-  state[0].y = hash->h8[1 + 4]; //password
-  state[0].z = hash->h8[2 + 4]; //password
-  state[0].w = hash->h8[3 + 4]; //password
+  state[0].x = hash[index].h8[0 + 4]; //password
+  state[0].y = hash[index].h8[1 + 4]; //password
+  state[0].z = hash[index].h8[2 + 4]; //password
+  state[0].w = hash[index].h8[3 + 4]; //password
   state[1] = state[0];
   state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
   state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
-
-  //state[0] ^= (ulong4)(0x20,0x20,0x20,0x01);
-  //state[1] ^= (ulong4)(0x08,0x08,0x80,0x0100000000000000);
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
+  for (int i = 0; i<24; i++) { round_lyra(state); } 
 
 // reducedsqueezedrow0
    ps1 = (memshift * 7);
@@ -449,7 +438,8 @@ state[0].x = hash->h8[0 + 4]; //password
   for (int i = 0; i < 12; i++)
 	  round_lyra(state);
 
-  for (int i = 0; i<4; i++) {hash->h8[i + 4] = ((ulong*)state)[i];} 
+  for (int i = 0; i<4; i++) {hash[index].h8[i + 4] = ((ulong*)state)[i];} 
+  }
 
 
 barrier(CLK_LOCAL_MEM_FENCE);

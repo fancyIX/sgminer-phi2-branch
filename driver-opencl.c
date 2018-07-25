@@ -1433,6 +1433,12 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   }
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
+    if (i == 0 && gpu->algorithm.type == ALGO_PHI2) {
+      size_t globalThreads4[1];
+      globalThreads4[0] = globalThreads[0] / 8;
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+      globalThreads4, localThreads, 0, NULL, NULL);
+    } else
     status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
       globalThreads, localThreads, 0, NULL, NULL);
     if (unlikely(status != CL_SUCCESS)) {

@@ -673,6 +673,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     // TC is glob thread count
     cgpu->thread_concurrency = glob_thread_count;
 
+    if (cgpu->algorithm.type == ALGO_PHI2) {
+      cgpu->thread_concurrency *= 8;
+    }
+
     applog(LOG_DEBUG, "GPU %d: computing max. global thread count to %u", gpu, (unsigned)(cgpu->thread_concurrency));
   }
   else if (!cgpu->opt_tc) {
@@ -827,7 +831,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     }
   }
   else if (algorithm->type == ALGO_PHI2) {
-    buf3size = LYRA2Z_SCRATCHBUF_SIZE * cgpu->thread_concurrency; //matrix
+    buf3size = LYRA2Z_SCRATCHBUF_SIZE * cgpu->thread_concurrency / 8; //matrix
     buf2size = 1 * cgpu->thread_concurrency;
     bufsize = 8 * 8 * cgpu->thread_concurrency; 
 
