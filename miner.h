@@ -2,7 +2,9 @@
 #define MINER_H
 
 #include "config.h"
-
+#ifdef __MINGW32__
+#include <winsock2.h>
+#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/time.h>

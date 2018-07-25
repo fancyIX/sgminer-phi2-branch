@@ -1,6 +1,10 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#ifdef __MINGW32__
+#include <winsock2.h>
+#include <errno.h>
+#endif
 #include <semaphore.h>
 
 #if defined(unix) || defined(__APPLE__)
