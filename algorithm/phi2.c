@@ -122,13 +122,13 @@ int phi2_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t nonce
 
 void phi2_regenhash(struct work *work)
 {
-        uint32_t data[36];
-        uint32_t *nonce = (uint32_t *)(work->data + 76);
-        uint32_t *ohash = (uint32_t *)(work->hash);
+	uint32_t data[36];
+	uint32_t *nonce = (uint32_t *)(work->data + 76);
+	uint32_t *ohash = (uint32_t *)(work->hash);
 
-        be32enc_vect(data, (const uint32_t *)work->data, 36);
-        data[19] = htobe32(*nonce);
-        phi2hash(ohash, data);
+	be32enc_vect(data, (const uint32_t *)work->data, 36);
+	data[19] = htobe32(*nonce);
+	phi2hash(ohash, data);
 }
 
 bool scanhash_phi2(struct thr_info *thr, const unsigned char __maybe_unused *pmidstate,

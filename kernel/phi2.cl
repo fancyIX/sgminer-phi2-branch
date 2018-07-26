@@ -1,4 +1,4 @@
-/* Phi kernel implementation.
+/* Phi2 kernel implementation.
  *
  * ==========================(LICENSE BEGIN)============================
  *
@@ -119,14 +119,8 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
     uint gid = get_global_id(0);
     __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-    if (!has_roots) {
+  if (!has_roots) {
 // cubehash512_cuda_hash_80
-    #ifdef DEBUG_PRINT
-    if (gid == 0x12345) {
-        printf("input: \n");
-        printblock(block, 80);
-    }
-    #endif
 
     sph_u32 x0 = SPH_C32(0x2AEA2A61), x1 = SPH_C32(0x50F494D4), x2 = SPH_C32(0x2D538B8B), x3 = SPH_C32(0x4167D83E);
     sph_u32 x4 = SPH_C32(0x3FEE2313), x5 = SPH_C32(0xC701CF8C), x6 = SPH_C32(0xCC39968E), x7 = SPH_C32(0x50AC5695);
@@ -188,22 +182,10 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
     hash->h4[14] = xe;
     hash->h4[15] = xf;
 
-    #ifdef DEBUG_PRINT
-    if (gid == 0x12345) {
-        printf("cubehash_80 output: \n");
-        printhash(*hash);
-    }
-    #endif
     barrier(CLK_GLOBAL_MEM_FENCE);
 
-    } else {
+  } else {
     // cubehash512_cuda_hash_144
-    #ifdef DEBUG_PRINT
-    if (gid == 0x12345) {
-        printf("input: \n");
-        printblock(block, 144);
-    }
-    #endif
 
     sph_u32 x0 = SPH_C32(0x2AEA2A61), x1 = SPH_C32(0x50F494D4), x2 = SPH_C32(0x2D538B8B), x3 = SPH_C32(0x4167D83E);
     sph_u32 x4 = SPH_C32(0x3FEE2313), x5 = SPH_C32(0xC701CF8C), x6 = SPH_C32(0xCC39968E), x7 = SPH_C32(0x50AC5695);
@@ -245,7 +227,7 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 
     SIXTEEN_ROUNDS;
 
-   x0 ^= DEC32LE(block + 96);
+    x0 ^= DEC32LE(block + 96);
     x1 ^= DEC32LE(block + 100);
     x2 ^= DEC32LE(block + 104);
     x3 ^= DEC32LE(block + 108);
@@ -287,14 +269,8 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
     hash->h4[14] = xe;
     hash->h4[15] = xf;
 
-    #ifdef DEBUG_PRINT
-    if (gid == 0x12345) {
-        printf("cubehash_144 output: \n");
-        printhash(*hash);
-    }
-    #endif
     barrier(CLK_GLOBAL_MEM_FENCE);
-    }
+  }
 }
 
 
@@ -305,8 +281,8 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search1(__global uchar* hashes,__global uchar* matrix)
 {
- uint gid = get_global_id(0);
- // __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  uint gid = get_global_id(0);
+  // __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *hash = (__global hash_t *)(hashes + (8 * sizeof(ulong)* (gid - get_global_offset(0))));
   __global ulong4 *DMatrix = (__global ulong4 *)(matrix + (4 * memshift * 8 * 8 * 8 * (gid - get_global_offset(0))));
 
@@ -322,13 +298,7 @@ __kernel void search1(__global uchar* hashes,__global uchar* matrix)
   state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
   state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
-
-  //state[0] ^= (ulong4)(0x20,0x20,0x20,0x01);
-  //state[1] ^= (ulong4)(0x08,0x08,0x80,0x0100000000000000);
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
+  for (int i = 0; i<24; i++) { round_lyra(state); } 
 
 // reducedsqueezedrow0
   uint ps1 = (memshift * 7);
@@ -384,7 +354,7 @@ __kernel void search1(__global uchar* hashes,__global uchar* matrix)
 
 //================================================= 2nd half
 
-state[0].x = hash->h8[0 + 4]; //password
+  state[0].x = hash->h8[0 + 4]; //password
   state[0].y = hash->h8[1 + 4]; //password
   state[0].z = hash->h8[2 + 4]; //password
   state[0].w = hash->h8[3 + 4]; //password
@@ -392,13 +362,7 @@ state[0].x = hash->h8[0 + 4]; //password
   state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
   state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
-
-  //state[0] ^= (ulong4)(0x20,0x20,0x20,0x01);
-  //state[1] ^= (ulong4)(0x08,0x08,0x80,0x0100000000000000);
-
-  for (int i = 0; i<12; i++) { round_lyra(state); } 
+  for (int i = 0; i<24; i++) { round_lyra(state); } 
 
 // reducedsqueezedrow0
    ps1 = (memshift * 7);
@@ -451,10 +415,7 @@ state[0].x = hash->h8[0 + 4]; //password
 
   for (int i = 0; i<4; i++) {hash->h8[i + 4] = ((ulong*)state)[i];} 
 
-
-barrier(CLK_LOCAL_MEM_FENCE);
-
-
+  barrier(CLK_LOCAL_MEM_FENCE);
 }
 
 
@@ -524,17 +485,17 @@ __kernel void search3(__global hash_t* hashes, __global hash_t* branches, __glob
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
   __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
-     *nonceBranch = hash->h1[0] & 1;
-		if (*nonceBranch) return;
+  *nonceBranch = hash->h1[0] & 1;
+	if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((branch));
-      __global uint4 *psrc = (__global uint4*)((hash));
-      uint4 data;
-			data = psrc[0]; pdst[0] = data;
-			data = psrc[1]; pdst[1] = data;
-			data = psrc[2]; pdst[2] = data;
-			data = psrc[3]; pdst[3] = data;
+  __global uint4 *psrc = (__global uint4*)((hash));
+  uint4 data;
+	data = psrc[0]; pdst[0] = data;
+	data = psrc[1]; pdst[1] = data;
+	data = psrc[2]; pdst[2] = data;
+	data = psrc[3]; pdst[3] = data;
 
-      barrier(CLK_GLOBAL_MEM_FENCE);
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
@@ -545,39 +506,38 @@ __kernel void search4(__global hash_t* hashes)
 
   // gost streebog_cpu_hash_64
 
-    sph_u64 message[8], out[8];
-    sph_u64 len = 512;
+  sph_u64 message[8], out[8];
+  sph_u64 len = 512;
 
-    __local sph_u64 lT[8][256];
+  __local sph_u64 lT[8][256];
 
-    int init = get_local_id(0);
-    int step = get_local_size(0);
+  int init = get_local_id(0);
+  int step = get_local_size(0);
 
-    _Pragma("unroll") for(int j=init;j<256;j+=step) {
-        _Pragma("unroll") for (int i=0; i<8; i++) lT[i][j] = T[i][j];
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
+  _Pragma("unroll") for(int j=init;j<256;j+=step) {
+      _Pragma("unroll") for (int i=0; i<8; i++) lT[i][j] = T[i][j];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
 
-    message[0] = (hash->h8[0]);
-    message[1] = (hash->h8[1]);
-    message[2] = (hash->h8[2]);
-    message[3] = (hash->h8[3]);
-    message[4] = (hash->h8[4]);
-    message[5] = (hash->h8[5]);
-    message[6] = (hash->h8[6]);
-    message[7] = (hash->h8[7]);
+  message[0] = (hash->h8[0]);
+  message[1] = (hash->h8[1]);
+  message[2] = (hash->h8[2]);
+  message[3] = (hash->h8[3]);
+  message[4] = (hash->h8[4]);
+  message[5] = (hash->h8[5]);
+  message[6] = (hash->h8[6]);
+  message[7] = (hash->h8[7]);
 
-    GOST_HASH_512(message, out);
+  GOST_HASH_512(message, out);
 
-    hash->h8[0] = (out[0]);
-    hash->h8[1] = (out[1]);
-    hash->h8[2] = (out[2]);
-    hash->h8[3] = (out[3]);
-    hash->h8[4] = (out[4]);
-    hash->h8[5] = (out[5]);
-    hash->h8[6] = (out[6]);
-    hash->h8[7] = (out[7]);
-
+  hash->h8[0] = (out[0]);
+  hash->h8[1] = (out[1]);
+  hash->h8[2] = (out[2]);
+  hash->h8[3] = (out[3]);
+  hash->h8[4] = (out[4]);
+  hash->h8[5] = (out[5]);
+  hash->h8[6] = (out[6]);
+  hash->h8[7] = (out[7]);
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -662,14 +622,14 @@ __kernel void search5(__global hash_t* hashes)
   Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
   Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
 
-  	hash->h8[0] = Vb00;
-		hash->h8[1] = Vb01;
-		hash->h8[2] = Vb10;
-		hash->h8[3] = Vb11;
-		hash->h8[4] = Vb20;
-		hash->h8[5] = Vb21;
-		hash->h8[6] = Vb30;
-		hash->h8[7] = Vb31;
+  hash->h8[0] = Vb00;
+  hash->h8[1] = Vb01;
+  hash->h8[2] = Vb10;
+  hash->h8[3] = Vb11;
+  hash->h8[4] = Vb20;
+  hash->h8[5] = Vb21;
+  hash->h8[6] = Vb30;
+  hash->h8[7] = Vb31;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -753,14 +713,14 @@ __kernel void search6(__global hash_t* hashes)
   Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
   Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
 
-  	hash->h8[0] = Vb00;
-		hash->h8[1] = Vb01;
-		hash->h8[2] = Vb10;
-		hash->h8[3] = Vb11;
-		hash->h8[4] = Vb20;
-		hash->h8[5] = Vb21;
-		hash->h8[6] = Vb30;
-		hash->h8[7] = Vb31;
+  hash->h8[0] = Vb00;
+  hash->h8[1] = Vb01;
+  hash->h8[2] = Vb10;
+  hash->h8[3] = Vb11;
+  hash->h8[4] = Vb20;
+  hash->h8[5] = Vb21;
+  hash->h8[6] = Vb30;
+  hash->h8[7] = Vb31;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -769,26 +729,26 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search7(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
 {
 //phi_merge_cuda
-    uint gid = get_global_id(0);
+  uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
   __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
-		if (*nonceBranch) return;
+  if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((hash));
-      __global uint4 *psrc = (__global uint4*)((branch));
-      uint4 data;
-			data = psrc[0]; pdst[0] = data;
-			data = psrc[1]; pdst[1] = data;
-			data = psrc[2]; pdst[2] = data;
-			data = psrc[3]; pdst[3] = data;
-      barrier(CLK_GLOBAL_MEM_FENCE);
+  __global uint4 *psrc = (__global uint4*)((branch));
+  uint4 data;
+  data = psrc[0]; pdst[0] = data;
+  data = psrc[1]; pdst[1] = data;
+  data = psrc[2]; pdst[2] = data;
+  data = psrc[3]; pdst[3] = data;
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search8(__global hash_t* hashes)
 {
-    uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  uint gid = get_global_id(0);
+  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
 // quark_skein512_cpu_hash_64
 
@@ -817,27 +777,27 @@ __kernel void search8(__global hash_t* hashes)
   hash->h8[6] = (h6);
   hash->h8[7] = (h7);
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search9(__global hash_t* hashes, __global uint* output, const ulong target)
 {
 // phi_final_compress_cuda
- uint gid = get_global_id(0);
+  uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-   __global uint2 *pdst = (__global uint2*)((hash));
-      __global uint2 *psrc = (__global uint2*)((hash));
-      uint2 data;
-		  data = psrc[4]; pdst[0] ^= data;
-		  data = psrc[5]; pdst[1] ^= data;
-	   	data = psrc[6]; pdst[2] ^= data;
-		  data = psrc[7]; pdst[3] ^= data;
+  __global uint2 *pdst = (__global uint2*)((hash));
+  __global uint2 *psrc = (__global uint2*)((hash));
+  uint2 data;
+  data = psrc[4]; pdst[0] ^= data;
+  data = psrc[5]; pdst[1] ^= data;
+  data = psrc[6]; pdst[2] ^= data;
+  data = psrc[7]; pdst[3] ^= data;
 
-    bool result = ((hash->h8[3]) <= target);
-    if (result)
-      output[atomic_inc(output+0xFF)] = SWAP4(gid);
+  bool result = ((hash->h8[3]) <= target);
+  if (result)
+    output[atomic_inc(output+0xFF)] = SWAP4(gid);
 
-    barrier(CLK_GLOBAL_MEM_FENCE);
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
