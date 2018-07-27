@@ -150,7 +150,7 @@ yescrypt_r(const yescrypt_shared_t * shared, yescrypt_local_t * local,
 		fflush(stdout);
 		return NULL; 
 		}
-		flags = decoded_flags;
+		flags = (yescrypt_flags_t)decoded_flags;
 		if (*++src != '$')
 	    {	
         fflush(stdout);
@@ -199,12 +199,14 @@ yescrypt_r(const yescrypt_shared_t * shared, yescrypt_local_t * local,
          }
 
 fflush(stdout);
+#ifndef WIN32
 	if (yescrypt_kdf(shared, local, passwd, passwdlen, salt, saltlen,
 	    N, r, p, 0, flags, hash, sizeof(hash)))
 	    {
         fflush(stdout);
 		return NULL; 
         }
+#endif
 
 	dst = buf;
 	memcpy(dst, setting, prefixlen + saltlen);
@@ -231,6 +233,7 @@ yescrypt(const uint8_t * passwd, const uint8_t * setting)
 	yescrypt_shared_t shared;
 	yescrypt_local_t local;
 	uint8_t * retval;
+#ifndef WIN32
 	if (yescrypt_init_shared(&shared, NULL, 0,
 	    0, 0, 0, YESCRYPT_SHARED_DEFAULTS, 0, NULL, 0))
 		return NULL;
@@ -238,15 +241,18 @@ yescrypt(const uint8_t * passwd, const uint8_t * setting)
 		yescrypt_free_shared(&shared);
 		return NULL;
 	}
+#endif
 	retval = yescrypt_r(&shared, &local,
 	    passwd, 80, setting, buf, sizeof(buf));
         // printf("hashse='%s'\n", (char *)retval);
+#ifndef WIN32
 	if (yescrypt_free_local(&local)) {
 		yescrypt_free_shared(&shared);
 		return NULL;
 	}
 	if (yescrypt_free_shared(&shared))
 		return NULL;
+#endif
 	return retval;
       
 }
@@ -263,7 +269,7 @@ yescrypt_gensalt_r(uint32_t N_log2, uint32_t r, uint32_t p,
 	size_t need;
 
 	if (p == 1)
-		flags &= ~YESCRYPT_PARALLEL_SMIX;
+		flags = (yescrypt_flags_t)(flags & ~YESCRYPT_PARALLEL_SMIX);
 
 	if (flags) {
 		if (flags & ~0x3f)
@@ -325,9 +331,9 @@ yescrypt_bsty(const uint8_t * passwd, size_t passwdlen,
     const uint8_t * salt, size_t saltlen, uint64_t N, uint32_t r, uint32_t p,
     uint8_t * buf, size_t buflen)
 {
-	static __thread int initialized = 0;
-	static __thread yescrypt_shared_t shared;
-	static __thread yescrypt_local_t local;
+	static  int initialized = 0;
+	static  yescrypt_shared_t shared;
+	static  yescrypt_local_t local;
 
 //		static __declspec(thread) int initialized = 0;
 //		static __declspec(thread) yescrypt_shared_t shared;
@@ -337,6 +343,7 @@ yescrypt_bsty(const uint8_t * passwd, size_t passwdlen,
 	if (!initialized) {
 /* "shared" could in fact be shared, but it's simpler to keep it private
  * along with "local".  It's dummy and tiny anyway. */
+#ifndef WIN32
 		if (yescrypt_init_shared(&shared, NULL, 0,
 		    0, 0, 0, YESCRYPT_SHARED_DEFAULTS, 0, NULL, 0))
 			return -1;
@@ -344,11 +351,14 @@ yescrypt_bsty(const uint8_t * passwd, size_t passwdlen,
 			yescrypt_free_shared(&shared);
 			return -1;
 		}
+#endif
 		initialized = 1;
  	}
+#ifndef WIN32
 	retval = yescrypt_kdf(&shared, &local,
-	    passwd, passwdlen, salt, saltlen, N, r, p, 0, YESCRYPT_FLAGS,
-	    buf, buflen);		
+		passwd, passwdlen, salt, saltlen, N, r, p, 0, (yescrypt_flags_t)YESCRYPT_FLAGS,
+	    buf, buflen);	
+#endif	
 
 	return retval;
 }

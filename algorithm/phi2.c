@@ -36,7 +36,7 @@
 #include <stdint.h>
 #include <string.h>
 
-
+#include "lyra2.h"
 #include "sph/sph_skein.h"
 #include "sph/sph_jh.h"
 #include "sph/sph_cubehash.h"

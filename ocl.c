@@ -833,7 +833,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
     readbufsize = 144;
 
-    applog(LOG_DEBUG, "phi2 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)buf1size);
+    applog(LOG_DEBUG, "phi2 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
   }
   else {
     bufsize = (size_t)algorithm->rw_buffer_size;
