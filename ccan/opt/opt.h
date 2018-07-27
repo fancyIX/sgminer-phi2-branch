@@ -342,6 +342,10 @@ void _opt_register(const char *names, enum opt_type type,
 		   const void *arg, const char *desc);
 
 /* We use this to get typechecking for OPT_SUBTABLE */
+#ifndef WIN32
 static inline int _check_is_entry(struct opt_table *e UNUSED) { return 0; }
+#else
+static inline int _check_is_entry(struct opt_table *e) { return 0; }
+#endif
 
 #endif /* CCAN_OPT_H */

@@ -156,12 +156,13 @@ typedef enum {
  *
  * MT-safe as long as shared is local to the thread.
  */
+#ifndef WIN32
 extern int yescrypt_init_shared(yescrypt_shared_t * __shared,
 	const uint8_t * __param, size_t __paramlen,
 	uint64_t __N, uint32_t __r, uint32_t __p,
 	yescrypt_init_shared_flags_t __flags, uint32_t __mask,
 	uint8_t * __buf, size_t __buflen);
-
+#endif
 /**
  * yescrypt_free_shared(shared):
  * Free memory that had been allocated with yescrypt_init_shared().
@@ -170,7 +171,9 @@ extern int yescrypt_init_shared(yescrypt_shared_t * __shared,
  *
  * MT-safe as long as shared is local to the thread.
  */
+#ifndef WIN32
 extern int yescrypt_free_shared(yescrypt_shared_t * __shared);
+#endif
 
 /**
  * yescrypt_init_local(local):
@@ -181,7 +184,9 @@ extern int yescrypt_free_shared(yescrypt_shared_t * __shared);
  *
  * MT-safe as long as local is local to the thread.
  */
+#ifndef WIN32
 extern int yescrypt_init_local(yescrypt_local_t * __local);
+#endif
 
 /**
  * yescrypt_free_local(local):
@@ -192,7 +197,9 @@ extern int yescrypt_init_local(yescrypt_local_t * __local);
  *
  * MT-safe as long as local is local to the thread.
  */
+#ifndef WIN32
 extern int yescrypt_free_local(yescrypt_local_t * __local);
+#endif
 
 /**
  * yescrypt_kdf(shared, local, passwd, passwdlen, salt, saltlen,
@@ -290,6 +297,7 @@ extern int yescrypt_free_local(yescrypt_local_t * __local);
  *
  * MT-safe as long as local and buf are local to the thread.
  */
+#ifndef WIN32
 extern int yescrypt_kdf(const yescrypt_shared_t * __shared,
 	yescrypt_local_t * __local,
 	const uint8_t * __passwd, size_t __passwdlen,
@@ -297,6 +305,7 @@ extern int yescrypt_kdf(const yescrypt_shared_t * __shared,
 	uint64_t __N, uint32_t __r, uint32_t __p, uint32_t __t,
 	yescrypt_flags_t __flags,
 	uint8_t * __buf, size_t __buflen);
+#endif
 
 /**
  * yescrypt_r(shared, local, passwd, passwdlen, setting, buf, buflen):
