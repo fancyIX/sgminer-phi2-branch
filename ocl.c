@@ -595,7 +595,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     if (cgpu->algorithm.type == ALGO_LYRA2REV2) {
       scratchbuf_size = LYRA_SCRATCHBUF_SIZE;
     } else {
-      scratchbuf_size = LYRA2Z_SCRATCHBUF_SIZE;
+      scratchbuf_size = LYRA2_STATE_BUF_SIZE + LYRA2_MATRIX_BUF_SIZE;
     }
 
     // determine which intensity type to use
@@ -827,8 +827,9 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     }
   }
   else if (algorithm->type == ALGO_PHI2) {
-    buf3size = LYRA2Z_SCRATCHBUF_SIZE * cgpu->thread_concurrency; //matrix
-    buf2size = 1 * cgpu->thread_concurrency;
+    buf3size = (LYRA2_STATE_BUF_SIZE) * cgpu->thread_concurrency; // lyraStates
+    buf2size = LYRA2_MATRIX_BUF_SIZE * cgpu->thread_concurrency;
+    //buf2size = 1 * cgpu->thread_concurrency;
     bufsize = 8 * 8 * cgpu->thread_concurrency; 
 
     readbufsize = 144;

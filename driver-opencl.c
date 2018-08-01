@@ -1433,8 +1433,26 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   }
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
-    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
-      globalThreads, localThreads, 0, NULL, NULL);
+    if (gpu->algorithm.type == ALGO_PHI2) {
+      size_t globalThreads2[1];
+      size_t localThreads2[1];
+      if (i == 0 || i == 2) { // lyra p1 & p3
+        globalThreads2[0] = globalThreads[0] * 2;
+        localThreads2[0] = localThreads[0];
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+          globalThreads2, localThreads2, 0, NULL, NULL);
+      } else if (i == 1) { // lyra p2
+        globalThreads2[0] = globalThreads[0] * 2 * 4;
+        localThreads2[0] = localThreads[0];
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+          globalThreads2, localThreads2, 0, NULL, NULL);
+      } else {
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+          globalThreads, localThreads, 0, NULL, NULL);
+      }
+    } else
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+        globalThreads, localThreads, 0, NULL, NULL);
     if (unlikely(status != CL_SUCCESS)) {
       applog(LOG_ERR, "Error %d: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)", status);
       return -1;

@@ -510,31 +510,37 @@ static cl_int queue_phi2_kernel(struct __clState *clState, struct _dev_blk_ctx *
   CL_SET_ARG(has_roots);
   
   kernel = clState->extra_kernels;
-  // lyra2_cuda_hash_64 - search1
+  // lyra2_cuda_hash_64 - search1 2 3
   num = 0;
   CL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer3);
-  // quark_jh512_cpu_hash_64 - search2
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->buffer3);
+  CL_SET_ARG(clState->buffer2);
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->buffer3);
+  // quark_jh512_cpu_hash_64 - search4
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
-  // phi_filter_cuda - search3
+  // phi_filter_cuda - search5
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);
   CL_SET_ARG(clState->buffer2);
-  // streebog_cpu_hash_64 - search4
+  // streebog_cpu_hash_64 - search6
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
-  // x11_echo512_cpu_hash_64 search5
+  // x11_echo512_cpu_hash_64 search7
   CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
-  // x11_echo512_cpu_hash_64 search6
+  // x11_echo512_cpu_hash_64 search8
   CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
-  // phi_merge_cuda search7
+  // phi_merge_cuda search9
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);
   CL_SET_ARG(clState->buffer2);
-  // quark_skein512_cpu_hash_64 search8
+  // quark_skein512_cpu_hash_64 search10
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
-  // phi_final_compress_cuda search9
+  // phi_final_compress_cuda search11
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->outputBuffer);
@@ -1303,7 +1309,7 @@ static algorithm_settings_t algos[] = {
   { "talkcoin-mod", ALGO_NIST, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 8 * 16 * 4194304, 0, talkcoin_regenhash, NULL, NULL, queue_talkcoin_mod_kernel, gen_hash, append_x11_compiler_options },
 
   { "phi", ALGO_PHI, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 5, 8 * 16 * 4194304, 0, phi_regenhash, NULL, NULL, queue_phi_kernel, gen_hash, append_x11_compiler_options },
-  { "phi2", ALGO_PHI2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 9, 8 * 16 * 4194304, 0, phi2_regenhash, NULL, NULL, queue_phi2_kernel, gen_hash, append_x11_compiler_options },
+  { "phi2", ALGO_PHI2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 11, 8 * 16 * 4194304, 0, phi2_regenhash, NULL, NULL, queue_phi2_kernel, gen_hash, append_x11_compiler_options },
 
   { "fresh", ALGO_FRESH, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 4 * 16 * 4194304, 0, fresh_regenhash, NULL, NULL, queue_fresh_kernel, gen_hash, NULL },
 

@@ -68,7 +68,8 @@ typedef int sph_s32;
 #include "gost-mod.cl"
 #include "echo.cl"
 #define memshift 3
-#include "lyra2v16.cl"
+#include "lyra2f.cl"
+//#include "lyra2v16t.cl" TBR
 
 #define SWAP4(x) as_uint(as_uchar4(x).wzyx)
 #define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
@@ -92,11 +93,27 @@ typedef union {
 } hash_t;
 
 typedef union {
-  unsigned char h1[32];
-  unsigned short h2[16];
-  uint h4[8];
-  ulong h8[4];
+    uint h4[8];
+    ulong h8[4];
+    uint4 h16[2];
+    ulong2 hl16[2];
+    ulong4 h32;
 } hash2_t;
+
+typedef union {
+    uint h4[32];
+    ulong h8[16];
+    uint4 h16[8];
+    ulong2 hl16[8];
+    ulong4 h32[4];
+} lyraState_t;
+
+struct SharedState
+{
+    ulong s0;
+    ulong s1;
+    ulong s2;
+};
 
 #define SWAP8_INPUT(x)   x
 #define SWAP8_USELESS(x) x
@@ -275,152 +292,506 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 
 
 
-/// lyra2 algo 
+/// lyra2 p1 
 
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search1(__global uchar* hashes,__global uchar* matrix)
+__attribute__((reqd_work_group_size(WORKSIZE2, 1, 1)))
+__kernel void search1(__global uint* hashes, __global uint* lyraStates)
 {
-  uint gid = get_global_id(0);
-  // __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-  __global hash_t *hash = (__global hash_t *)(hashes + (8 * sizeof(ulong)* (gid - get_global_offset(0))));
-  __global ulong4 *DMatrix = (__global ulong4 *)(matrix + (4 * memshift * 8 * 8 * 8 * (gid - get_global_offset(0))));
+    int gid = get_global_id(0);
+    
+    __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid-get_global_offset(0))));
 
-//  uint offset = (4 * memshift * 4 * 4 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS))/32;
-  ulong4 state[4];
-  __local ulong4 temp[24*WORKSIZE];
+    ulong ttr;
 
-  state[0].x = hash->h8[0]; //password
-  state[0].y = hash->h8[1]; //password
-  state[0].z = hash->h8[2]; //password
-  state[0].w = hash->h8[3]; //password
-  state[1] = state[0];
-  state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
-  state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
+    ulong2 state[8];
+    // state0
+    state[0] = hash->hl16[0];
+    state[1] = hash->hl16[1];
+    // state1
+    state[2] = state[0];
+    state[3] = state[1];
+    // state2
+    state[4] = (ulong2)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL);
+    state[5] = (ulong2)(0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
+    // state3 (low,high,..
+    state[6] = (ulong2)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL);
+    state[7] = (ulong2)(0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
-  for (int i = 0; i<24; i++) { round_lyra(state); } 
+    // Absorbing salt, password and basil: this is the only place in which the block length is hard-coded to 512 bits
+    for (int i = 0; i < 24; ++i)
+    {
+        roundLyra(state);
+    }
 
-// reducedsqueezedrow0
-  uint ps1 = (memshift * 7);
-//#pragma unroll 4
-  for (int i = 0; i < 8; i++)
-  {
-	  uint s1 = ps1 - memshift * i;
-	  for (int j = 0; j < 3; j++)
-		  (DMatrix)[j+s1] = state[j];
+    // state0
+    lyraState->hl16[0] = state[0];
+    lyraState->hl16[1] = state[1];
+    // state1
+    lyraState->hl16[2] = state[2];
+    lyraState->hl16[3] = state[3];
+    // state2
+    lyraState->hl16[4] = state[4];
+    lyraState->hl16[5] = state[5];
+    // state3
+    lyraState->hl16[6] = state[6];
+    lyraState->hl16[7] = state[7];
 
-    for (int j = 0; j < 3; j++)
-		  temp[3*(7-i)+j+24* get_local_id(0)] = state[j];
-
-	  round_lyra(state);
-  }
-
-  ///// reduceduplexrow1 ////////////
-  reduceDuplexf_tmp(state,DMatrix,temp + 24 * get_local_id(0));
- 
-  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 24 * get_local_id(0));
-
-  uint rowa;
-
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 0, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(0, rowa, 3, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(3, rowa, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(6, rowa, 1, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(1, rowa, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(4, rowa, 7, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 2, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp2(2, rowa, 5, state, DMatrix, temp + 24 * get_local_id(0));
-
-  for (int j = 0; j < 3; j++)
-	  state[j] ^= temp[j + 24 * get_local_id(0)]; //(DMatrix)[j+shift];
-
-  for (int i = 0; i < 12; i++)
-	  round_lyra(state);
-
-  for (int i = 0; i<4; i++) {hash->h8[i] = ((ulong*)state)[i];} 
-
-//================================================= 2nd half
-
-  state[0].x = hash->h8[0 + 4]; //password
-  state[0].y = hash->h8[1 + 4]; //password
-  state[0].z = hash->h8[2 + 4]; //password
-  state[0].w = hash->h8[3 + 4]; //password
-  state[1] = state[0];
-  state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
-  state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
-
-  for (int i = 0; i<24; i++) { round_lyra(state); } 
-
-// reducedsqueezedrow0
-   ps1 = (memshift * 7);
-//#pragma unroll 4
-  for (int i = 0; i < 8; i++)
-  {
-	  uint s1 = ps1 - memshift * i;
-	  for (int j = 0; j < 3; j++)
-		  (DMatrix)[j+s1] = state[j];
-
-    for (int j = 0; j < 3; j++)
-		  temp[3*(7-i)+j+24* get_local_id(0)] = state[j];
-
-	  round_lyra(state);
-  }
-
-  ///// reduceduplexrow1 ////////////
-  reduceDuplexf_tmp(state,DMatrix,temp + 24 * get_local_id(0));
- 
-  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 24 * get_local_id(0));
-
-
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 0, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(0, rowa, 3, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(3, rowa, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(6, rowa, 1, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(1, rowa, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(4, rowa, 7, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 2, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp2(2, rowa, 5, state, DMatrix, temp + 24 * get_local_id(0));
-
-  for (int j = 0; j < 3; j++)
-	  state[j] ^= temp[j + 24 * get_local_id(0)]; //(DMatrix)[j+shift];
-
-  for (int i = 0; i < 12; i++)
-	  round_lyra(state);
-
-  for (int i = 0; i<4; i++) {hash->h8[i + 4] = ((ulong*)state)[i];} 
-
-  barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
 }
 
+// lyra2 p2
+__attribute__((reqd_work_group_size(WORKSIZE8, 1, 1)))
+__kernel void search2(__global uint* lyraStates, __global uchar* matrix)
+{
+    uint gid = get_global_id(0);
+    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (8 * 4 * ((gid-get_global_offset(0)) >> 2)));
+    __global ulong *lMatrix = (__global ulong *)(matrix + (192 * 8 * (gid - get_global_offset(0))));
+
+    __local struct SharedState smState[WORKSIZE8];
+
+    ulong state[4];
+    ulong ttr;
+    ulong tmpRes;
+
+    uint2 st2;
+
+    uint lIdx = (uint)get_local_id(0);
+    uint gr4 = ((lIdx >> 2) << 2);
+
+    //-------------------------------------
+    // Load Lyra state
+    state[0] = (ulong)(lyraState->h8[(lIdx & 3)]);
+    state[1] = (ulong)(lyraState->h8[(lIdx & 3)+4]);
+    state[2] = (ulong)(lyraState->h8[(lIdx & 3)+8]);
+    state[3] = (ulong)(lyraState->h8[(lIdx & 3)+12]);
+
+    //-------------------------------------
+    //ulong lMatrix[192];
+    ulong state0[24];
+    ulong state1[24];
+
+    // loop 1
+    {
+        state0[21] = state[0];
+        state0[22] = state[1];
+        state0[23] = state[2];
+        
+        roundLyra_sm(state);
+        
+        state0[18] = state[0];
+        state0[19] = state[1];
+        state0[20] = state[2];
+        
+        roundLyra_sm(state);
+        
+        state0[15] = state[0];
+        state0[16] = state[1];
+        state0[17] = state[2];
+        
+        roundLyra_sm(state);
+        
+        state0[12] = state[0];
+        state0[13] = state[1];
+        state0[14] = state[2];
+        
+        roundLyra_sm(state);
+        state0[ 9] = state[0];
+        state0[10] = state[1];
+        state0[11] = state[2];
+        
+        roundLyra_sm(state);
+        
+        state0[6] = state[0];
+        state0[7] = state[1];
+        state0[8] = state[2];
+        
+        roundLyra_sm(state);
+        
+        state0[3] = state[0];
+        state0[4] = state[1];
+        state0[5] = state[2];
+        
+        roundLyra_sm(state);
+        
+        state0[0] = state[0];
+        state0[1] = state[1];
+        state0[2] = state[2];
+        
+        roundLyra_sm(state);
+    }
+
+    // loop 2
+    {
+        state[0] ^= state0[0];
+        state[1] ^= state0[1];
+        state[2] ^= state0[2];
+        roundLyra_sm(state);
+        state1[21] = state0[0] ^ state[0];
+        state1[22] = state0[1] ^ state[1];
+        state1[23] = state0[2] ^ state[2];
+        
+        
+        state[0] ^= state0[3];
+        state[1] ^= state0[4];
+        state[2] ^= state0[5];
+        roundLyra_sm(state);
+        state1[18] = state0[3] ^ state[0];
+        state1[19] = state0[4] ^ state[1];
+        state1[20] = state0[5] ^ state[2];
+        
+        
+        state[0] ^= state0[6];
+        state[1] ^= state0[7];
+        state[2] ^= state0[8];
+        roundLyra_sm(state);
+        state1[15] = state0[6] ^ state[0];
+        state1[16] = state0[7] ^ state[1];
+        state1[17] = state0[8] ^ state[2];
+        
+        
+        state[0] ^= state0[ 9];
+        state[1] ^= state0[10];
+        state[2] ^= state0[11];
+        roundLyra_sm(state);
+        state1[12] = state0[ 9] ^ state[0];
+        state1[13] = state0[10] ^ state[1];
+        state1[14] = state0[11] ^ state[2];
+
+        state[0] ^= state0[12];
+        state[1] ^= state0[13];
+        state[2] ^= state0[14];
+        roundLyra_sm(state);
+        state1[ 9] = state0[12] ^ state[0];
+        state1[10] = state0[13] ^ state[1];
+        state1[11] = state0[14] ^ state[2];
+        
+        
+        state[0] ^= state0[15];
+        state[1] ^= state0[16];
+        state[2] ^= state0[17];
+        roundLyra_sm(state);
+        state1[6] = state0[15] ^ state[0];
+        state1[7] = state0[16] ^ state[1];
+        state1[8] = state0[17] ^ state[2];
+        
+        
+        state[0] ^= state0[18];
+        state[1] ^= state0[19];
+        state[2] ^= state0[20];
+        roundLyra_sm(state);
+        state1[3] = state0[18] ^ state[0];
+        state1[4] = state0[19] ^ state[1];
+        state1[5] = state0[20] ^ state[2];
+        
+        
+        state[0] ^= state0[21];
+        state[1] ^= state0[22];
+        state[2] ^= state0[23];
+        roundLyra_sm(state);
+        state1[0] = state0[21] ^ state[0];
+        state1[1] = state0[22] ^ state[1];
+        state1[2] = state0[23] ^ state[2];
+    }
+
+    ulong state2[3];
+    ulong t0,c0;
+    loop3p1_iteration(  0,  1,  2, 69, 70, 71); // inc dec
+    loop3p1_iteration(  3,  4,  5, 66, 67, 68);
+    loop3p1_iteration(  6,  7,  8, 63, 64, 65);
+    loop3p1_iteration(  9, 10, 11, 60, 61, 62);
+    loop3p1_iteration( 12, 13, 14, 57, 58, 59);
+    loop3p1_iteration( 15, 16, 17, 54, 55, 56);
+    loop3p1_iteration( 18, 19, 20, 51, 52, 53);
+    loop3p1_iteration( 21, 22, 23, 48, 49, 50); // 1 0 2 // 48 24 72
+
+    loop3p2_iteration(  0,  1,  2, 21, 22, 23, 93, 94, 95, 24, 25, 26); // dec inc
+    loop3p2_iteration(  3,  4,  5, 18, 19, 20, 90, 91, 92, 27, 28, 29);
+    loop3p2_iteration(  6,  7,  8, 15, 16, 17, 87, 88, 89, 30, 31, 32);
+    loop3p2_iteration(  9, 10, 11, 12, 13, 14, 84, 85, 86, 33, 34, 35);
+    loop3p2_iteration( 12, 13, 14,  9, 10, 11, 81, 82, 83, 36, 37, 38);
+    loop3p2_iteration( 15, 16, 17,  6,  7,  8, 78, 79, 80, 39, 40, 41);
+    loop3p2_iteration( 18, 19, 20,  3,  4,  5, 75, 76, 77, 42, 43, 44);
+    loop3p2_iteration( 21, 22, 23,  0,  1,  2, 72, 73, 74, 45, 46, 47); // 2 1 3 // 72 48 96
+
+#pragma unroll 24
+    for (int i = 0; i < 24; i++) {
+        state1[i] = state0[i];
+        state0[i] = (lMatrix)[i];
+    }
+
+    loop3p1_iteration(  0,  1,  2,117,118,119); // inc dec
+    loop3p1_iteration(  3,  4,  5,114,115,116);
+    loop3p1_iteration(  6,  7,  8,111,112,113);
+    loop3p1_iteration(  9, 10, 11,108,109,110);
+    loop3p1_iteration( 12, 13, 14,105,106,107);
+    loop3p1_iteration( 15, 16, 17,102,103,104);
+    loop3p1_iteration( 18, 19, 20,99,100, 101);
+    loop3p1_iteration( 21, 22, 23, 96, 97, 98); // 3 0 4 // 96 24 120
+
+
+    loop3p2_iteration(  0,  1,  2, 21, 22, 23,141,142,143, 72, 73, 74); // dec inc
+    loop3p2_iteration(  3,  4,  5, 18, 19, 20,138,139,140, 75, 76, 77);
+    loop3p2_iteration(  6,  7,  8, 15, 16, 17,135,136,137, 78, 79, 80);
+    loop3p2_iteration(  9, 10, 11, 12, 13, 14,132,133,134, 81, 82, 83);
+    loop3p2_iteration( 12, 13, 14,  9, 10, 11,129,130,131, 84, 85, 86);
+    loop3p2_iteration( 15, 16, 17,  6,  7,  8,126,127,128, 87, 88, 89);
+    loop3p2_iteration( 18, 19, 20,  3,  4,  5,123,124,125, 90, 91, 92);
+    loop3p2_iteration( 21, 22, 23,  0,  1,  2,120,121,122, 93, 94, 95); // 4 3 5 // 120 96 144
+
+
+    ulong temp0[24];
+#pragma unroll 24
+    for (int i = 0; i < 24; i++) {
+        state1[i] = state0[i];
+        state0[i] = (lMatrix)[i + 48];
+        temp0[i] = (lMatrix)[i];
+    }
+
+    loop3p1_iteration(  0,  1,  2,165,166,167); // inc dec
+    loop3p1_iteration(  3,  4,  5,162,163,164);
+    loop3p1_iteration(  6,  7,  8,159,160,161);
+    loop3p1_iteration(  9, 10, 11,156,157,158);
+    loop3p1_iteration( 12, 13, 14,153,154,155);
+    loop3p1_iteration( 15, 16, 17,150,151,152);
+    loop3p1_iteration( 18, 19, 20,147,148,149);
+    loop3p1_iteration( 21, 22, 23,144,145,146); // 5 2 6 // 144 72 168
+
+
+#pragma unroll 24
+    for (int i = 0; i < 24; i++) {
+        state1[i] = (lMatrix)[i + 24];
+        (lMatrix)[i + 48] = (lMatrix)[i];
+        (lMatrix)[i] = temp0[i];
+    }
+
+
+    loop3p2_iteration(  0,  1,  2, 21, 22, 23,189,190,191, 24, 25, 26); // dec inc
+    loop3p2_iteration(  3,  4,  5, 18, 19, 20,186,187,188, 27, 28, 29);
+    loop3p2_iteration(  6,  7,  8, 15, 16, 17,183,184,185, 30, 31, 32);
+    loop3p2_iteration(  9, 10, 11, 12, 13, 14,180,181,182, 33, 34, 35);
+    loop3p2_iteration( 12, 13, 14,  9, 10, 11,177,178,179, 36, 37, 38);
+    loop3p2_iteration( 15, 16, 17,  6,  7,  8,174,175,176, 39, 40, 41);
+    loop3p2_iteration( 18, 19, 20,  3,  4,  5,171,172,173, 42, 43, 44);
+    loop3p2_iteration( 21, 22, 23,  0,  1,  2,168,169,170, 45, 46, 47); // 6 1 7 // 168 48 192
+
+    ulong a_state1_0, a_state1_1, a_state1_2;
+    ulong a_state2_0, a_state2_1, a_state2_2;
+    ulong b0,b1;
+
+#pragma unroll 24
+    for (int i = 0; i < 24; i++) {
+        state0[i] = (lMatrix)[168 + i];
+    }
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    uint rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration(168,169,170,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170,  0,  1,  2); // 7 0 // 192 24
+    wanderIteration(171,172,173,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173,  3,  4,  5);
+    wanderIteration(174,175,176,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176,  6,  7,  8);
+    wanderIteration(177,178,179,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179,  9, 10, 11);
+    wanderIteration(180,181,182, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182, 12, 13, 14);
+    wanderIteration(183,184,185, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185, 15, 16, 17);
+    wanderIteration(186,187,188, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188, 18, 19, 20);
+    wanderIteration(189,190,191, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191, 21, 22, 23);
+
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration(  0,  1,  2,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170, 72, 73, 74); // 0 3 // 24 96
+    wanderIteration(  3,  4,  5,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173, 75, 76, 77);
+    wanderIteration(  6,  7,  8,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176, 78, 79, 80);
+    wanderIteration(  9, 10, 11,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179, 81, 82, 83);
+    wanderIteration( 12, 13, 14, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182, 84, 85, 86);
+    wanderIteration( 15, 16, 17, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185, 87, 88, 89);
+    wanderIteration( 18, 19, 20, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188, 90, 91, 92);
+    wanderIteration( 21, 22, 23, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191, 93, 94, 95);
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration( 72, 73, 74,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170,144,145,146); // 3 6 // 96 168
+    wanderIteration( 75, 76, 77,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173,147,148,149);
+    wanderIteration( 78, 79, 80,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176,150,151,152);
+    wanderIteration( 81, 82, 83,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179,153,154,155);
+    wanderIteration( 84, 85, 86, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182,156,157,158);
+    wanderIteration( 87, 88, 89, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185,159,160,161);
+    wanderIteration( 90, 91, 92, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188,162,163,164);
+    wanderIteration( 93, 94, 95, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191,165,166,167);
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration(144,145,146,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170, 24, 25, 26); // 6 1 // 168 48
+    wanderIteration(147,148,149,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173, 27, 28, 29);
+    wanderIteration(150,151,152,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176, 30, 31, 32);
+    wanderIteration(153,154,155,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179, 33, 34, 35);
+    wanderIteration(156,157,158, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182, 36, 37, 38);
+    wanderIteration(159,160,161, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185, 39, 40, 41);
+    wanderIteration(162,163,164, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188, 42, 43, 44);
+    wanderIteration(165,166,167, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191, 45, 46, 47);
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration( 24, 25, 26,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170, 96, 97, 98); // 1 4 // 48 120
+    wanderIteration( 27, 28, 29,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173, 99,100,101);
+    wanderIteration( 30, 31, 32,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176,102,103,104);
+    wanderIteration( 33, 34, 35,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179,105,106,107);
+    wanderIteration( 36, 37, 38, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182,108,109,110);
+    wanderIteration( 39, 40, 41, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185,111,112,113);
+    wanderIteration( 42, 43, 44, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188,114,115,116);
+    wanderIteration( 45, 46, 47, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191,117,118,119);
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration( 96, 97, 98,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170,168,169,170); // 4 7 // 120 192
+    wanderIteration( 99,100,101,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173,171,172,173);
+    wanderIteration(102,103,104,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176,174,175,176);
+    wanderIteration(105,106,107,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179,177,178,179);
+    wanderIteration(108,109,110, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182,180,181,182);
+    wanderIteration(111,112,113, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185,183,184,185);
+    wanderIteration(114,115,116, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188,186,187,188);
+    wanderIteration(117,118,119, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191,189,190,191);
+
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+    wanderIteration(168,169,170,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170, 48, 49, 50); // 7 2 // 192 72
+    wanderIteration(171,172,173,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173, 51, 52, 53);
+    wanderIteration(174,175,176,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176, 54, 55, 56);
+    wanderIteration(177,178,179,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179, 57, 58, 59);
+    wanderIteration(180,181,182, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182, 60, 61, 62);
+    wanderIteration(183,184,185, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185, 63, 64, 65);
+    wanderIteration(186,187,188, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188, 66, 67, 68);
+    wanderIteration(189,190,191, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191, 69, 70, 71);
+
+    //------------------------------------
+    // Wandering phase part2 (last iteration)
+    smState[lIdx].s0 = state[0];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    rowa = (uint)smState[gr4].s0 & 7;
+
+    int i, j;
+    ulong last[3];
+
+    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[0]: (lMatrix)[48]) : ((rowa < 6) ? (lMatrix)[96]: (lMatrix)[114]);
+    b1 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[24]: (lMatrix)[72]) : ((rowa < 6) ? (lMatrix)[120]: (lMatrix)[168]);
+    last[0] = ((rowa & 0x1U) < 1)? b0: b1;
+
+    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[1]: (lMatrix)[49]) : ((rowa < 6) ? (lMatrix)[97]: (lMatrix)[115]);
+    b1 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[25]: (lMatrix)[73]) : ((rowa < 6) ? (lMatrix)[121]: (lMatrix)[169]);
+    last[1] = ((rowa & 0x1U) < 1)? b0: b1;
+
+    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[2]: (lMatrix)[50]) : ((rowa < 6) ? (lMatrix)[98]: (lMatrix)[116]);
+    b1 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[26]: (lMatrix)[74]) : ((rowa < 6) ? (lMatrix)[122]: (lMatrix)[170]);
+    last[2] = ((rowa & 0x1U) < 1)? b0: b1;
+
+
+    t0 = (lMatrix)[48];
+    c0 = last[0] + t0;
+    state[0] ^= c0;
+    
+    t0 = (lMatrix)[49];
+    c0 = last[1] + t0;
+    state[1] ^= c0;
+    
+    t0 = (lMatrix)[50];
+    c0 = last[2] + t0;
+    state[2] ^= c0;
+
+    roundLyra_sm(state);
+   
+    smState[lIdx].s0 = state[0];
+    smState[lIdx].s1 = state[1];
+    smState[lIdx].s2 = state[2];
+    barrier(CLK_LOCAL_MEM_FENCE);
+    ulong Data0 = smState[gr4 + ((lIdx-1) & 3)].s0;
+    ulong Data1 = smState[gr4 + ((lIdx-1) & 3)].s1;
+    ulong Data2 = smState[gr4 + ((lIdx-1) & 3)].s2;  
+    if((lIdx&3) == 0)
+    {
+        last[1] ^= Data0;
+        last[2] ^= Data1;
+        last[0] ^= Data2;
+    }
+    else
+    {
+        last[0] ^= Data0;
+        last[1] ^= Data1;
+        last[2] ^= Data2;
+    }
+
+    if(rowa == 5)
+    {
+        last[0] ^= state[0];
+        last[1] ^= state[1];
+        last[2] ^= state[2];
+    }
+
+    //wanderIteration( 48, 49, 50,  0,  1,  2, 24, 25, 26, 48, 49, 50, 72, 73, 74, 96, 97, 98,120,121,122,144,145,146,168,169,170); // 2 5 // 72 144
+    wanderIterationP2( 51, 52, 53,  3,  4,  5, 27, 28, 29, 51, 52, 53, 75, 76, 77, 99,100,101,123,124,125,147,148,149,171,172,173);
+    wanderIterationP2( 54, 55, 56,  6,  7,  8, 30, 31, 32, 54, 55, 56, 78, 79, 80,102,103,104,126,127,128,150,151,152,174,175,176);
+    wanderIterationP2( 57, 58, 59,  9, 10, 11, 33, 34, 35, 57, 58, 59, 81, 82, 83,105,106,107,129,130,131,153,154,155,177,178,179);
+    wanderIterationP2( 60, 61, 62, 12, 13, 14, 36, 37, 38, 60, 61, 62, 84, 85, 86,108,109,110,132,133,134,156,157,158,180,181,182);
+    wanderIterationP2( 63, 64, 65, 15, 16, 17, 39, 40, 41, 63, 64, 65, 87, 88, 89,111,112,113,135,136,137,159,160,161,183,184,185);
+    wanderIterationP2( 66, 67, 68, 18, 19, 20, 42, 43, 44, 66, 67, 68, 90, 91, 92,114,115,116,138,139,140,162,163,164,186,187,188);
+    wanderIterationP2( 69, 70, 71, 21, 22, 23, 45, 46, 47, 69, 70, 71, 93, 94, 95,117,118,119,141,142,143,165,166,167,189,190,191);
+
+    state[0] ^= last[0];
+    state[1] ^= last[1];
+    state[2] ^= last[2];
+
+    //-------------------------------------
+    // save lyra state    
+    lyraState->h8[(lIdx & 3)] = state[0];
+    lyraState->h8[(lIdx & 3)+4] = state[1];
+    lyraState->h8[(lIdx & 3)+8] = state[2];
+    lyraState->h8[(lIdx & 3)+12] = state[3];
+    
+    barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+// lyra2 p3
+__attribute__((reqd_work_group_size(WORKSIZE2, 1, 1)))
+__kernel void search3(__global uint* hashes, __global uint* lyraStates)
+{
+    int gid = get_global_id(0);
+
+    __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid-get_global_offset(0))));
+
+    ulong ttr;
+
+    ulong2 state[8];
+    // 1. load lyra State
+    state[0] = lyraState->hl16[0];
+    state[1] = lyraState->hl16[1];
+    state[2] = lyraState->hl16[2];
+    state[3] = lyraState->hl16[3];
+    state[4] = lyraState->hl16[4];
+    state[5] = lyraState->hl16[5];
+    state[6] = lyraState->hl16[6];
+    state[7] = lyraState->hl16[7];
+
+    // 2. rounds
+    for (int i = 0; i < 12; ++i)
+    {
+        roundLyra(state);
+    }
+
+    // 3. store result
+    hash->hl16[0] = state[0];
+    hash->hl16[1] = state[1];
+    
+    barrier(CLK_LOCAL_MEM_FENCE);
+}
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search2(__global hash_t* hashes)
+__kernel void search4(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -477,14 +848,15 @@ __kernel void search2(__global hash_t* hashes)
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search3(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
+__kernel void search5(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
 {
 // phi_filter_cuda
 
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
-  __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
+  //__global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
+  __global uchar *nonceBranch = &(nonceBranches[(192 * 8 * 8) * (gid-get_global_offset(0))]);
   *nonceBranch = hash->h1[0] & 1;
 	if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((branch));
@@ -499,7 +871,7 @@ __kernel void search3(__global hash_t* hashes, __global hash_t* branches, __glob
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search4(__global hash_t* hashes)
+__kernel void search6(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -544,7 +916,7 @@ __kernel void search4(__global hash_t* hashes)
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search5(__global hash_t* hashes)
+__kernel void search7(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -635,7 +1007,7 @@ __kernel void search5(__global hash_t* hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search6(__global hash_t* hashes)
+__kernel void search8(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -726,13 +1098,14 @@ __kernel void search6(__global hash_t* hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search7(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
+__kernel void search9(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
 {
 //phi_merge_cuda
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
-  __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
+  //__global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
+  __global uchar *nonceBranch = &(nonceBranches[(192 * 8 * 8) * (gid-get_global_offset(0))]);
   if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((hash));
   __global uint4 *psrc = (__global uint4*)((branch));
@@ -745,7 +1118,7 @@ __kernel void search7(__global hash_t* hashes, __global hash_t* branches, __glob
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search8(__global hash_t* hashes)
+__kernel void search10(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -781,7 +1154,7 @@ __kernel void search8(__global hash_t* hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search9(__global hash_t* hashes, __global uint* output, const ulong target)
+__kernel void search11(__global hash_t* hashes, __global uint* output, const ulong target)
 {
 // phi_final_compress_cuda
   uint gid = get_global_id(0);

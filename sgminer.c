@@ -805,6 +805,10 @@ static char *set_pool_algorithm(const char *arg)
   return NULL;
 }
 
+#ifndef TRUE
+# define TRUE 1
+#endif
+
 static char *set_pool_backup(const char *arg)
 {
   struct pool *pool = get_current_pool();
