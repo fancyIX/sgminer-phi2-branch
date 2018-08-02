@@ -300,7 +300,7 @@ __kernel void search1(__global uint* hashes, __global uchar* sharedDataBuf)
     int gid = get_global_id(0);
 
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
 
     ulong ttr;
 
@@ -345,9 +345,9 @@ __attribute__((reqd_work_group_size(WORKSIZE8, 1, 1)))
 __kernel void search2(__global uchar* sharedDataBuf)
 {
     uint gid = get_global_id(0);
-    uint lIdx = (uint)get_local_id(0);
 
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * ((gid-get_global_offset(0)) >> 2)));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * ((gid-get_global_offset(0)) >> 2)));
+    //__global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * ((gid-get_global_offset(0)) >> 2)));
     //__global ulong *lMatrix = (__global ulong *)(sharedDataBuf + (8 * 4 * 4 + (8 * 192 * (lIdx & 3)) + (8 * 4  * 4 + 8 * 192 * 4) * ((gid-get_global_offset(0)) >> 2)));
 
     __local struct SharedState smState[WORKSIZE8];
@@ -358,7 +358,7 @@ __kernel void search2(__global uchar* sharedDataBuf)
 
     uint2 st2;
 
-    
+    uint lIdx = (uint)get_local_id(0);
     uint gr4 = ((lIdx >> 2) << 2);
 
     //-------------------------------------
@@ -765,7 +765,7 @@ __kernel void search3(__global uint* hashes, __global uchar* sharedDataBuf)
     int gid = get_global_id(0);
 
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
 
     ulong ttr;
 

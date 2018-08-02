@@ -251,7 +251,172 @@
     lMatrix[rou02] ^= state[2]; \
 }
 
+#define wanderIteration(prv00,prv01,prv02, rng00,rng01,rng02, rng10,rng11,rng12, rng20,rng21,rng22, rng30,rng31,rng32, rng40,rng41,rng42, rng50,rng51,rng52, rng60,rng61,rng62, rng70,rng71,rng72, rou00,rou01,rou02) \
+{ \
+    a_state1_0 = state0[prv00 % 24]; \
+    a_state1_1 = state0[prv01 % 24]; \
+    a_state1_2 = state0[prv02 % 24]; \
+ \
+    if (rowa == 0) { \
+        a_state2_0 = lMatrix[rng00]; \
+    } else if (rowa == 1) { \
+        a_state2_0 = lMatrix[rng10]; \
+    } else if (rowa == 2) { \
+        a_state2_0 = lMatrix[rng20]; \
+    } else if (rowa == 3) { \
+        a_state2_0 = lMatrix[rng30]; \
+    } else if (rowa == 4) { \
+        a_state2_0 = lMatrix[rng40]; \
+    } else if (rowa == 5) { \
+        a_state2_0 = lMatrix[rng50]; \
+    } else if (rowa == 6) { \
+        a_state2_0 = lMatrix[rng60]; \
+    } else if (rowa == 7) { \
+        a_state2_0 = lMatrix[rng70]; \
+    } \
+ \
+    if (rowa == 0) { \
+        a_state2_1 = lMatrix[rng01]; \
+    } else if (rowa == 1) { \
+        a_state2_1 = lMatrix[rng11]; \
+    } else if (rowa == 2) { \
+        a_state2_1 = lMatrix[rng21]; \
+    } else if (rowa == 3) { \
+        a_state2_1 = lMatrix[rng31]; \
+    } else if (rowa == 4) { \
+        a_state2_1 = lMatrix[rng41]; \
+    } else if (rowa == 5) { \
+        a_state2_1 = lMatrix[rng51]; \
+    } else if (rowa == 6) { \
+        a_state2_1 = lMatrix[rng61]; \
+    } else if (rowa == 7) { \
+        a_state2_1 = lMatrix[rng71]; \
+    } \
+\
+    if (rowa == 0) { \
+        a_state2_2 = lMatrix[rng02]; \
+    } else if (rowa == 1) { \
+        a_state2_2 = lMatrix[rng12]; \
+    } else if (rowa == 2) { \
+        a_state2_2 = lMatrix[rng22]; \
+    } else if (rowa == 3) { \
+        a_state2_2 = lMatrix[rng32]; \
+    } else if (rowa == 4) { \
+        a_state2_2 = lMatrix[rng42]; \
+    } else if (rowa == 5) { \
+        a_state2_2 = lMatrix[rng52]; \
+    } else if (rowa == 6) { \
+        a_state2_2 = lMatrix[rng62]; \
+    } else if (rowa == 7) { \
+        a_state2_2 = lMatrix[rng72]; \
+    } \
+\
+    t0 = a_state1_0; \
+    c0 = a_state2_0 + t0; \
+    state[0] ^= c0; \
+\
+    t0 = a_state1_1; \
+    c0 = a_state2_1 + t0; \
+    state[1] ^= c0; \
+ \
+    t0 = a_state1_2; \
+    c0 = a_state2_2 + t0; \
+    state[2] ^= c0; \
+ \
+    roundLyra_sm(state); \
+    smState[lIdx].s0 = state[0]; \
+    smState[lIdx].s1 = state[1]; \
+    smState[lIdx].s2 = state[2]; \
+    barrier(CLK_LOCAL_MEM_FENCE); \
+    a_state1_0 = smState[gr4 + ((lIdx-1) & 3)].s0; \
+    a_state1_1 = smState[gr4 + ((lIdx-1) & 3)].s1; \
+    a_state1_2 = smState[gr4 + ((lIdx-1) & 3)].s2; \
+ \
+    if(rowa == 0) \
+    { \
+        lMatrix[rng00] = a_state2_0; \
+        lMatrix[rng01] = a_state2_1; \
+        lMatrix[rng02] = a_state2_2; \
+        lMatrix[rng00] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng01] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng02]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 1) \
+    { \
+        lMatrix[rng10] = a_state2_0; \
+        lMatrix[rng11] = a_state2_1; \
+        lMatrix[rng12] = a_state2_2; \
+        lMatrix[rng10] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng11] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng12]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 2) \
+    { \
+        lMatrix[rng20] = a_state2_0; \
+        lMatrix[rng21] = a_state2_1; \
+        lMatrix[rng22] = a_state2_2; \
+        lMatrix[rng20] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng21] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng22]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 3) \
+    { \
+        lMatrix[rng30] = a_state2_0; \
+        lMatrix[rng31] = a_state2_1; \
+        lMatrix[rng32] = a_state2_2; \
+        lMatrix[rng30] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng31] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng32]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 4) \
+    { \
+        lMatrix[rng40] = a_state2_0; \
+        lMatrix[rng41] = a_state2_1; \
+        lMatrix[rng42] = a_state2_2; \
+        lMatrix[rng40] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng41] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng42]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 5) \
+    { \
+        lMatrix[rng50] = a_state2_0; \
+        lMatrix[rng51] = a_state2_1; \
+        lMatrix[rng52] = a_state2_2; \
+        lMatrix[rng50] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng51] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng52]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 6) \
+    { \
+        lMatrix[rng60] = a_state2_0; \
+        lMatrix[rng61] = a_state2_1; \
+        lMatrix[rng62] = a_state2_2; \
+        lMatrix[rng60] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng61] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng62]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+    if(rowa == 7) \
+    { \
+        lMatrix[rng70] = a_state2_0; \
+        lMatrix[rng71] = a_state2_1; \
+        lMatrix[rng72] = a_state2_2; \
+        lMatrix[rng70] ^=((lIdx&3) == 0)?a_state1_2:a_state1_0; \
+        lMatrix[rng71] ^=((lIdx&3) == 0)?a_state1_0:a_state1_1; \
+        lMatrix[rng72]^=((lIdx&3) == 0)?a_state1_1:a_state1_2; \
+    } \
+ \
+    state0[rou00 % 24] = lMatrix[rou00]; \
+    state0[rou01 % 24] = lMatrix[rou01]; \
+    state0[rou02 % 24] = lMatrix[rou02]; \
+    state0[rou00 % 24] ^= state[0]; \
+    state0[rou01 % 24] ^= state[1]; \
+    state0[rou02 % 24] ^= state[2]; \
+    lMatrix[rou00] = state0[rou00 % 24]; \
+    lMatrix[rou01] = state0[rou01 % 24]; \
+    lMatrix[rou02] = state0[rou02 % 24]; \
+}
 
+/*
 #define wanderIteration(prv00,prv01,prv02, rng00,rng01,rng02, rng10,rng11,rng12, rng20,rng21,rng22, rng30,rng31,rng32, rng40,rng41,rng42, rng50,rng51,rng52, rng60,rng61,rng62, rng70,rng71,rng72, rou00,rou01,rou02) \
 { \
     a_state1_0 = lMatrix[prv00]; \
@@ -389,6 +554,75 @@
     b0 = (rowa < 4)? ((rowa < 2) ? lMatrix[rng02]: lMatrix[rng22]) : ((rowa < 6) ? lMatrix[rng42]: lMatrix[rng62]); \
     b1 = (rowa < 4)? ((rowa < 2) ? lMatrix[rng12]: lMatrix[rng32]) : ((rowa < 6) ? lMatrix[rng52]: lMatrix[rng72]); \
     c0 = ((rowa & 0x1U) < 1)? b0: b1; \
+    t0+=c0; \
+    state[2] ^= t0; \
+ \
+    roundLyra_sm(state); \
+}
+*/
+
+#define wanderIterationP2(rin00,rin01,rin02, rng00,rng01,rng02, rng10,rng11,rng12, rng20,rng21,rng22, rng30,rng31,rng32, rng40,rng41,rng42, rng50,rng51,rng52, rng60,rng61,rng62, rng70,rng71,rng72) \
+{ \
+    t0 = lMatrix[rin00]; \
+    if (rowa == 0) { \
+        c0 = lMatrix[rng00]; \
+    } else if (rowa == 1) { \
+        c0 = lMatrix[rng10]; \
+    } else if (rowa == 2) { \
+        c0 = lMatrix[rng20]; \
+    } else if (rowa == 3) { \
+        c0 = lMatrix[rng30]; \
+    } else if (rowa == 4) { \
+        c0 = lMatrix[rng40]; \
+    } else if (rowa == 5) { \
+        c0 = lMatrix[rng50]; \
+    } else if (rowa == 6) { \
+        c0 = lMatrix[rng60]; \
+    } else if (rowa == 7) { \
+        c0 = lMatrix[rng70]; \
+    } \
+    t0+=c0; \
+    state[0] ^= t0; \
+ \
+    t0 = lMatrix[rin01]; \
+    if (rowa == 0) { \
+        c0 = lMatrix[rng01]; \
+    } else if (rowa == 1) { \
+        c0 = lMatrix[rng11]; \
+    } else if (rowa == 2) { \
+        c0 = lMatrix[rng21]; \
+    } else if (rowa == 3) { \
+        c0 = lMatrix[rng31]; \
+    } else if (rowa == 4) { \
+        c0 = lMatrix[rng41]; \
+    } else if (rowa == 5) { \
+        c0 = lMatrix[rng51]; \
+    } else if (rowa == 6) { \
+        c0 = lMatrix[rng61]; \
+    } else if (rowa == 7) { \
+        c0 = lMatrix[rng71]; \
+    } \
+    t0+=c0; \
+    state[1] ^= t0; \
+ \
+    t0 = lMatrix[rin02]; \
+    if (rowa == 0) { \
+        c0 = lMatrix[rng02]; \
+    } else if (rowa == 1) { \
+        c0 = lMatrix[rng12]; \
+    } else if (rowa == 2) { \
+        c0 = lMatrix[rng22]; \
+    } else if (rowa == 3) { \
+        c0 = lMatrix[rng32]; \
+    } else if (rowa == 4) { \
+        c0 = lMatrix[rng42]; \
+    } else if (rowa == 5) { \
+        c0 = lMatrix[rng52]; \
+    } else if (rowa == 6) { \
+        c0 = lMatrix[rng62]; \
+    } else if (rowa == 7) { \
+        c0 = lMatrix[rng72]; \
+    } \
     t0+=c0; \
     state[2] ^= t0; \
  \
