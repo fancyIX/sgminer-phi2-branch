@@ -514,9 +514,9 @@ static cl_int queue_phi2_kernel(struct __clState *clState, struct _dev_blk_ctx *
   num = 0;
   CL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer3);
+  //CL_SET_ARG(clState->buffer2);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->buffer3);
-  CL_SET_ARG(clState->buffer2);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer3);

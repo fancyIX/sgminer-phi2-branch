@@ -295,12 +295,12 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 /// lyra2 p1 
 
 __attribute__((reqd_work_group_size(WORKSIZE2, 1, 1)))
-__kernel void search1(__global uint* hashes, __global uint* lyraStates)
+__kernel void search1(__global uint* hashes, __global uchar* sharedDataBuf)
 {
     int gid = get_global_id(0);
-    
+
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * (gid-get_global_offset(0))));
 
     ulong ttr;
 
@@ -337,16 +337,18 @@ __kernel void search1(__global uint* hashes, __global uint* lyraStates)
     lyraState->hl16[6] = state[6];
     lyraState->hl16[7] = state[7];
 
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 // lyra2 p2
 __attribute__((reqd_work_group_size(WORKSIZE8, 1, 1)))
-__kernel void search2(__global uint* lyraStates, __global uchar* matrix)
+__kernel void search2(__global uchar* sharedDataBuf)
 {
     uint gid = get_global_id(0);
-    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (8 * 4 * ((gid-get_global_offset(0)) >> 2)));
-    __global ulong *lMatrix = (__global ulong *)(matrix + (192 * 8 * (gid - get_global_offset(0))));
+    uint lIdx = (uint)get_local_id(0);
+
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * ((gid-get_global_offset(0)) >> 2)));
+    //__global ulong *lMatrix = (__global ulong *)(sharedDataBuf + (8 * 4 * 4 + (8 * 192 * (lIdx & 3)) + (8 * 4  * 4 + 8 * 192 * 4) * ((gid-get_global_offset(0)) >> 2)));
 
     __local struct SharedState smState[WORKSIZE8];
 
@@ -356,7 +358,7 @@ __kernel void search2(__global uint* lyraStates, __global uchar* matrix)
 
     uint2 st2;
 
-    uint lIdx = (uint)get_local_id(0);
+    
     uint gr4 = ((lIdx >> 2) << 2);
 
     //-------------------------------------
@@ -367,7 +369,7 @@ __kernel void search2(__global uint* lyraStates, __global uchar* matrix)
     state[3] = (ulong)(lyraState->h8[(lIdx & 3)+12]);
 
     //-------------------------------------
-    //ulong lMatrix[192];
+    ulong lMatrix[192];
     ulong state0[24];
     ulong state1[24];
 
@@ -678,15 +680,15 @@ __kernel void search2(__global uint* lyraStates, __global uchar* matrix)
     int i, j;
     ulong last[3];
 
-    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[0]: (lMatrix)[48]) : ((rowa < 6) ? (lMatrix)[96]: (lMatrix)[114]);
+    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[0]: (lMatrix)[48]) : ((rowa < 6) ? (lMatrix)[96]: (lMatrix)[144]);
     b1 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[24]: (lMatrix)[72]) : ((rowa < 6) ? (lMatrix)[120]: (lMatrix)[168]);
     last[0] = ((rowa & 0x1U) < 1)? b0: b1;
 
-    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[1]: (lMatrix)[49]) : ((rowa < 6) ? (lMatrix)[97]: (lMatrix)[115]);
+    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[1]: (lMatrix)[49]) : ((rowa < 6) ? (lMatrix)[97]: (lMatrix)[145]);
     b1 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[25]: (lMatrix)[73]) : ((rowa < 6) ? (lMatrix)[121]: (lMatrix)[169]);
     last[1] = ((rowa & 0x1U) < 1)? b0: b1;
 
-    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[2]: (lMatrix)[50]) : ((rowa < 6) ? (lMatrix)[98]: (lMatrix)[116]);
+    b0 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[2]: (lMatrix)[50]) : ((rowa < 6) ? (lMatrix)[98]: (lMatrix)[146]);
     b1 = (rowa < 4)? ((rowa < 2) ? (lMatrix)[26]: (lMatrix)[74]) : ((rowa < 6) ? (lMatrix)[122]: (lMatrix)[170]);
     last[2] = ((rowa & 0x1U) < 1)? b0: b1;
 
@@ -752,17 +754,18 @@ __kernel void search2(__global uint* lyraStates, __global uchar* matrix)
     lyraState->h8[(lIdx & 3)+8] = state[2];
     lyraState->h8[(lIdx & 3)+12] = state[3];
     
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 // lyra2 p3
+
 __attribute__((reqd_work_group_size(WORKSIZE2, 1, 1)))
-__kernel void search3(__global uint* hashes, __global uint* lyraStates)
+__kernel void search3(__global uint* hashes, __global uchar* sharedDataBuf)
 {
     int gid = get_global_id(0);
 
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4 + 8 * 192 * 4) * (gid-get_global_offset(0))));
 
     ulong ttr;
 
@@ -787,7 +790,7 @@ __kernel void search3(__global uint* hashes, __global uint* lyraStates)
     hash->hl16[0] = state[0];
     hash->hl16[1] = state[1];
     
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
@@ -855,8 +858,7 @@ __kernel void search5(__global hash_t* hashes, __global hash_t* branches, __glob
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
-  //__global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
-  __global uchar *nonceBranch = &(nonceBranches[(192 * 8 * 8) * (gid-get_global_offset(0))]);
+  __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
   *nonceBranch = hash->h1[0] & 1;
 	if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((branch));
@@ -1104,8 +1106,7 @@ __kernel void search9(__global hash_t* hashes, __global hash_t* branches, __glob
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
-  //__global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
-  __global uchar *nonceBranch = &(nonceBranches[(192 * 8 * 8) * (gid-get_global_offset(0))]);
+  __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
   if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((hash));
   __global uint4 *psrc = (__global uint4*)((branch));
