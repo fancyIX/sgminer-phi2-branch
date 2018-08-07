@@ -1613,7 +1613,7 @@ static bool parse_notify(struct pool *pool, json_t *val)
 		pool->swork.nbit,
 		"00000000", /* nonce */
 		workpadding);
-	  if (unlikely(!hex2bin(pool->header_bin, header, strlen(header) / 2))) {
+	  if (unlikely(!hex2bin(pool->header_bin, header, 192))) {
 		applog(LOG_WARNING, "%s: Failed to convert header to header_bin, got %s", __func__, header);
 		pool_failed(pool);
 		// TODO: memory leaks? goto out, clean up there?
