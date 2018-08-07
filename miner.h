@@ -1490,7 +1490,7 @@ struct pool {
   /* Shared by both stratum & GBT */
   unsigned char *coinbase;
   size_t nonce2_offset;
-  unsigned char header_bin[128];
+  unsigned char header_bin[192];
   double next_diff;
   int merkle_offset;
 
