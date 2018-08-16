@@ -1433,7 +1433,13 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   }
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
-    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+    if (gpu->algorithm.type == ALGO_PHI2 && i == 0) {
+      const size_t off2[] = { 0, *p_global_work_offset };
+	    const size_t gws[] = { 4, globalThreads[0] * 2 };
+	    const size_t expand[] = { 4, 16 };
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+    } else
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
       globalThreads, localThreads, 0, NULL, NULL);
     if (unlikely(status != CL_SUCCESS)) {
       applog(LOG_ERR, "Error %d: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)", status);
