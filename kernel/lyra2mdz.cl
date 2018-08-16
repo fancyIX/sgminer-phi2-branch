@@ -183,7 +183,7 @@ The difference wrt building hyper matrices is
 void hyper_xor(uint matin, uint matrw, uint matout,
                ulong *state, __local ulong *groupPad, __global ulong *bigMat) {
 	ulong si[3], sII[3];
-	uint3 hyoff = (uint3)(matin, matrw, matout) * HYPERMATRIX_COUNT;
+	uint3 hyoff = (uint3)(matin* HYPERMATRIX_COUNT, matrw* HYPERMATRIX_COUNT, matout* HYPERMATRIX_COUNT);
 	uint hyc = HYPERMATRIX_COUNT * matin;
 	uint hymod = HYPERMATRIX_COUNT * matrw;
 	uint hydst = HYPERMATRIX_COUNT * matout;
