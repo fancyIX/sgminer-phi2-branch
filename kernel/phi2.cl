@@ -3,6 +3,7 @@
  * ==========================(LICENSE BEGIN)============================
  *
  * Copyright (c) 2016 tpruvot
+ * Copyright (c) 2018 fancyIX
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -114,6 +115,7 @@ typedef union {
 #endif
 
 #include "lyra2mdz.cl"
+#include "wolf-echo.cl"
 
 // cubehash_80
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
@@ -507,87 +509,50 @@ __kernel void search5(__global hash_t* hashes)
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-// x11_echo512_cpu_hash_64
-
-  __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-
-  int init = get_local_id(0);
-  int step = get_local_size(0);
-
-  for (int i = init; i < 256; i += step)
-  {
+  __local uint AES0[256];
+  for(int i = get_local_id(0), step = get_local_size(0); i < 256; i += step)
     AES0[i] = AES0_C[i];
-    AES1[i] = AES1_C[i];
-    AES2[i] = AES2_C[i];
-    AES3[i] = AES3_C[i];
-  }
+
+  uint4 W[16];
+
+  // Precomp
+  W[0] = (uint4)(0xe7e9f5f5, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[1] = (uint4)(0x14b8a457, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[2] = (uint4)(0xdbfde1dd, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[3] = (uint4)(0x9ac2dea3, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[4] = (uint4)(0x65978b09, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[5] = (uint4)(0xa4213d7e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[6] = (uint4)(0x265f4382, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[7] = (uint4)(0x34514d9e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[12] = (uint4)(0xb134347e, 0xea6f7e7e, 0xbd7731bd, 0x8a8a1968);
+  W[13] = (uint4)(0x579f9f33, 0xfbfbfbfb, 0xfbfbfbfb, 0xefefd3c7);
+  W[14] = (uint4)(0x2cb6b661, 0x6b23b3b3, 0xcf93a7cf, 0x9d9d3751);
+  W[15] = (uint4)(0x01425eb8, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+
+  ((uint16 *)W)[2] = vload16(0, hash->h4);
+
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  // copies hashes to "hash"
-  // echo
-  sph_u64 W00, W01, W10, W11, W20, W21, W30, W31, W40, W41, W50, W51, W60, W61, W70, W71, W80, W81, W90, W91, WA0, WA1, WB0, WB1, WC0, WC1, WD0, WD1, WE0, WE1, WF0, WF1;
-  sph_u64 Vb00, Vb01, Vb10, Vb11, Vb20, Vb21, Vb30, Vb31, Vb40, Vb41, Vb50, Vb51, Vb60, Vb61, Vb70, Vb71;
-  Vb00 = Vb10 = Vb20 = Vb30 = Vb40 = Vb50 = Vb60 = Vb70 = 512UL;
-  Vb01 = Vb11 = Vb21 = Vb31 = Vb41 = Vb51 = Vb61 = Vb71 = 0;
+  #pragma unroll
+	for(int x = 8; x < 12; ++x) {
+		uint4 tmp;
+		tmp = Echo_AES_Round_Small(AES0, W[x]);
+		tmp.s0 ^= x | 0x200;
+		W[x] = Echo_AES_Round_Small(AES0, tmp);
+	}
+  BigShiftRows(W);
+  BigMixColumns(W);
 
-  sph_u32 K0 = 512;
-  sph_u32 K1 = 0;
-  sph_u32 K2 = 0;
-  sph_u32 K3 = 0;
+  #pragma unroll 1
+  for(uint k0 = 16; k0 < 160; k0 += 16) {
+      BigSubBytesSmall(AES0, W, k0);
+      BigShiftRows(W);
+      BigMixColumns(W);
+  }
 
-  W00 = Vb00;
-  W01 = Vb01;
-  W10 = Vb10;
-  W11 = Vb11;
-  W20 = Vb20;
-  W21 = Vb21;
-  W30 = Vb30;
-  W31 = Vb31;
-  W40 = Vb40;
-  W41 = Vb41;
-  W50 = Vb50;
-  W51 = Vb51;
-  W60 = Vb60;
-  W61 = Vb61;
-  W70 = Vb70;
-  W71 = Vb71;
-  W80 = hash->h8[0];
-  W81 = hash->h8[1];
-  W90 = hash->h8[2];
-  W91 = hash->h8[3];
-  WA0 = hash->h8[4];
-  WA1 = hash->h8[5];
-  WB0 = hash->h8[6];
-  WB1 = hash->h8[7];
-  WC0 = 0x80;
-  WC1 = 0;
-  WD0 = 0;
-  WD1 = 0;
-  WE0 = 0;
-  WE1 = 0x200000000000000;
-  WF0 = 0x200;
-  WF1 = 0;
-
-  for (unsigned u = 0; u < 10; u ++)
-  BIG_ROUND;
-
-  Vb00 ^= hash->h8[0] ^ W00 ^ W80;
-  Vb01 ^= hash->h8[1] ^ W01 ^ W81;
-  Vb10 ^= hash->h8[2] ^ W10 ^ W90;
-  Vb11 ^= hash->h8[3] ^ W11 ^ W91;
-  Vb20 ^= hash->h8[4] ^ W20 ^ WA0;
-  Vb21 ^= hash->h8[5] ^ W21 ^ WA1;
-  Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
-  Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
-
-  hash->h8[0] = Vb00;
-  hash->h8[1] = Vb01;
-  hash->h8[2] = Vb10;
-  hash->h8[3] = Vb11;
-  hash->h8[4] = Vb20;
-  hash->h8[5] = Vb21;
-  hash->h8[6] = Vb30;
-  hash->h8[7] = Vb31;
+  #pragma unroll
+  for(int i = 0; i < 4; ++i)
+    vstore4(vload4(i, hash->h4) ^ W[i] ^ W[i + 8] ^ (uint4)(512, 0, 0, 0), i, hash->h4);
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -598,87 +563,50 @@ __kernel void search6(__global hash_t* hashes)
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-// x11_echo512_cpu_hash_64
-
-  __local sph_u32 AES0[256], AES1[256], AES2[256], AES3[256];
-
-  int init = get_local_id(0);
-  int step = get_local_size(0);
-
-  for (int i = init; i < 256; i += step)
-  {
+  __local uint AES0[256];
+  for(int i = get_local_id(0), step = get_local_size(0); i < 256; i += step)
     AES0[i] = AES0_C[i];
-    AES1[i] = AES1_C[i];
-    AES2[i] = AES2_C[i];
-    AES3[i] = AES3_C[i];
-  }
+
+  uint4 W[16];
+
+  // Precomp
+  W[0] = (uint4)(0xe7e9f5f5, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[1] = (uint4)(0x14b8a457, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[2] = (uint4)(0xdbfde1dd, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[3] = (uint4)(0x9ac2dea3, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[4] = (uint4)(0x65978b09, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[5] = (uint4)(0xa4213d7e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[6] = (uint4)(0x265f4382, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[7] = (uint4)(0x34514d9e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W[12] = (uint4)(0xb134347e, 0xea6f7e7e, 0xbd7731bd, 0x8a8a1968);
+  W[13] = (uint4)(0x579f9f33, 0xfbfbfbfb, 0xfbfbfbfb, 0xefefd3c7);
+  W[14] = (uint4)(0x2cb6b661, 0x6b23b3b3, 0xcf93a7cf, 0x9d9d3751);
+  W[15] = (uint4)(0x01425eb8, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+
+  ((uint16 *)W)[2] = vload16(0, hash->h4);
+
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  // copies hashes to "hash"
-  // echo
-  sph_u64 W00, W01, W10, W11, W20, W21, W30, W31, W40, W41, W50, W51, W60, W61, W70, W71, W80, W81, W90, W91, WA0, WA1, WB0, WB1, WC0, WC1, WD0, WD1, WE0, WE1, WF0, WF1;
-  sph_u64 Vb00, Vb01, Vb10, Vb11, Vb20, Vb21, Vb30, Vb31, Vb40, Vb41, Vb50, Vb51, Vb60, Vb61, Vb70, Vb71;
-  Vb00 = Vb10 = Vb20 = Vb30 = Vb40 = Vb50 = Vb60 = Vb70 = 512UL;
-  Vb01 = Vb11 = Vb21 = Vb31 = Vb41 = Vb51 = Vb61 = Vb71 = 0;
+  #pragma unroll
+	for(int x = 8; x < 12; ++x) {
+		uint4 tmp;
+		tmp = Echo_AES_Round_Small(AES0, W[x]);
+		tmp.s0 ^= x | 0x200;
+		W[x] = Echo_AES_Round_Small(AES0, tmp);
+	}
+  BigShiftRows(W);
+  BigMixColumns(W);
 
-  sph_u32 K0 = 512;
-  sph_u32 K1 = 0;
-  sph_u32 K2 = 0;
-  sph_u32 K3 = 0;
+  #pragma unroll 1
+  for(uint k0 = 16; k0 < 160; k0 += 16) {
+      BigSubBytesSmall(AES0, W, k0);
+      BigShiftRows(W);
+      BigMixColumns(W);
+  }
 
-  W00 = Vb00;
-  W01 = Vb01;
-  W10 = Vb10;
-  W11 = Vb11;
-  W20 = Vb20;
-  W21 = Vb21;
-  W30 = Vb30;
-  W31 = Vb31;
-  W40 = Vb40;
-  W41 = Vb41;
-  W50 = Vb50;
-  W51 = Vb51;
-  W60 = Vb60;
-  W61 = Vb61;
-  W70 = Vb70;
-  W71 = Vb71;
-  W80 = hash->h8[0];
-  W81 = hash->h8[1];
-  W90 = hash->h8[2];
-  W91 = hash->h8[3];
-  WA0 = hash->h8[4];
-  WA1 = hash->h8[5];
-  WB0 = hash->h8[6];
-  WB1 = hash->h8[7];
-  WC0 = 0x80;
-  WC1 = 0;
-  WD0 = 0;
-  WD1 = 0;
-  WE0 = 0;
-  WE1 = 0x200000000000000;
-  WF0 = 0x200;
-  WF1 = 0;
-
-  for (unsigned u = 0; u < 10; u ++)
-  BIG_ROUND;
-
-  Vb00 ^= hash->h8[0] ^ W00 ^ W80;
-  Vb01 ^= hash->h8[1] ^ W01 ^ W81;
-  Vb10 ^= hash->h8[2] ^ W10 ^ W90;
-  Vb11 ^= hash->h8[3] ^ W11 ^ W91;
-  Vb20 ^= hash->h8[4] ^ W20 ^ WA0;
-  Vb21 ^= hash->h8[5] ^ W21 ^ WA1;
-  Vb30 ^= hash->h8[6] ^ W30 ^ WB0;
-  Vb31 ^= hash->h8[7] ^ W31 ^ WB1;
-
-  hash->h8[0] = Vb00;
-  hash->h8[1] = Vb01;
-  hash->h8[2] = Vb10;
-  hash->h8[3] = Vb11;
-  hash->h8[4] = Vb20;
-  hash->h8[5] = Vb21;
-  hash->h8[6] = Vb30;
-  hash->h8[7] = Vb31;
+  #pragma unroll
+  for(int i = 0; i < 4; ++i)
+    vstore4(vload4(i, hash->h4) ^ W[i] ^ W[i + 8] ^ (uint4)(512, 0, 0, 0), i, hash->h4);
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
