@@ -290,26 +290,26 @@ __kernel void search1(__global uchar* hashes,__global ulong *buffer)
   __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(1))));
 
   __local ulong roundPad[12 * 16];
-	__local ulong *xchange = roundPad + get_local_id(1) * 4;
+  __local ulong *xchange = roundPad + get_local_id(1) * 4;
 
   __global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
   const int player = get_local_id(0);
 
   ulong state[4];
-	state[0] = hash->h8[player];
+  state[0] = hash->h8[player];
   state[1] = state[0];
   state[2] = initial_lyra2[0][player];
   state[3] = initial_lyra2[1][player];
 
   for (int loop = 0; loop < 24; loop++) round_lyra_4way(state, xchange);
   
-	__global ulong *dst = notepad + HYPERMATRIX_COUNT;
-	for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
-		dst -= STATE_BLOCK_COUNT; // but blocks backwards
-		for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
-		round_lyra_4way(state, xchange);
-	}
-	make_hyper_one(state, xchange, notepad);
+  __global ulong *dst = notepad + HYPERMATRIX_COUNT;
+  for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
+    dst -= STATE_BLOCK_COUNT; // but blocks backwards
+    for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
+    round_lyra_4way(state, xchange);
+  }
+  make_hyper_one(state, xchange, notepad);
   make_next_hyper(1, 0, 2, state, roundPad, notepad);
   make_next_hyper(2, 1, 3, state, roundPad, notepad);
   make_next_hyper(3, 0, 4, state, roundPad, notepad);
@@ -317,7 +317,7 @@ __kernel void search1(__global uchar* hashes,__global ulong *buffer)
   make_next_hyper(5, 2, 6, state, roundPad, notepad);
   make_next_hyper(6, 1, 7, state, roundPad, notepad);
 
-	uint modify;
+  uint modify;
 
   __local uint *shorter = (__local uint*)roundPad;
   if(get_local_id(0) == 0) {
@@ -369,9 +369,9 @@ __kernel void search1(__global uchar* hashes,__global ulong *buffer)
   modify = shorter[get_local_id(1)];
   hyper_xor(2, modify, 5, state, roundPad, notepad);
 
-	notepad += HYPERMATRIX_COUNT * modify;
-	for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
-	for(int loop = 0; loop < 12; loop++) round_lyra_4way(state, xchange);
+  notepad += HYPERMATRIX_COUNT * modify;
+  for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
+  for(int loop = 0; loop < 12; loop++) round_lyra_4way(state, xchange);
 
   hash->h8[player] = state[0];
 
@@ -446,14 +446,14 @@ __kernel void search3(__global hash_t* hashes, __global hash_t* branches, __glob
   __global hash_t *branch = &(branches[gid-get_global_offset(0)]);
   __global uchar *nonceBranch = &(nonceBranches[gid-get_global_offset(0)]);
   *nonceBranch = hash->h1[0] & 1;
-	if (*nonceBranch) return;
+  if (*nonceBranch) return;
   __global uint4 *pdst = (__global uint4*)((branch));
   __global uint4 *psrc = (__global uint4*)((hash));
   uint4 data;
-	data = psrc[0]; pdst[0] = data;
-	data = psrc[1]; pdst[1] = data;
-	data = psrc[2]; pdst[2] = data;
-	data = psrc[3]; pdst[3] = data;
+  data = psrc[0]; pdst[0] = data;
+  data = psrc[1]; pdst[1] = data;
+  data = psrc[2]; pdst[2] = data;
+  data = psrc[3]; pdst[3] = data;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -534,12 +534,12 @@ __kernel void search5(__global hash_t* hashes)
   barrier(CLK_LOCAL_MEM_FENCE);
 
   #pragma unroll
-	for(int x = 8; x < 12; ++x) {
-		uint4 tmp;
-		tmp = Echo_AES_Round_Small(AES0, W[x]);
-		tmp.s0 ^= x | 0x200;
-		W[x] = Echo_AES_Round_Small(AES0, tmp);
-	}
+  for(int x = 8; x < 12; ++x) {
+    uint4 tmp;
+    tmp = Echo_AES_Round_Small(AES0, W[x]);
+    tmp.s0 ^= x | 0x200;
+    W[x] = Echo_AES_Round_Small(AES0, tmp);
+  }
   BigShiftRows(W);
   BigMixColumns(W);
 
@@ -588,12 +588,12 @@ __kernel void search6(__global hash_t* hashes)
   barrier(CLK_LOCAL_MEM_FENCE);
 
   #pragma unroll
-	for(int x = 8; x < 12; ++x) {
-		uint4 tmp;
-		tmp = Echo_AES_Round_Small(AES0, W[x]);
-		tmp.s0 ^= x | 0x200;
-		W[x] = Echo_AES_Round_Small(AES0, tmp);
-	}
+  for(int x = 8; x < 12; ++x) {
+    uint4 tmp;
+    tmp = Echo_AES_Round_Small(AES0, W[x]);
+    tmp.s0 ^= x | 0x200;
+    W[x] = Echo_AES_Round_Small(AES0, tmp);
+  }
   BigShiftRows(W);
   BigMixColumns(W);
 
