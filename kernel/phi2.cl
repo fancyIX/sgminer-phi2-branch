@@ -68,10 +68,11 @@ typedef int sph_s32;
 #include "gost-mod.cl"
 #include "echo.cl"
 #define memshift 3
-#include "lyra2v16.cl"
+
 
 #define SWAP4(x) as_uint(as_uchar4(x).wzyx)
 #define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
+#define SWAP32(x) as_ulong(as_uint2(x).s10)
 
 #if SPH_BIG_ENDIAN
   #define DEC64BE(x) (*(const __global sph_u64 *) (x));
@@ -111,6 +112,8 @@ typedef union {
   #define DEC64BE(x) SWAP8(*(const __global sph_u64 *) (x));
   #define DEC32LE(x) (*(const __global sph_u32 *) (x));
 #endif
+
+#include "lyra2mdz.cl"
 
 // cubehash_80
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
@@ -278,144 +281,99 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 /// lyra2 algo 
 
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search1(__global uchar* hashes,__global uchar* matrix)
+__attribute__((reqd_work_group_size(4, 16, 1)))
+__kernel void search1(__global uchar* hashes,__global ulong *buffer)
 {
-  uint gid = get_global_id(0);
-  // __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-  __global hash_t *hash = (__global hash_t *)(hashes + (8 * sizeof(ulong)* (gid - get_global_offset(0))));
-  __global ulong4 *DMatrix = (__global ulong4 *)(matrix + (4 * memshift * 8 * 8 * 8 * (gid - get_global_offset(0))));
+  uint gid = get_global_id(1);
+  __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(1))));
 
-//  uint offset = (4 * memshift * 4 * 4 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS))/32;
-  ulong4 state[4];
-  __local ulong4 temp[24*WORKSIZE];
+  __local ulong roundPad[12 * 16];
+	__local ulong *xchange = roundPad + get_local_id(1) * 4;
 
-  state[0].x = hash->h8[0]; //password
-  state[0].y = hash->h8[1]; //password
-  state[0].z = hash->h8[2]; //password
-  state[0].w = hash->h8[3]; //password
+  __global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
+  const int player = get_local_id(0);
+
+  ulong state[4];
+	state[0] = hash->h8[player];
   state[1] = state[0];
-  state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
-  state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
+  state[2] = initial_lyra2[0][player];
+  state[3] = initial_lyra2[1][player];
 
-  for (int i = 0; i<24; i++) { round_lyra(state); } 
+  for (int loop = 0; loop < 24; loop++) round_lyra_4way(state, xchange);
+  
+	__global ulong *dst = notepad + HYPERMATRIX_COUNT;
+	for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
+		dst -= STATE_BLOCK_COUNT; // but blocks backwards
+		for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
+		round_lyra_4way(state, xchange);
+	}
+	make_hyper_one(state, xchange, notepad);
+  make_next_hyper(1, 0, 2, state, roundPad, notepad);
+  make_next_hyper(2, 1, 3, state, roundPad, notepad);
+  make_next_hyper(3, 0, 4, state, roundPad, notepad);
+  make_next_hyper(4, 3, 5, state, roundPad, notepad);
+  make_next_hyper(5, 2, 6, state, roundPad, notepad);
+  make_next_hyper(6, 1, 7, state, roundPad, notepad);
 
-// reducedsqueezedrow0
-  uint ps1 = (memshift * 7);
-//#pragma unroll 4
-  for (int i = 0; i < 8; i++)
-  {
-	  uint s1 = ps1 - memshift * i;
-	  for (int j = 0; j < 3; j++)
-		  (DMatrix)[j+s1] = state[j];
+	uint modify;
 
-    for (int j = 0; j < 3; j++)
-		  temp[3*(7-i)+j+24* get_local_id(0)] = state[j];
-
-	  round_lyra(state);
+  __local uint *shorter = (__local uint*)roundPad;
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
   }
-
-  ///// reduceduplexrow1 ////////////
-  reduceDuplexf_tmp(state,DMatrix,temp + 24 * get_local_id(0));
- 
-  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 24 * get_local_id(0));
-
-  uint rowa;
-
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 0, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(0, rowa, 3, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(3, rowa, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(6, rowa, 1, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(1, rowa, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(4, rowa, 7, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 2, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp2(2, rowa, 5, state, DMatrix, temp + 24 * get_local_id(0));
-
-  for (int j = 0; j < 3; j++)
-	  state[j] ^= temp[j + 24 * get_local_id(0)]; //(DMatrix)[j+shift];
-
-  for (int i = 0; i < 12; i++)
-	  round_lyra(state);
-
-  for (int i = 0; i<4; i++) {hash->h8[i] = ((ulong*)state)[i];} 
-
-//================================================= 2nd half
-
-  state[0].x = hash->h8[0 + 4]; //password
-  state[0].y = hash->h8[1 + 4]; //password
-  state[0].z = hash->h8[2 + 4]; //password
-  state[0].w = hash->h8[3 + 4]; //password
-  state[1] = state[0];
-  state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
-  state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
-
-  for (int i = 0; i<24; i++) { round_lyra(state); } 
-
-// reducedsqueezedrow0
-   ps1 = (memshift * 7);
-//#pragma unroll 4
-  for (int i = 0; i < 8; i++)
-  {
-	  uint s1 = ps1 - memshift * i;
-	  for (int j = 0; j < 3; j++)
-		  (DMatrix)[j+s1] = state[j];
-
-    for (int j = 0; j < 3; j++)
-		  temp[3*(7-i)+j+24* get_local_id(0)] = state[j];
-
-	  round_lyra(state);
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(7, modify, 0, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
   }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(0, modify, 3, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
+  }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(3, modify, 6, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
+  }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(6, modify, 1, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
+  }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(1, modify, 4, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
+  }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(4, modify, 7, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
+  }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(7, modify, 2, state, roundPad, notepad);
+  if(get_local_id(0) == 0) {
+    shorter[get_local_id(1)] = (uint)(state[0] % 4);
+  }
+  barrier(CLK_LOCAL_MEM_FENCE); // nop
+  modify = shorter[get_local_id(1)];
+  hyper_xor(2, modify, 5, state, roundPad, notepad);
 
-  ///// reduceduplexrow1 ////////////
-  reduceDuplexf_tmp(state,DMatrix,temp + 24 * get_local_id(0));
- 
-  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 24 * get_local_id(0));
+	notepad += HYPERMATRIX_COUNT * modify;
+	for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
+	for(int loop = 0; loop < 12; loop++) round_lyra_4way(state, xchange);
 
+  hash->h8[player] = state[0];
 
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 0, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(0, rowa, 3, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(3, rowa, 6, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(6, rowa, 1, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(1, rowa, 4, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(4, rowa, 7, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp(7, rowa, 2, state, DMatrix, temp + 24 * get_local_id(0));
-  rowa = state[0].x & 7;
-  reduceDuplexRowf_tmp2(2, rowa, 5, state, DMatrix, temp + 24 * get_local_id(0));
-
-  for (int j = 0; j < 3; j++)
-	  state[j] ^= temp[j + 24 * get_local_id(0)]; //(DMatrix)[j+shift];
-
-  for (int i = 0; i < 12; i++)
-	  round_lyra(state);
-
-  for (int i = 0; i<4; i++) {hash->h8[i + 4] = ((ulong*)state)[i];} 
-
-  barrier(CLK_LOCAL_MEM_FENCE);
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 
