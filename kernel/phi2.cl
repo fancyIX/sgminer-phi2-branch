@@ -62,12 +62,10 @@ typedef int sph_s32;
 #define SPH_JH_64 1
 #define SPH_CUBEHASH_UNROLL 0
 
-#include "skein.cl"
 #include "jh.cl"
 #include "cubehash.cl"
 #include "fugue.cl"
 #include "gost-mod.cl"
-#include "echo.cl"
 #define memshift 3
 
 
@@ -116,8 +114,12 @@ typedef union {
 
 #include "lyra2mdz.cl"
 #include "wolf-echo.cl"
+#include "wolf-skein.cl"
+#include "wolf-jh.cl"
+#include "wolf-aes.cl"
+#include "wolf-groestl.cl"
 
-// cubehash_80
+// cubehash_80/144
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search(__global unsigned char* block, __global hash_t* hashes, uint has_roots)
 {
@@ -125,7 +127,6 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
     __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
   if (!has_roots) {
-// cubehash512_cuda_hash_80
 
     sph_u32 x0 = SPH_C32(0x2AEA2A61), x1 = SPH_C32(0x50F494D4), x2 = SPH_C32(0x2D538B8B), x3 = SPH_C32(0x4167D83E);
     sph_u32 x4 = SPH_C32(0x3FEE2313), x5 = SPH_C32(0xC701CF8C), x6 = SPH_C32(0xCC39968E), x7 = SPH_C32(0x50AC5695);
@@ -378,59 +379,174 @@ __kernel void search1(__global uchar* hashes,__global ulong *buffer)
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
-
+// jh 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search2(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-  // jh quark_jh512_cpu_hash_64
-
-  sph_u64 h0h = C64e(0x6fd14b963e00aa17), h0l = C64e(0x636a2e057a15d543), h1h = C64e(0x8a225e8d0c97ef0b), h1l = C64e(0xe9341259f2b3c361), h2h = C64e(0x891da0c1536f801e), h2l = C64e(0x2aa9056bea2b6d80), h3h = C64e(0x588eccdb2075baa6), h3l = C64e(0xa90f3a76baf83bf7);
-  sph_u64 h4h = C64e(0x0169e60541e34a69), h4l = C64e(0x46b58a8e2e6fe65a), h5h = C64e(0x1047a7d0c1843c24), h5l = C64e(0x3b6e71b12d5ac199), h6h = C64e(0xcf57f6ec9db1f856), h6l = C64e(0xa706887c5716b156), h7h = C64e(0xe3c2fcdfe68517fb), h7l = C64e(0x545a4678cc8cdd4b);
-  sph_u64 tmp;
-
-  for(int i = 0; i < 2; i++)
-  {
-  if (i == 0)
-  {
-    h0h ^= (hash->h8[0]);
-    h0l ^= (hash->h8[1]);
-    h1h ^= (hash->h8[2]);
-    h1l ^= (hash->h8[3]);
-    h2h ^= (hash->h8[4]);
-    h2l ^= (hash->h8[5]);
-    h3h ^= (hash->h8[6]);
-    h3l ^= (hash->h8[7]);
-  }
-  else if(i == 1)
-  {
-    h4h ^= (hash->h8[0]);
-    h4l ^= (hash->h8[1]);
-    h5h ^= (hash->h8[2]);
-    h5l ^= (hash->h8[3]);
-    h6h ^= (hash->h8[4]);
-    h6l ^= (hash->h8[5]);
-    h7h ^= (hash->h8[6]);
-    h7l ^= (hash->h8[7]);
-
-    h0h ^= 0x80;
-    h3l ^= 0x2000000000000;
-  }
-  E8;
-  }
-  h4h ^= 0x80;
-  h7l ^= 0x2000000000000;
-
-  hash->h8[0] = (h4h);
-  hash->h8[1] = (h4l);
-  hash->h8[2] = (h5h);
-  hash->h8[3] = (h5l);
-  hash->h8[4] = (h6h);
-  hash->h8[5] = (h6l);
-  hash->h8[6] = (h7h);
-  hash->h8[7] = (h7l);
+  JH_CHUNK_TYPE evnhi = (JH_CHUNK_TYPE)(JH_BASE_TYPE_CAST(0x17AA003E964BD16FUL), JH_BASE_TYPE_CAST(0x1E806F53C1A01D89UL), JH_BASE_TYPE_CAST(0x694AE34105E66901UL), JH_BASE_TYPE_CAST(0x56F8B19DECF657CFUL));
+	JH_CHUNK_TYPE evnlo = (JH_CHUNK_TYPE)(JH_BASE_TYPE_CAST(0x43D5157A052E6A63UL), JH_BASE_TYPE_CAST(0x806D2BEA6B05A92AUL), JH_BASE_TYPE_CAST(0x5AE66F2E8E8AB546UL), JH_BASE_TYPE_CAST(0x56B116577C8806A7UL));
+	JH_CHUNK_TYPE oddhi = (JH_CHUNK_TYPE)(JH_BASE_TYPE_CAST(0x0BEF970C8D5E228AUL), JH_BASE_TYPE_CAST(0xA6BA7520DBCC8E58UL), JH_BASE_TYPE_CAST(0x243C84C1D0A74710UL), JH_BASE_TYPE_CAST(0xFB1785E6DFFCC2E3UL));
+	JH_CHUNK_TYPE oddlo = (JH_CHUNK_TYPE)(JH_BASE_TYPE_CAST(0x61C3B3F2591234E9UL), JH_BASE_TYPE_CAST(0xF73BF8BA763A0FA9UL), JH_BASE_TYPE_CAST(0x99C15A2DB1716E3BUL), JH_BASE_TYPE_CAST(0x4BDD8CCC78465A54UL));
+	
+	#ifdef WOLF_JH_64BIT
+	
+	evnhi.s0 ^= JH_BASE_TYPE_CAST(hash->h8[0]);
+	evnlo.s0 ^= JH_BASE_TYPE_CAST(hash->h8[1]);
+	oddhi.s0 ^= JH_BASE_TYPE_CAST(hash->h8[2]);
+	oddlo.s0 ^= JH_BASE_TYPE_CAST(hash->h8[3]);
+	evnhi.s1 ^= JH_BASE_TYPE_CAST(hash->h8[4]);
+	evnlo.s1 ^= JH_BASE_TYPE_CAST(hash->h8[5]);
+	oddhi.s1 ^= JH_BASE_TYPE_CAST(hash->h8[6]);
+	oddlo.s1 ^= JH_BASE_TYPE_CAST(hash->h8[7]);
+	
+	#else
+	
+	evnhi.lo.lo ^= JH_BASE_TYPE_CAST(hash->h8[0]);
+	evnlo.lo.lo ^= JH_BASE_TYPE_CAST(hash->h8[1]);
+	oddhi.lo.lo ^= JH_BASE_TYPE_CAST(hash->h8[2]);
+	oddlo.lo.lo ^= JH_BASE_TYPE_CAST(hash->h8[3]);
+	evnhi.lo.hi ^= JH_BASE_TYPE_CAST(hash->h8[4]);
+	evnlo.lo.hi ^= JH_BASE_TYPE_CAST(hash->h8[5]);
+	oddhi.lo.hi ^= JH_BASE_TYPE_CAST(hash->h8[6]);
+	oddlo.lo.hi ^= JH_BASE_TYPE_CAST(hash->h8[7]);
+	
+	#endif
+	
+	for(bool flag = false;; flag++)
+	{
+		#pragma unroll
+		for(int r = 0; r < 6; ++r)
+		{
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 0));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 0));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 0));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 0));
+						
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 0);
+			
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 1));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 1));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 1));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 1));
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 1);
+			
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 2));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 2));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 2));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 2));
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 2);
+			
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 3));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 3));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 3));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 3));
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 3);
+			
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 4));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 4));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 4));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 4));
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 4);
+			
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 5));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 5));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 5));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 5));
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 5);
+			
+			evnhi = Sb_new(evnhi, Ceven_hi_new((r * 7) + 6));
+			evnlo = Sb_new(evnlo, Ceven_lo_new((r * 7) + 6));
+			oddhi = Sb_new(oddhi, Codd_hi_new((r * 7) + 6));
+			oddlo = Sb_new(oddlo, Codd_lo_new((r * 7) + 6));
+			Lb_new(&evnhi, &oddhi);
+			Lb_new(&evnlo, &oddlo);
+			
+			JH_RND(&oddhi, &oddlo, 6);
+		}
+				
+		if(flag) break;
+		
+		#ifdef WOLF_JH_64BIT
+		
+		evnhi.s2 ^= JH_BASE_TYPE_CAST(hash->h8[0]);
+		evnlo.s2 ^= JH_BASE_TYPE_CAST(hash->h8[1]);
+		oddhi.s2 ^= JH_BASE_TYPE_CAST(hash->h8[2]);
+		oddlo.s2 ^= JH_BASE_TYPE_CAST(hash->h8[3]);
+		evnhi.s3 ^= JH_BASE_TYPE_CAST(hash->h8[4]);
+		evnlo.s3 ^= JH_BASE_TYPE_CAST(hash->h8[5]);
+		oddhi.s3 ^= JH_BASE_TYPE_CAST(hash->h8[6]);
+		oddlo.s3 ^= JH_BASE_TYPE_CAST(hash->h8[7]);
+		
+		evnhi.s0 ^= JH_BASE_TYPE_CAST(0x80UL);
+		oddlo.s1 ^= JH_BASE_TYPE_CAST(0x0002000000000000UL);
+		
+		#else
+			
+		evnhi.hi.lo ^= JH_BASE_TYPE_CAST(hash->h8[0]);
+		evnlo.hi.lo ^= JH_BASE_TYPE_CAST(hash->h8[1]);
+		oddhi.hi.lo ^= JH_BASE_TYPE_CAST(hash->h8[2]);
+		oddlo.hi.lo ^= JH_BASE_TYPE_CAST(hash->h8[3]);
+		evnhi.hi.hi ^= JH_BASE_TYPE_CAST(hash->h8[4]);
+		evnlo.hi.hi ^= JH_BASE_TYPE_CAST(hash->h8[5]);
+		oddhi.hi.hi ^= JH_BASE_TYPE_CAST(hash->h8[6]);
+		oddlo.hi.hi ^= JH_BASE_TYPE_CAST(hash->h8[7]);
+		
+		evnhi.lo.lo ^= JH_BASE_TYPE_CAST(0x80UL);
+		oddlo.lo.hi ^= JH_BASE_TYPE_CAST(0x0002000000000000UL);
+		
+		#endif
+	}
+	
+	#ifdef WOLF_JH_64BIT
+	
+	evnhi.s2 ^= JH_BASE_TYPE_CAST(0x80UL);
+	oddlo.s3 ^= JH_BASE_TYPE_CAST(0x2000000000000UL);
+	
+	hash->h8[0] = as_ulong(evnhi.s2);
+	hash->h8[1] = as_ulong(evnlo.s2);
+	hash->h8[2] = as_ulong(oddhi.s2);
+	hash->h8[3] = as_ulong(oddlo.s2);
+	hash->h8[4] = as_ulong(evnhi.s3);
+	hash->h8[5] = as_ulong(evnlo.s3);
+	hash->h8[6] = as_ulong(oddhi.s3);
+	hash->h8[7] = as_ulong(oddlo.s3);
+	
+	#else
+	
+	evnhi.hi.lo ^= JH_BASE_TYPE_CAST(0x80UL);
+	oddlo.hi.hi ^= JH_BASE_TYPE_CAST(0x2000000000000UL);
+	
+	hash->h8[0] = as_ulong(evnhi.hi.lo);
+	hash->h8[1] = as_ulong(evnlo.hi.lo);
+	hash->h8[2] = as_ulong(oddhi.hi.lo);
+	hash->h8[3] = as_ulong(oddlo.hi.lo);
+	hash->h8[4] = as_ulong(evnhi.hi.hi);
+	hash->h8[5] = as_ulong(evnlo.hi.hi);
+	hash->h8[6] = as_ulong(oddhi.hi.hi);
+	hash->h8[7] = as_ulong(oddlo.hi.hi);
+	
+	#endif
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -458,13 +574,13 @@ __kernel void search3(__global hash_t* hashes, __global hash_t* branches, __glob
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
+
+//gost streebog 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search4(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-  // gost streebog_cpu_hash_64
 
   sph_u64 message[8], out[8];
   sph_u64 len = 512;
@@ -502,7 +618,7 @@ __kernel void search4(__global hash_t* hashes)
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
-
+// echo 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search5(__global hash_t* hashes)
 {
@@ -557,6 +673,7 @@ __kernel void search5(__global hash_t* hashes)
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
+// echo 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search6(__global hash_t* hashes)
 {
@@ -630,40 +747,32 @@ __kernel void search7(__global hash_t* hashes, __global hash_t* branches, __glob
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
+// skein 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search8(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-// quark_skein512_cpu_hash_64
-
-  sph_u64 h0 = SPH_C64(0x4903ADFF749C51CE), h1 = SPH_C64(0x0D95DE399746DF03), h2 = SPH_C64(0x8FD1934127C79BCE), h3 = SPH_C64(0x9A255629FF352CB1), h4 = SPH_C64(0x5DB62599DF6CA7B0), h5 = SPH_C64(0xEABE394CA9D5C3F4), h6 = SPH_C64(0x991112C71A75B523), h7 = SPH_C64(0xAE18A40B660FCC33);
-  sph_u64 m0, m1, m2, m3, m4, m5, m6, m7;
-  sph_u64 bcount = 0;
-
-  m0 = (hash->h8[0]);
-  m1 = (hash->h8[1]);
-  m2 = (hash->h8[2]);
-  m3 = (hash->h8[3]);
-  m4 = (hash->h8[4]);
-  m5 = (hash->h8[5]);
-  m6 = (hash->h8[6]);
-  m7 = (hash->h8[7]);
-  UBI_BIG(480, 64);
-  bcount = 0;
-  m0 = m1 = m2 = m3 = m4 = m5 = m6 = m7 = 0;
-  UBI_BIG(510, 8);
-  hash->h8[0] = (h0);
-  hash->h8[1] = (h1);
-  hash->h8[2] = (h2);
-  hash->h8[3] = (h3);
-  hash->h8[4] = (h4);
-  hash->h8[5] = (h5);
-  hash->h8[6] = (h6);
-  hash->h8[7] = (h7);
-
-  barrier(CLK_GLOBAL_MEM_FENCE);
+  const ulong8 m = vload8(0, hash->h8);
+	
+	const ulong8 h = (ulong8)(	0x4903ADFF749C51CEUL, 0x0D95DE399746DF03UL, 0x8FD1934127C79BCEUL, 0x9A255629FF352CB1UL,
+								0x5DB62599DF6CA7B0UL, 0xEABE394CA9D5C3F4UL, 0x991112C71A75B523UL, 0xAE18A40B660FCC33UL);
+	
+	const ulong t[3] = { 0x40UL, 0xF000000000000000UL, 0xF000000000000040UL }, t2[3] = { 0x08UL, 0xFF00000000000000UL, 0xFF00000000000008UL };
+		
+	ulong8 p = Skein512Block(m, h, 0xCAB2076D98173EC4UL, t);
+	
+	const ulong8 h2 = m ^ p;
+	p = (ulong8)(0);
+	ulong h8 = h2.s0 ^ h2.s1 ^ h2.s2 ^ h2.s3 ^ h2.s4 ^ h2.s5 ^ h2.s6 ^ h2.s7 ^ 0x1BD11BDAA9FC1A22UL;
+	
+	p = Skein512Block(p, h2, h8, t2);
+	//p = VSWAP8(p);
+	
+	vstore8(p, 0, hash->h8);
+	
+	barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
