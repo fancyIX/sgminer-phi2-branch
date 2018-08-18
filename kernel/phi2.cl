@@ -290,8 +290,8 @@ __kernel void search1(__global uchar* hashes)
   uint gid = get_global_id(1);
   __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(1))));
 
-  __local ulong roundPad[12 * 5];
-  __local ulong *xchange = roundPad + get_local_id(1) * 4;
+  __private ulong roundPad[12];
+  __private ulong *xchange = roundPad;
 
   //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
   __local ulong notepadLDS[192 * 4 * 5];
@@ -322,54 +322,54 @@ __kernel void search1(__global uchar* hashes)
 
   uint modify;
 
-  __local uint *shorter = (__local uint*)roundPad;
+  __private uint *shorter = (__private uint*)roundPad;
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(7, modify, 0, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(0, modify, 3, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(3, modify, 6, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(6, modify, 1, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(1, modify, 4, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(4, modify, 7, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(7, modify, 2, state, roundPad, notepad);
   if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    shorter[0] = (uint)(state[0] % 8);
   }
   barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
+  modify = shorter[0];
   hyper_xor(2, modify, 5, state, roundPad, notepad);
 
   notepad += HYPERMATRIX_COUNT * modify;

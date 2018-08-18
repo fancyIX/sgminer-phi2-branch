@@ -70,7 +70,7 @@ void cipher_G(ulong s[4]) {
 }
 
 // pad counts 4 entries each hash team of 4
-void round_lyra_4way(ulong state[4], __local ulong *pad) {
+void round_lyra_4way(ulong state[4], __private ulong *pad) {
 	// The first half of the round is super nice to us 4-way kernels because we mangle
 	// our own column so it's just as in the legacy kernel, except we are parallel.
 	cipher_G(state);
@@ -81,14 +81,14 @@ void round_lyra_4way(ulong state[4], __local ulong *pad) {
 	// Anyway, each element of my state besides 0 should go somewhere!
 	for(int shuffle = 1; shuffle < 4; shuffle++) {
 		pad[get_local_id(0)] = state[shuffle];
-		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
+		//barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
 		state[shuffle] = pad[(get_local_id(0) + shuffle) % 4]; // maybe also precompute those offsets
 	}	
 	cipher_G(state);
 	// And we also have to put everything back in place :-(
 	for(int shuffle = 1; shuffle < 4; shuffle++) {
 		pad[get_local_id(0)] = state[shuffle];
-		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
+		//barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
 		int offset = shuffle % 2? 2 : 0;
 		offset += shuffle;
 		state[shuffle] = pad[(get_local_id(0) + offset) % 4]; // maybe also precompute those offsets
@@ -99,7 +99,7 @@ void round_lyra_4way(ulong state[4], __local ulong *pad) {
 /** Legacy kernel: "reduce duplex f". What it really does:
 init hypermatrix[1] from [0], starting at bigMat, already offset per hash
 inverting cols. We init hyper index 1 and we have only 1 to mangle. */
-void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat) {
+void make_hyper_one(ulong *state, __private ulong *xchange, __local ulong *bigMat) {
 	ulong si[3];
 	uint src = 0;
 	uint dst = HYPERMATRIX_COUNT * 2 - STATE_BLOCK_COUNT;
@@ -123,17 +123,17 @@ void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat)
 
 /** Consider your s'' as a sequence of ulongs instead of a matrix. Rotate it back
 and xor with true state. */
-void xorrot_one(ulong *modify, __local ulong *groupPad, ulong *src) {
+void xorrot_one(ulong *modify, __private ulong *groupPad, ulong *src) {
 	
-	ushort dst = LOCAL_LINEAR; // my slot
-	short off = get_local_id(0) < 3? 1 : (20 - 3);
+	ushort dst = get_local_id(0); // my slot
+	short off = get_local_id(0) < 3? 1 : (4 - 3);
 	groupPad[dst + off] = src[0];
-	dst += 20;
+	dst += 4;
 	groupPad[dst + off] = src[1];
-	dst += 20;
-	off = get_local_id(0) < 3? 1 : (-40 - 3);
+	dst += 4;
+	off = get_local_id(0) < 3? 1 : (-8 - 3);
 	groupPad[dst + off] = src[2];
-	for(uint cp = 0; cp < 3; cp++) modify[cp] ^= groupPad[LOCAL_LINEAR + cp * 20];
+	for(uint cp = 0; cp < 3; cp++) modify[cp] ^= groupPad[get_local_id(0) + cp * 4];
 }
 
 
@@ -143,7 +143,7 @@ There are two we can use now. The first we read.
 The last we modify (and we created it only a few ticks before!
 So maybe LDS here as well? To be benchmarked). */
 void make_next_hyper(uint matin, uint matrw, uint matout,
-                     ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
+                     ulong *state, __private ulong *groupPad, __local ulong *bigMat) {
 	ulong si[3], sII[3];
 	uint hyc = HYPERMATRIX_COUNT * matin; // hyper constant
 	uint hymod = HYPERMATRIX_COUNT * matrw; // hyper modify
@@ -155,7 +155,7 @@ void make_next_hyper(uint matin, uint matrw, uint matout,
 			sII[row] = bigMat[hymod + row * REG_ROW_COUNT];
 			state[row] ^= si[row] + sII[row];
 		}
-		round_lyra_4way(state, groupPad + get_local_id(1) * 4);
+		round_lyra_4way(state, groupPad);
 		for (int row = 0; row < 3; row++) {
 			si[row] ^= state[row];
 			bigMat[hydst + row * REG_ROW_COUNT] = si[row];
@@ -181,7 +181,7 @@ The difference wrt building hyper matrices is
 - We don't invert rows anymore so we start and walk similarly for all matrix.
 - When the two matrices being modified are the same we just assign. */
 void hyper_xor(uint matin, uint matrw, uint matout,
-               ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
+               ulong *state, __private ulong *groupPad, __local ulong *bigMat) {
 	ulong si[3], sII[3];
 	uint3 hyoff = (uint3)(matin* HYPERMATRIX_COUNT, matrw* HYPERMATRIX_COUNT, matout* HYPERMATRIX_COUNT);
 	uint hyc = HYPERMATRIX_COUNT * matin;
@@ -197,7 +197,7 @@ void hyper_xor(uint matin, uint matrw, uint matout,
 			si[row] += sII[row];
 			state[row] ^= si[row];
 		}
-		round_lyra_4way(state, groupPad + get_local_id(1) * 4);
+		round_lyra_4way(state, groupPad);
 		xorrot_one(sII, groupPad, state);
 		// Oh noes! An 'if' inside a loop!
 		// That's particularly bad: it's a 'dynamic' (or 'varying') branch
