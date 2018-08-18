@@ -513,7 +513,7 @@ static cl_int queue_phi2_kernel(struct __clState *clState, struct _dev_blk_ctx *
   // lyra2_cuda_hash_64 - search1
   num = 0;
   CL_SET_ARG(clState->padbuffer8);
-  CL_SET_ARG(clState->buffer3);
+  //CL_SET_ARG(clState->buffer3);
   // quark_jh512_cpu_hash_64 - search2
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
   // phi_filter_cuda - search3

@@ -1436,7 +1436,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
     if (gpu->algorithm.type == ALGO_PHI2 && i == 0) {
       const size_t off2[] = { 0, *p_global_work_offset };
 	    const size_t gws[] = { 4, globalThreads[0] * 2 };
-	    const size_t expand[] = { 4, 16 };
+	    const size_t expand[] = { 4, 5 };
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
     } else
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
