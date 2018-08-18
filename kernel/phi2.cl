@@ -284,16 +284,18 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 /// lyra2 algo 
 
 
-__attribute__((reqd_work_group_size(4, 16, 1)))
-__kernel void search1(__global uchar* hashes,__global ulong *buffer)
+__attribute__((reqd_work_group_size(4, 5, 1)))
+__kernel void search1(__global uchar* hashes)
 {
   uint gid = get_global_id(1);
   __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(1))));
 
-  __local ulong roundPad[12 * 16];
+  __local ulong roundPad[12 * 5];
   __local ulong *xchange = roundPad + get_local_id(1) * 4;
 
-  __global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
+  //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
+  __local ulong notepadLDS[192 * 4 * 5];
+  __local ulong *notepad = notepadLDS + LOCAL_LINEAR;
   const int player = get_local_id(0);
 
   ulong state[4];
@@ -304,7 +306,7 @@ __kernel void search1(__global uchar* hashes,__global ulong *buffer)
 
   for (int loop = 0; loop < 24; loop++) round_lyra_4way(state, xchange);
   
-  __global ulong *dst = notepad + HYPERMATRIX_COUNT;
+  __local ulong *dst = notepad + HYPERMATRIX_COUNT;
   for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
     dst -= STATE_BLOCK_COUNT; // but blocks backwards
     for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];

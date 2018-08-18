@@ -55,7 +55,7 @@ ulong ROTR64(const ulong x2, const uint y)
 #define HASH_SIZE (256 / 8) // size in bytes of an hash in/out
 #define SLOT (get_global_id(1) - get_global_offset(1))
 #define LOCAL_LINEAR (get_local_id(1) * get_local_size(0) + get_local_id(0))
-#define REG_ROW_COUNT (4 * get_global_size(1)) // ideally all happen at the same clock
+#define REG_ROW_COUNT (4 * get_local_size(1)) // ideally all happen at the same clock
 #define STATE_BLOCK_COUNT (3 * REG_ROW_COUNT)  // very close instructions
 #define LYRA_ROUNDS 8
 #define HYPERMATRIX_COUNT (LYRA_ROUNDS * STATE_BLOCK_COUNT)
@@ -99,7 +99,7 @@ void round_lyra_4way(ulong state[4], __local ulong *pad) {
 /** Legacy kernel: "reduce duplex f". What it really does:
 init hypermatrix[1] from [0], starting at bigMat, already offset per hash
 inverting cols. We init hyper index 1 and we have only 1 to mangle. */
-void make_hyper_one(ulong *state, __local ulong *xchange, __global ulong *bigMat) {
+void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat) {
 	ulong si[3];
 	uint src = 0;
 	uint dst = HYPERMATRIX_COUNT * 2 - STATE_BLOCK_COUNT;
@@ -126,14 +126,14 @@ and xor with true state. */
 void xorrot_one(ulong *modify, __local ulong *groupPad, ulong *src) {
 	
 	ushort dst = LOCAL_LINEAR; // my slot
-	short off = get_local_id(0) < 3? 1 : (64 - 3);
+	short off = get_local_id(0) < 3? 1 : (20 - 3);
 	groupPad[dst + off] = src[0];
-	dst += 64;
+	dst += 20;
 	groupPad[dst + off] = src[1];
-	dst += 64;
-	off = get_local_id(0) < 3? 1 : (-128 - 3);
+	dst += 20;
+	off = get_local_id(0) < 3? 1 : (-40 - 3);
 	groupPad[dst + off] = src[2];
-	for(uint cp = 0; cp < 3; cp++) modify[cp] ^= groupPad[LOCAL_LINEAR + cp * 64];
+	for(uint cp = 0; cp < 3; cp++) modify[cp] ^= groupPad[LOCAL_LINEAR + cp * 20];
 }
 
 
@@ -143,7 +143,7 @@ There are two we can use now. The first we read.
 The last we modify (and we created it only a few ticks before!
 So maybe LDS here as well? To be benchmarked). */
 void make_next_hyper(uint matin, uint matrw, uint matout,
-                     ulong *state, __local ulong *groupPad, __global ulong *bigMat) {
+                     ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
 	ulong si[3], sII[3];
 	uint hyc = HYPERMATRIX_COUNT * matin; // hyper constant
 	uint hymod = HYPERMATRIX_COUNT * matrw; // hyper modify
@@ -181,7 +181,7 @@ The difference wrt building hyper matrices is
 - We don't invert rows anymore so we start and walk similarly for all matrix.
 - When the two matrices being modified are the same we just assign. */
 void hyper_xor(uint matin, uint matrw, uint matout,
-               ulong *state, __local ulong *groupPad, __global ulong *bigMat) {
+               ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
 	ulong si[3], sII[3];
 	uint3 hyoff = (uint3)(matin* HYPERMATRIX_COUNT, matrw* HYPERMATRIX_COUNT, matout* HYPERMATRIX_COUNT);
 	uint hyc = HYPERMATRIX_COUNT * matin;

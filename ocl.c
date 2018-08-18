@@ -894,11 +894,11 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer2), decrease TC or increase LG", status);
         return NULL;
       }
-      clState->buffer3 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf3size, NULL, &status);
+      /*clState->buffer3 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf3size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer3) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer3), decrease TC or increase LG", status);
         return NULL;
-      }
+      }*/
     }
     else {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
