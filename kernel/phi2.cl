@@ -66,7 +66,6 @@ typedef int sph_s32;
 #include "cubehash.cl"
 #include "fugue.cl"
 #include "gost-mod.cl"
-#define memshift 3
 
 
 #define SWAP4(x) as_uint(as_uchar4(x).wzyx)
@@ -92,11 +91,20 @@ typedef union {
 } hash_t;
 
 typedef union {
-  unsigned char h1[32];
-  unsigned short h2[16];
-  uint h4[8];
-  ulong h8[4];
+    uint h4[8];
+    ulong h8[4];
+    uint4 h16[2];
+    ulong2 hl16[2];
+    ulong4 h32;
 } hash2_t;
+
+typedef union {
+    uint h4[32];
+    ulong h8[16];
+    uint4 h16[8];
+    ulong2 hl16[8];
+    ulong4 h32[4];
+} lyraState_t;
 
 #define SWAP8_INPUT(x)   x
 #define SWAP8_USELESS(x) x
@@ -280,15 +288,62 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes, uin
 }
 
 
+/// lyra2 p1 
 
-/// lyra2 algo 
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void search1(__global uint* hashes, __global uchar* sharedDataBuf)
+{
+    int gid = get_global_id(0);
+
+    __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
+
+    ulong ttr;
+
+    ulong2 state[8];
+    // state0
+    state[0] = hash->hl16[0];
+    state[1] = hash->hl16[1];
+    // state1
+    state[2] = state[0];
+    state[3] = state[1];
+    // state2
+    state[4] = (ulong2)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL);
+    state[5] = (ulong2)(0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
+    // state3 (low,high,..
+    state[6] = (ulong2)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL);
+    state[7] = (ulong2)(0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
+
+    // Absorbing salt, password and basil: this is the only place in which the block length is hard-coded to 512 bits
+    for (int i = 0; i < 24; ++i)
+    {
+        roundLyra(state);
+    }
+
+    // state0
+    lyraState->hl16[0] = state[0];
+    lyraState->hl16[1] = state[1];
+    // state1
+    lyraState->hl16[2] = state[2];
+    lyraState->hl16[3] = state[3];
+    // state2
+    lyraState->hl16[4] = state[4];
+    lyraState->hl16[5] = state[5];
+    // state3
+    lyraState->hl16[6] = state[6];
+    lyraState->hl16[7] = state[7];
+
+    barrier(CLK_GLOBAL_MEM_FENCE);
+}
+
+/// lyra2 algo p2 
 
 
 __attribute__((reqd_work_group_size(4, 5, 1)))
-__kernel void search1(__global uchar* hashes)
+__kernel void search2(__global uchar* sharedDataBuf)
 {
   uint gid = get_global_id(1);
-  __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(1))));
+  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(1))));
 
   __local ulong roundPad[12 * 5];
   __local ulong *xchange = roundPad + get_local_id(1) * 4;
@@ -299,12 +354,13 @@ __kernel void search1(__global uchar* hashes)
   const int player = get_local_id(0);
 
   ulong state[4];
-  state[0] = hash->h8[player];
-  state[1] = state[0];
-  state[2] = initial_lyra2[0][player];
-  state[3] = initial_lyra2[1][player];
 
-  for (int loop = 0; loop < 24; loop++) round_lyra_4way(state, xchange);
+  //-------------------------------------
+  // Load Lyra state
+  state[0] = (ulong)(lyraState->h8[player]);
+  state[1] = (ulong)(lyraState->h8[player+4]);
+  state[2] = (ulong)(lyraState->h8[player+8]);
+  state[3] = (ulong)(lyraState->h8[player+12]);
   
   __local ulong *dst = notepad + HYPERMATRIX_COUNT;
   for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
@@ -374,16 +430,56 @@ __kernel void search1(__global uchar* hashes)
 
   notepad += HYPERMATRIX_COUNT * modify;
   for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
-  for(int loop = 0; loop < 12; loop++) round_lyra_4way(state, xchange);
 
-  hash->h8[player] = state[0];
+  //-------------------------------------
+  // save lyra state    
+  lyraState->h8[player] = state[0];
+  lyraState->h8[player+4] = state[1];
+  lyraState->h8[player+8] = state[2];
+  lyraState->h8[player+12] = state[3];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
+// lyra2 p3
+
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void search3(__global uint* hashes, __global uchar* sharedDataBuf)
+{
+    int gid = get_global_id(0);
+
+    __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
+
+    ulong ttr;
+
+    ulong2 state[8];
+    // 1. load lyra State
+    state[0] = lyraState->hl16[0];
+    state[1] = lyraState->hl16[1];
+    state[2] = lyraState->hl16[2];
+    state[3] = lyraState->hl16[3];
+    state[4] = lyraState->hl16[4];
+    state[5] = lyraState->hl16[5];
+    state[6] = lyraState->hl16[6];
+    state[7] = lyraState->hl16[7];
+
+    // 2. rounds
+    for (int i = 0; i < 12; ++i)
+    {
+        roundLyra(state);
+    }
+
+    // 3. store result
+    hash->hl16[0] = state[0];
+    hash->hl16[1] = state[1];
+    
+    barrier(CLK_GLOBAL_MEM_FENCE);
+}
+
 // jh 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search2(__global hash_t* hashes)
+__kernel void search4(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -555,7 +651,7 @@ __kernel void search2(__global hash_t* hashes)
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search3(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
+__kernel void search5(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
 {
 // phi_filter_cuda
 
@@ -579,7 +675,7 @@ __kernel void search3(__global hash_t* hashes, __global hash_t* branches, __glob
 
 //gost streebog 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search4(__global hash_t* hashes)
+__kernel void search6(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -622,7 +718,7 @@ __kernel void search4(__global hash_t* hashes)
 
 // echo 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search5(__global hash_t* hashes)
+__kernel void search7(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -677,7 +773,7 @@ __kernel void search5(__global hash_t* hashes)
 
 // echo 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search6(__global hash_t* hashes)
+__kernel void search8(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -731,7 +827,7 @@ __kernel void search6(__global hash_t* hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search7(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
+__kernel void search9(__global hash_t* hashes, __global hash_t* branches, __global uchar* nonceBranches)
 {
 //phi_merge_cuda
   uint gid = get_global_id(0);
@@ -751,7 +847,7 @@ __kernel void search7(__global hash_t* hashes, __global hash_t* branches, __glob
 
 // skein 64
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search8(__global hash_t* hashes)
+__kernel void search10(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -778,7 +874,7 @@ __kernel void search8(__global hash_t* hashes)
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search9(__global hash_t* hashes, __global uint* output, const ulong target)
+__kernel void search11(__global hash_t* hashes, __global uint* output, const ulong target)
 {
 // phi_final_compress_cuda
   uint gid = get_global_id(0);

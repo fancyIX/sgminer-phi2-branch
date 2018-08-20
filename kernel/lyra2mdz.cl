@@ -40,6 +40,45 @@
  *   head and tail, one coherent matrix expansion, one incoherent mess.
 */
 
+#define rotr64(x, n) ((n) < 32 ? (amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n)) | ((ulong)amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n)) << 32)) : (amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n) - 32) | ((ulong)amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n) - 32) << 32)))
+
+#define Gfunc(a,b,c,d) \
+{ \
+    a += b;  \
+    d ^= a; \
+    ttr = rotr64(d, 32); \
+    d = ttr; \
+ \
+    c += d;  \
+    b ^= c; \
+    ttr = rotr64(b, 24); \
+    b = ttr; \
+ \
+    a += b;  \
+    d ^= a; \
+    ttr = rotr64(d, 16); \
+    d = ttr; \
+ \
+    c += d; \
+    b ^= c; \
+    ttr = rotr64(b, 63); \
+    b = ttr; \
+}
+
+#define roundLyra(state) \
+{ \
+     Gfunc(state[0].x, state[2].x, state[4].x, state[6].x); \
+     Gfunc(state[0].y, state[2].y, state[4].y, state[6].y); \
+     Gfunc(state[1].x, state[3].x, state[5].x, state[7].x); \
+     Gfunc(state[1].y, state[3].y, state[5].y, state[7].y); \
+ \
+     Gfunc(state[0].x, state[2].y, state[5].x, state[7].y); \
+     Gfunc(state[0].y, state[3].x, state[5].y, state[6].x); \
+     Gfunc(state[1].x, state[3].y, state[4].x, state[6].y); \
+     Gfunc(state[1].y, state[2].x, state[4].y, state[7].x); \
+}
+
+
 #pragma OPENCL EXTENSION cl_amd_media_ops : enable
 #pragma OPENCL EXTENSION cl_amd_media_ops2 : enable
 
