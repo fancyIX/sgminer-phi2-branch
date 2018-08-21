@@ -138,14 +138,15 @@ void round_lyra_4way(ulong state[4], __local ulong *pad) {
 /** Legacy kernel: "reduce duplex f". What it really does:
 init hypermatrix[1] from [0], starting at bigMat, already offset per hash
 inverting cols. We init hyper index 1 and we have only 1 to mangle. */
-void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat) {
+void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat, __private ulong temp[24]) {
 	ulong si[3];
 	uint src = 0;
 	uint dst = HYPERMATRIX_COUNT * 2 - STATE_BLOCK_COUNT;
 	for (int loop = 0; loop < LYRA_ROUNDS; loop++)
 	{
 		for (int row = 0; row < 3; row++) {
-			si[row] = bigMat[src];
+			//si[row] = bigMat[src];
+			si[row] = temp[loop + row * 8];
 			state[row] ^= si[row];
 			src += REG_ROW_COUNT; // read sequentially huge chunks of memory!
 		}
@@ -153,6 +154,7 @@ void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat)
 		for (int row = 0; row < 3; row++) {
 			si[row] ^= state[row];
 			bigMat[dst + row * REG_ROW_COUNT] = si[row]; // zigzag. Less nice.
+			temp[loop + row * 8] = si[row];
 		} // legacy kernel interleave xyzw for each row of matrix so
 		// going ahead or back is no difference for them but it is for us
 		// (me and my chip) because we keep the columns packed.
@@ -182,7 +184,7 @@ There are two we can use now. The first we read.
 The last we modify (and we created it only a few ticks before!
 So maybe LDS here as well? To be benchmarked). */
 void make_next_hyper(uint matin, uint matrw, uint matout,
-                     ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
+                     ulong *state, __local ulong *groupPad, __local ulong *bigMat, __private ulong temp[24], uint pass) {
 	ulong si[3], sII[3];
 	uint hyc = HYPERMATRIX_COUNT * matin; // hyper constant
 	uint hymod = HYPERMATRIX_COUNT * matrw; // hyper modify
@@ -190,7 +192,9 @@ void make_next_hyper(uint matin, uint matrw, uint matout,
 	for (int i = 0; i < LYRA_ROUNDS; i++)
 	{
 		for (int row = 0; row < 3; row++)  {
-			si[row] = bigMat[hyc + row * REG_ROW_COUNT];
+			//si[row] = bigMat[hyc + row * REG_ROW_COUNT];
+			if (pass == 1) si[row] = temp[(7 - i) + row * 8];
+			else si[row] = temp[(i) + row * 8];
 			sII[row] = bigMat[hymod + row * REG_ROW_COUNT];
 			state[row] ^= si[row] + sII[row];
 		}
@@ -198,6 +202,8 @@ void make_next_hyper(uint matin, uint matrw, uint matout,
 		for (int row = 0; row < 3; row++) {
 			si[row] ^= state[row];
 			bigMat[hydst + row * REG_ROW_COUNT] = si[row];
+			if (pass == 1) temp[(7 - i) + row * 8] = si[row];
+			else temp[(i) + row * 8] = si[row];
 		}
 		// A nice surprise there! Before continuing, xor your mini-matrix'' by state.
 		// But there's a quirk! Your s''[i] is to be xorred with s[i-1].
@@ -220,7 +226,7 @@ The difference wrt building hyper matrices is
 - We don't invert rows anymore so we start and walk similarly for all matrix.
 - When the two matrices being modified are the same we just assign. */
 void hyper_xor(uint matin, uint matrw, uint matout,
-               ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
+               ulong *state, __local ulong *groupPad, __local ulong *bigMat, __private ulong temp[24]) {
 	ulong si[3], sII[3];
 	uint3 hyoff = (uint3)(matin* HYPERMATRIX_COUNT, matrw* HYPERMATRIX_COUNT, matout* HYPERMATRIX_COUNT);
 	uint hyc = HYPERMATRIX_COUNT * matin;
@@ -229,7 +235,8 @@ void hyper_xor(uint matin, uint matrw, uint matout,
 	for (int i = 0; i < LYRA_ROUNDS; i++)
 	{
 		for (int row = 0; row < 3; row++)  {
-			si[row] = bigMat[hyc + row * REG_ROW_COUNT];
+			//si[row] = bigMat[hyc + row * REG_ROW_COUNT];
+			si[row] = temp[3 * (7 - i) + row];
 			sII[row] = bigMat[hymod + row * REG_ROW_COUNT];
 		}
 		for (int row = 0; row < 3; row++)  {
@@ -248,14 +255,18 @@ void hyper_xor(uint matin, uint matrw, uint matout,
 		// no other way to do it but just diverge.
 		if (matrw != matout) {
 			for (int row = 0; row < 3; row++) {
-				bigMat[hymod + row * REG_ROW_COUNT] = sII[row];
-				bigMat[hydst + row * REG_ROW_COUNT] ^= state[row];
+				//bigMat[hymod + row * REG_ROW_COUNT] = sII[row];
+				//bigMat[hydst + row * REG_ROW_COUNT] ^= state[row];
+				temp[(7 - i) + row * 8] = sII[row];
+				temp[(7 - i) + row * 8] ^= state[row];
+				bigMat[hydst + row * REG_ROW_COUNT] = temp[(7 - i) + row * 8];
 			}
 		}
 		else {
 			for (int row = 0; row < 3; row++) {
 				sII[row] ^= state[row];
 			    bigMat[hymod + row * REG_ROW_COUNT] = sII[row];
+				temp[(7 - i) + row * 8] = sII[row];
 			}
 		}
 		hyc += STATE_BLOCK_COUNT;
