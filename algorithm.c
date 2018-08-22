@@ -175,6 +175,16 @@ static void append_x11_compiler_options(struct _build_kernel_data *data, struct 
   strcat(data->binary_filename, buf);
 }
 
+static void append_phi2_compiler_options(struct _build_kernel_data *data, struct cgpu_info *cgpu, struct _algorithm_t *algorithm)
+{
+  char buf[255];
+  sprintf(buf, " -D SPH_COMPACT_BLAKE_64=%d -D SPH_LUFFA_PARALLEL=%d -D SPH_KECCAK_UNROLL=%u ",
+    ((opt_blake_compact) ? 1 : 0), ((opt_luffa_parallel) ? 1 : 0), (unsigned int)opt_keccak_unroll);
+  strcat(data->compiler_options, buf);
+
+  sprintf(buf, "ku%u%s%s", (unsigned int)opt_keccak_unroll, ((opt_blake_compact) ? "bc" : ""), ((opt_luffa_parallel) ? "lp" : ""));
+  strcat(data->binary_filename, buf);
+}
 
 static void append_x13_compiler_options(struct _build_kernel_data *data, struct cgpu_info *cgpu, struct _algorithm_t *algorithm)
 {
@@ -1309,7 +1319,7 @@ static algorithm_settings_t algos[] = {
   { "talkcoin-mod", ALGO_NIST, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 8 * 16 * 4194304, 0, talkcoin_regenhash, NULL, NULL, queue_talkcoin_mod_kernel, gen_hash, append_x11_compiler_options },
 
   { "phi", ALGO_PHI, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 5, 8 * 16 * 4194304, 0, phi_regenhash, NULL, NULL, queue_phi_kernel, gen_hash, append_x11_compiler_options },
-  { "phi2", ALGO_PHI2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 11, 8 * 16 * 4194304, 0, phi2_regenhash, NULL, NULL, queue_phi2_kernel, gen_hash, append_x11_compiler_options },
+  { "phi2", ALGO_PHI2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 11, 8 * 16 * 4194304, 0, phi2_regenhash, NULL, NULL, queue_phi2_kernel, gen_hash, append_phi2_compiler_options },
 
   { "fresh", ALGO_FRESH, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 4 * 16 * 4194304, 0, fresh_regenhash, NULL, NULL, queue_fresh_kernel, gen_hash, NULL },
 

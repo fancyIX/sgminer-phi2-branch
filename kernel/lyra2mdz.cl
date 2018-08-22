@@ -118,11 +118,27 @@ void round_lyra_4way(ulong state[4], __local ulong *pad) {
 	// Not a problem for private miners: there's an op for that.
 	// But maybe only for GCN>3? IDK.
 	// Anyway, each element of my state besides 0 should go somewhere!
-	for(int shuffle = 1; shuffle < 4; shuffle++) {
+	/*for(int shuffle = 1; shuffle < 4; shuffle++) {
 		pad[get_local_id(0)] = state[shuffle];
 		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
 		state[shuffle] = pad[(get_local_id(0) + shuffle) % 4]; // maybe also precompute those offsets
-	}	
+	}*/
+	uint *pstate = (uint *) &(state[0]);
+	uint *p10 = pstate + 2;
+	uint *p11 = pstate + 3;
+	uint *p20 = pstate + 4;
+	uint *p21 = pstate + 5;
+	uint *p30 = pstate + 6;
+	uint *p40 = pstate + 7;
+	uint addr1 = 4 * (((get_local_id(0) + 1) % 4) + get_local_id(1) * 4);
+	uint addr2 = 4 * (((get_local_id(0) + 2) % 4) + get_local_id(1) * 4);
+	uint addr3 = 4 * (((get_local_id(0) + 3) % 4) + get_local_id(1) * 4);
+	__asm("ds_bermute_b32 %[p10], %[addr1], %[p10]\n"
+	      "ds_bermute_b32 %[p11], %[addr1], %[p11]\n"
+		  "ds_bermute_b32 %[p20], %[addr2], %[p20]\n"
+		  "ds_bermute_b32 %[p21], %[addr2], %[p21]\n"
+		  "ds_bermute_b32 %[p30], %[addr3], %[p30]\n"
+		  "ds_bermute_b32 %[p31], %[addr3], %[p31]");
 	cipher_G(state);
 	// And we also have to put everything back in place :-(
 	for(int shuffle = 1; shuffle < 4; shuffle++) {

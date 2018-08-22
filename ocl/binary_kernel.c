@@ -13,14 +13,21 @@ cl_program load_opencl_binary_kernel(build_kernel_data *data)
   cl_program program;
   cl_program ret = NULL;
 
-  binaryfile = fopen(data->binary_filename, "rb");
+  char bin_path[1024];
+#ifdef _MSC_VER
+  strcpy(bin_path, "binary-kernel\\");
+#else
+  strcpy(bin_path, "./binary-kernel/");
+#endif
+  strcat(bin_path, data->binary_filename);
+  binaryfile = fopen(bin_path, "rb");
   if (!binaryfile) {
     applog(LOG_DEBUG, "No binary found, generating from source");
     goto out;
   } else {
     struct stat binary_stat;
 
-    if (unlikely(stat(data->binary_filename, &binary_stat))) {
+    if (unlikely(stat(bin_path, &binary_stat))) {
       applog(LOG_DEBUG, "Unable to stat binary, generating from source");
       goto out;
     }
