@@ -101,7 +101,7 @@ ulong ROTR64(const ulong x2, const uint y)
 
 // Usually just #define G(a,b,c,d)...; I have no time to read the Lyra paper
 // but that looks like some kind of block cipher I guess.
-void cipher_G(ulong s[4]) {
+void cipher_G(ulong *s) {
 	s[0] += s[1]; s[3] ^= s[0]; s[3] = SWAP32(s[3]);
 	s[2] += s[3]; s[1] ^= s[2]; s[1] = ROTR64(s[1], 24);
 	s[0] += s[1]; s[3] ^= s[0]; s[3] = ROTR64(s[3], 16);
@@ -109,7 +109,7 @@ void cipher_G(ulong s[4]) {
 }
 
 // pad counts 4 entries each hash team of 4
-void round_lyra_4way(ulong state[4], __local ulong *pad) {
+void round_lyra_4way(ulong *state, __local ulong *pad) {
 	// The first half of the round is super nice to us 4-way kernels because we mangle
 	// our own column so it's just as in the legacy kernel, except we are parallel.
 	cipher_G(state);

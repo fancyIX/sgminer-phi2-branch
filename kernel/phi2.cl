@@ -120,6 +120,8 @@ typedef union {
   #define DEC32LE(x) (*(const __global sph_u32 *) (x));
 #endif
 
+#define WOLF_JH_64BIT 1
+
 #include "lyra2mdz.cl"
 #include "wolf-echo.cl"
 #include "wolf-skein.cl"
