@@ -140,7 +140,7 @@ void round_lyra_4way(ulong *state) {
 	uint p21 = pstate[5];
 	uint p30 = pstate[6];
 	uint p31 = pstate[7];
-	__asm volatile (
+	__asm (
 		  "ds_swizzle_b32  %[p10], %[p10] offset:0x8039\n"
 	      "ds_swizzle_b32  %[p11], %[p11] offset:0x8039\n"
 		  "ds_swizzle_b32  %[p20], %[p20] offset:0x804E\n"
@@ -181,7 +181,7 @@ void round_lyra_4way(ulong *state) {
 	p21 = pstate[5];
 	p30 = pstate[6];
 	p31 = pstate[7];
-	__asm volatile (
+	__asm (
 		  "ds_swizzle_b32  %[p10], %[p10] offset:0x8093\n"
 	      "ds_swizzle_b32  %[p11], %[p11] offset:0x8093\n"
 		  "ds_swizzle_b32  %[p20], %[p20] offset:0x804E\n"
@@ -254,7 +254,7 @@ void xorrot_one(ulong *modify, ulong *src) {
 	uint p21 = psrc[3];
 	uint p30 = psrc[4];
 	uint p31 = psrc[5];
-	__asm volatile (
+	__asm (
 		  "ds_swizzle_b32  %[p10], %[p10] offset:0x8093\n"
 	      "ds_swizzle_b32  %[p11], %[p11] offset:0x8093\n"
 		  "ds_swizzle_b32  %[p20], %[p20] offset:0x8093\n"
@@ -292,13 +292,14 @@ void xorrot_one(ulong *modify, ulong *src) {
 	}
 }
 
-int broadcast_zero(int s) {
-	__asm volatile (
-		  "ds_swizzle_b32  %[s], %[s] offset:0x8000\n"
+uint broadcast_zero(uint s) {
+	uint p = s;
+	__asm (
+		  "ds_swizzle_b32  %[p], %[p] offset:0x8000\n"
 		  "s_waitcnt lgkmcnt(0)"
-		  : [s] "=v" (s)
-		  : [s] "0" (s));
-	return s;
+		  : [p] "=v" (p)
+		  : [p] "0" (p));
+	return p;
 }
 
 /** Legacy kernel: reduce duplex row (from) setup.
