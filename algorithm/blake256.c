@@ -51,21 +51,21 @@ void blake256hash(void *state, const void *input)
 
 void blake256_midstate(struct work *work)
 {
-  sph_blake256_context     ctx_blake;
-  uint32_t data[16];
+	sph_blake256_context     ctx_blake;
+	uint32_t data[16];
 
-  be32enc_vect(data, (const uint32_t *)work->data, 19);
+	be32enc_vect(data, (const uint32_t *)work->data, 16);
 
-  sph_blake256_init(&ctx_blake);
-  sph_blake256 (&ctx_blake, (unsigned char *)data, 64);
+	sph_blake256_init(&ctx_blake);
+	sph_blake256(&ctx_blake, (unsigned char *)data, 64);
 
-  memcpy(work->midstate, ctx_blake.H, 32);
-  endian_flip32(work->midstate, work->midstate);
+	memcpy(work->midstate, ctx_blake.H, 32);
+	endian_flip32(work->midstate, work->midstate);
 
-  char *strdata, *strmidstate;
-  strdata = bin2hex(work->data, 80);
-  strmidstate = bin2hex(work->midstate, 32);
-  applog(LOG_DEBUG, "data %s midstate %s", strdata, strmidstate);
+	char *strdata, *strmidstate;
+	strdata = bin2hex(work->data, 80);
+	strmidstate = bin2hex(work->midstate, 32);
+	applog(LOG_DEBUG, "data %s midstate %s", strdata, strmidstate);
 }
 
 void blake256_prepare_work(dev_blk_ctx *blk, uint32_t *state, uint32_t *pdata)
@@ -83,7 +83,6 @@ void blake256_prepare_work(dev_blk_ctx *blk, uint32_t *state, uint32_t *pdata)
 	blk->cty_b = pdata[17];
 	blk->cty_c = pdata[18];
 }
-
 
 static const uint32_t diff1targ = 0x0000ffff;
 
