@@ -8,8 +8,8 @@ This is a multi-threaded multi-pool GPU miner with ATI GPU monitoring,
 based on cgminer by Con Kolivas (ckolivas), which is in turn based on
 cpuminer by Jeff Garzik (jgarzik).
 
-This is a branch that intends to support PHI2 algorithm. The base code is
-copied from https://github.com/216k155/sgminer-phi1612-Implemented. Also,
+This is a branch that intends to support lyra2 series algorithms, such as phi2 and lyra2Z.
+The base code is copied from https://github.com/216k155/sgminer-phi1612-Implemented. Also,
 some codes are copied from https://github.com/djm34/sgminer-msvc2015 and
 https://github.com/aceneun/sgminer-gm-x16r, and some others.
 
