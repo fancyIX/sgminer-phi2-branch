@@ -379,57 +379,21 @@ __kernel void search2(__global uchar* sharedDataBuf)
   make_next_hyper(6, 1, 7, state, roundPad, notepad);
 
   uint modify;
+  uint row = 0;
+  uint pre = 7;
 
   __local uint *shorter = (__local uint*)roundPad;
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
+  for (int i = 0; i < LYRA_ROUNDS; i++) {
+    if(get_local_id(0) == 0) {
+      shorter[get_local_id(1)] = (uint)(state[0] % 8);
+    }
+    barrier(CLK_LOCAL_MEM_FENCE); // nop
+    modify = shorter[get_local_id(1)];
+    hyper_xor(pre, modify, row, state, roundPad, notepad);
+    pre = row;
+    row = (row + 3) % 8;
   }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(7, modify, 0, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(0, modify, 3, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(3, modify, 6, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(6, modify, 1, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(1, modify, 4, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(4, modify, 7, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(7, modify, 2, state, roundPad, notepad);
-  if(get_local_id(0) == 0) {
-    shorter[get_local_id(1)] = (uint)(state[0] % 8);
-  }
-  barrier(CLK_LOCAL_MEM_FENCE); // nop
-  modify = shorter[get_local_id(1)];
-  hyper_xor(2, modify, 5, state, roundPad, notepad);
-
+  
   notepad += HYPERMATRIX_COUNT * modify;
   for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
 

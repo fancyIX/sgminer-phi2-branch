@@ -488,7 +488,8 @@ void hyper_xor(uint matin, uint matrw, uint matout,
 			state[row] ^= si[row];
 		}
 		round_lyra_4way_sw(state, groupPad + get_local_id(1) * 4);
-		xorrot_one(sII, groupPad, state);
+		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
+		xorrot_one_sw(sII, groupPad, state);
 		// Oh noes! An 'if' inside a loop!
 		// That's particularly bad: it's a 'dynamic' (or 'varying') branch
 		// which means it's potentially divergent and it's basically random.
@@ -515,4 +516,49 @@ void hyper_xor(uint matin, uint matrw, uint matout,
 	}
 }
 
-
+void hyper_xor_dpp(uint matin, uint matrw, uint matout,
+               ulong *state, __local ulong *groupPad, __local ulong *bigMat) {
+	ulong si[3], sII[3];
+	uint3 hyoff = (uint3)(matin* HYPERMATRIX_COUNT, matrw* HYPERMATRIX_COUNT, matout* HYPERMATRIX_COUNT);
+	uint hyc = HYPERMATRIX_COUNT * matin;
+	uint hymod = HYPERMATRIX_COUNT * matrw;
+	uint hydst = HYPERMATRIX_COUNT * matout;
+	//__attribute__((opencl_unroll_hint))
+	for (int i = 0; i < LYRA_ROUNDS; i++)
+	{
+		for (int row = 0; row < 3; row++)  {
+			si[row] = bigMat[hyc + row * REG_ROW_COUNT];
+			sII[row] = bigMat[hymod + row * REG_ROW_COUNT];
+		}
+		for (int row = 0; row < 3; row++)  {
+			si[row] += sII[row];
+			state[row] ^= si[row];
+		}
+		round_lyra_4way_sw(state, groupPad + get_local_id(1) * 4);
+		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
+		xorrot_one_dpp(sII, groupPad, state);
+		// Oh noes! An 'if' inside a loop!
+		// That's particularly bad: it's a 'dynamic' (or 'varying') branch
+		// which means it's potentially divergent and it's basically random.
+		// Every hash goes this or that way and if we could have 4-element
+		// SIMD lanes we would have little problem but we have this.
+		// Don't worry; we're going at memory speed anyway.
+		// BTW this has both different sources and different destinations so
+		// no other way to do it but just diverge.
+		if (matrw != matout) {
+			for (int row = 0; row < 3; row++) {
+				bigMat[hymod + row * REG_ROW_COUNT] = sII[row];
+				bigMat[hydst + row * REG_ROW_COUNT] ^= state[row];
+			}
+		}
+		else {
+			for (int row = 0; row < 3; row++) {
+				sII[row] ^= state[row];
+			    bigMat[hymod + row * REG_ROW_COUNT] = sII[row];
+			}
+		}
+		hyc += STATE_BLOCK_COUNT;
+		hymod += STATE_BLOCK_COUNT;
+		hydst += STATE_BLOCK_COUNT;
+	}
+}
