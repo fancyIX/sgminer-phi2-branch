@@ -77,7 +77,7 @@ typedef long sph_s64;
 #define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
 #define SWAP32(x) as_ulong(as_uint2(x).s10)
 
-#include "lyra2mdzf.cl"
+#include "lyra2mdzf2.cl"
 
 typedef union {
     uint h4[8];
@@ -104,65 +104,60 @@ __kernel void search2(__global uchar* sharedDataBuf)
   uint gid = get_global_id(1);
   __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(1))));
 
-  __local ulong roundPad[12 * 5];
-  __local ulong *xchange = roundPad + get_local_id(1) * 4;
-
   //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
-  __local ulong notepadLDS[192 * 4 * 5];
-  __local ulong *notepad = notepadLDS + LOCAL_LINEAR;
+  uint2 notepad[192];
   const int player = get_local_id(0);
 
-  ulong state[4];
+  uint2 state[4];
+  uint2 si[4], sII[4];
 
   //-------------------------------------
   // Load Lyra state
-  state[0] = (ulong)(lyraState->h8[player]);
-  state[1] = (ulong)(lyraState->h8[player+4]);
-  state[2] = (ulong)(lyraState->h8[player+8]);
-  state[3] = (ulong)(lyraState->h8[player+12]);
+  state[0] = as_uint2((ulong)(lyraState->h8[player]));
+  state[1] = as_uint2((ulong)(lyraState->h8[player+4]));
+  state[2] = as_uint2((ulong)(lyraState->h8[player+8]));
+  state[3] = as_uint2((ulong)(lyraState->h8[player+12]));
   
-  __local ulong *dst = notepad + HYPERMATRIX_COUNT;
   for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
-    dst -= STATE_BLOCK_COUNT; // but blocks backwards
-    for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
-    round_lyra_4way_sw(state, xchange);
+    for(int cp = 0; cp < 3; cp++) notepad[HYPERMATRIX_COUNT - STATE_BLOCK_COUNT * (loop + 1) + cp * REG_ROW_COUNT] = state[cp];
+    round_lyra_4way_sw(state);
   }
-  make_hyper_one(state, xchange, notepad);
-  make_next_hyper(1, 0, 2, state, roundPad, notepad);
-  make_next_hyper(2, 1, 3, state, roundPad, notepad);
-  make_next_hyper(3, 0, 4, state, roundPad, notepad);
-  make_next_hyper(4, 3, 5, state, roundPad, notepad);
-  make_next_hyper(5, 2, 6, state, roundPad, notepad);
-  make_next_hyper(6, 1, 7, state, roundPad, notepad);
 
+  make_hyper_one_macro(state, notepad);
+  
+  make_next_hyper_macro(1, 0, 2, state, notepad);
+  make_next_hyper_macro(2, 1, 3, state, notepad);
+  make_next_hyper_macro(3, 0, 4, state, notepad);
+  make_next_hyper_macro(4, 3, 5, state, notepad);
+  make_next_hyper_macro(5, 2, 6, state, notepad);
+  make_next_hyper_macro(6, 1, 7, state, notepad);
+  
   uint modify;
   uint prev = 7;
   uint iterator = 0;
-  __local uint *shorter = (__local uint*)roundPad;
   for (uint j = 0; j < LYRA_ROUNDS / 2; j++) {
     for (uint i = 0; i<LYRA_ROUNDS; i++) {
-      modify = broadcast_zero((uint)(state[0] % 8));
-      hyper_xor_dpp(prev, modify, iterator, state, roundPad, notepad);
+      modify = broadcast_zero((uint)(as_ulong(state[0]) % 8));
+      hyper_xor_dpp_macro(prev, modify, iterator, state, notepad);
       prev = iterator;
       iterator = (iterator + 3) & 7;
     }
     for (uint i = 0; i<LYRA_ROUNDS; i++) {
-      modify = broadcast_zero((uint)(state[0] % 8));
-      hyper_xor_dpp(prev, modify, iterator, state, roundPad, notepad);
+      modify = broadcast_zero((uint)(as_ulong(state[0]) % 8));
+      hyper_xor_dpp_macro(prev, modify, iterator, state, notepad);
       prev = iterator;
       iterator = (iterator - 1) & 7;
     }
   }
 
-  notepad += HYPERMATRIX_COUNT * modify;
-  for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
+  for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[HYPERMATRIX_COUNT * modify + loop * REG_ROW_COUNT];
 
   //-------------------------------------
   // save lyra state    
-  lyraState->h8[player] = state[0];
-  lyraState->h8[player+4] = state[1];
-  lyraState->h8[player+8] = state[2];
-  lyraState->h8[player+12] = state[3];
+  lyraState->h8[player] = as_ulong(state[0]);
+  lyraState->h8[player+4] = as_ulong(state[1]);
+  lyraState->h8[player+8] = as_ulong(state[2]);
+  lyraState->h8[player+12] = as_ulong(state[3]);
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
