@@ -131,28 +131,46 @@ typedef union {
 
 __attribute__((amdgpu_waves_per_eu(1,1)))
 __attribute__((amdgpu_num_vgpr(256)))
-__attribute__((amdgpu_num_vgpr(100)))
+__attribute__((amdgpu_num_sgpr(100)))
 __attribute__((reqd_work_group_size(4, 4, 4)))
 __kernel void search2(__global uchar* sharedDataBuf)
 {
   uint gid = get_global_id(2);
   __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(2))));
 
-  uint2 notepad[192 / 3];
+  ulong notepad[192 / 3];
 
   const int player = get_local_id(1);
 
-  uint2 state[4];
-  uint2 si[4], sII[4];
+  ulong state[4];
+  ulong cstate;
+  ulong si;
+  ulong sII;
+  uint2 s0;
+	uint2 s1;
+	uint2 s2;
+	uint2 s3;
 
   //-------------------------------------
   // Load Lyra state
-  state[LOCAL_LINEAR] = as_uint2((ulong)(lyraState->h8[player + 4 * LOCAL_LINEAR]));
+  cstate = ((ulong)(lyraState->h8[player + 4 * LOCAL_LINEAR]));
 
-  for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
-    notepad[HYPERMATRIX_COUNT - STATE_BLOCK_COUNT * (loop + 1)] = state[LOCAL_LINEAR];
-    round_lyra_4way_sw(state);
-  }
+  notepad[8 - (0 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (1 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (2 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (3 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (4 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (5 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (6 + 1)] = cstate;
+  round_lyra_4way_sw(state);
+  notepad[8 - (7 + 1)] = cstate;
+  round_lyra_4way_sw(state);
   
   make_hyper_one_macro(state, notepad);
   
@@ -182,11 +200,21 @@ __kernel void search2(__global uchar* sharedDataBuf)
   modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
   hyper_xor_dpp_macro(2, modify, 5, state, notepad);
 
-  if (LOCAL_LINEAR != 3) state[LOCAL_LINEAR] ^= notepad[HYPERMATRIX_COUNT * modify];
-
+  //if (LOCAL_LINEAR != 3)
+  {
+    if (modify == 0) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 0];
+    if (modify == 1) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 1];
+    if (modify == 2) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 2];
+    if (modify == 3) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 3];
+    if (modify == 4) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 4];
+    if (modify == 5) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 5];
+    if (modify == 6) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 6];
+    if (modify == 7) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 7];
+  }
   //-------------------------------------
   // save lyra state    
-  lyraState->h8[player + 4 * LOCAL_LINEAR] = as_ulong(state[LOCAL_LINEAR]);
+  lyraState->h8[player + 4 * LOCAL_LINEAR] = cstate;
+  
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
