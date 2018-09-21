@@ -196,7 +196,6 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	if (LOCAL_LINEAR == 3) cstate = state[3];
 
 #define xorrot_one_dpp(sII, state) \
-    pull_state(state); \
 	s0 = as_uint2(state[0]); \
 	s1 = as_uint2(state[1]); \
 	s2 = as_uint2(state[2]); \
@@ -235,28 +234,28 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
     { \
 		si = bigMat[0]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[15] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[15] = si; \
 		si = bigMat[1]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[14] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[14] = si; \
 		si = bigMat[2]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[13] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[13] = si; \
 		si = bigMat[3]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[12] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[12] = si; \
 		si = bigMat[4]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[11] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[11] = si; \
 		si = bigMat[5]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[10] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[10] = si; \
 		si = bigMat[6]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[9] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[9] = si; \
 		si = bigMat[7]; if (LOCAL_LINEAR != 3) cstate ^= si; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8] = si; \
 	} \
 } while (0);
 
@@ -264,42 +263,42 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	{ \
 	    si = bigMat[8 * matin]; sII = bigMat[8 * matrw]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 7] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 7] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw] = sII; \
 		si = bigMat[8 * matin + 1]; sII = bigMat[8 * matrw + 1]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 6] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 6] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 1] = sII; \
 		si = bigMat[8 * matin + 2]; sII = bigMat[8 * matrw + 2]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 5] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 5] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 2] = sII; \
 		si = bigMat[8 * matin + 3]; sII = bigMat[8 * matrw + 3]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 4] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 4] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 3] = sII; \
 		si = bigMat[8 * matin + 4]; sII = bigMat[8 * matrw + 4]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 3] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 3] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 4] = sII; \
 		si = bigMat[8 * matin + 5]; sII = bigMat[8 * matrw + 5]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 2] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 2] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 5] = sII; \
 		si = bigMat[8 * matin + 6]; sII = bigMat[8 * matrw + 6]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout + 1] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 1] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 6] = sII; \
 		si = bigMat[8 * matin + 7]; sII = bigMat[8 * matrw + 7]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
 		round_lyra_4way_sw(state); \
-		si ^= cstate; bigMat[8 * matout] = si; \
+		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout] = si; \
 		xorrot_one_dpp(sII, state); \
         bigMat[8 * matrw + 7] = sII; \
 	} \
@@ -321,7 +320,7 @@ uint broadcast_zero(uint s) {
 		  : [p1] "0" (p1),
 		    [p2] "1" (p2),
 			[p3] "2" (p3));
-	int row = LOCAL_LINEAR;
+	int row = get_local_id(1);
 	if (row == 0) {
 		return s;
 	} else if (row == 1) {
@@ -393,40 +392,3 @@ uint broadcast_zero(uint s) {
 		real_matrw_write(sII, bigMat, matrw, 7); bigMat[8 * matout + 7] ^= cstate; \
 	} \
 } while (0);
-
-#define push_state(state) \
-    s0 = as_uint2(state[0]); \
-	s1 = as_uint2(state[1]); \
-	s2 = as_uint2(state[2]); \
-	s3 = as_uint2(state[3]); \
-	__asm ( \
-	      "s_nop 0\n" \
-		  "v_mov_b32_dpp  %[p00], %[p00] quad_perm:[3,3,3,3]\n" \
-	      "v_mov_b32_dpp  %[p01], %[p01] quad_perm:[3,3,3,3]\n" \
-		  "v_mov_b32_dpp  %[p10], %[p10] quad_perm:[3,3,3,3]\n" \
-	      "v_mov_b32_dpp  %[p11], %[p11] quad_perm:[3,3,3,3]\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] quad_perm:[3,3,3,3]\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] quad_perm:[3,3,3,3]\n" \
-		  "v_mov_b32_dpp  %[p30], %[p30] quad_perm:[3,3,3,3]\n" \
-		  "v_mov_b32_dpp  %[p31], %[p31] quad_perm:[3,3,3,3]\n" \
-		  "s_nop 0" \
-		  : [p00] "=&v" (s0.x), \
-		    [p01] "=&v" (s0.y), \
-			[p10] "=&v" (s1.x), \
-		    [p11] "=&v" (s1.y), \
-			[p20] "=&v" (s2.x), \
-			[p21] "=&v" (s2.y), \
-			[p30] "=&v" (s3.x), \
-			[p31] "=&v" (s3.y) \
-		  : [p00] "0" (s0.x), \
-		    [p00] "1" (s0.y), \
-		    [p10] "2" (s1.x), \
-		    [p11] "3" (s1.y), \
-			[p20] "4" (s2.x), \
-			[p21] "5" (s2.y), \
-			[p30] "6" (s3.x), \
-			[p31] "7" (s3.y)); \
-	state[0] = as_ulong(s0); \
-	state[1] = as_ulong(s1); \
-	state[2] = as_ulong(s2); \
-	state[3] = as_ulong(s3);
