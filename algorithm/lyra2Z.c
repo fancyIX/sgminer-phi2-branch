@@ -43,7 +43,6 @@
 
 void lyra2Zhash(void *state, const void *input)
 {
-	applog(LOG_DEBUG, "=========%s\n", bin2hex(input, 80));
     sph_blake256_context     ctx_blake;
  
     uint32_t hashA[8], hashB[8];
