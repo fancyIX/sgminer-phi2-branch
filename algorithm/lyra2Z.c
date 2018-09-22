@@ -52,13 +52,7 @@ void lyra2Zhash(void *state, const void *input)
     sph_blake256 (&ctx_blake, input, 80);
     sph_blake256_close (&ctx_blake, hashA);
 
-	applog(LOG_DEBUG, "cpu hashA %08x %08x %08x %08x  %08x %08x %08x %08x\n",
-		hashA[0], hashA[1], hashA[2], hashA[3], hashA[4], hashA[5], hashA[6], hashA[7]);
-
 	LYRA2(hashB, 32, hashA, 32, hashA, 32, 8, 8, 8);
-
-applog(LOG_DEBUG, "cpu hashB %08x %08x %08x %08x  %08x %08x %08x %08x\n",
-hashB[0],hashB[1],hashB[2],hashB[3], hashB[4], hashB[5], hashB[6], hashB[7]);
 
 	memcpy(state, hashB, 32);
 }

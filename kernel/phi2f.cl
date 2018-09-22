@@ -181,40 +181,40 @@ __kernel void search2(__global uchar* sharedDataBuf)
   make_next_hyper_macro(5, 2, 6, state, notepad);
   make_next_hyper_macro(6, 1, 7, state, notepad);
 
-  uint modify;
+  uint modify = 0;
+  uint p0;
+  uint p1;
+  uint p2;
+  uint p3;
 
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(7, modify, 0, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(0, modify, 3, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(3, modify, 6, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(6, modify, 1, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(1, modify, 4, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(4, modify, 7, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(7, modify, 2, state, notepad);
-  modify = broadcast_zero((uint)(as_ulong(state[0]) % 8)) & 7;
+  broadcast_zero(state);
   hyper_xor_dpp_macro(2, modify, 5, state, notepad);
 
-  //if (LOCAL_LINEAR != 3)
-  {
-    if (modify == 0) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 0];
-    if (modify == 1) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 1];
-    if (modify == 2) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 2];
-    if (modify == 3) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 3];
-    if (modify == 4) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 4];
-    if (modify == 5) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 5];
-    if (modify == 6) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 6];
-    if (modify == 7) if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 7];
-  }
+  if (modify == 0)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 0];
+  if (modify == 1)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 1];
+  if (modify == 2)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 2];
+  if (modify == 3)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 3];
+  if (modify == 4)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 4];
+  if (modify == 5)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 5];
+  if (modify == 6)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 6];
+  if (modify == 7)  if (LOCAL_LINEAR != 3) cstate ^= notepad[HYPERMATRIX_COUNT * 7];
   //-------------------------------------
   // save lyra state    
   lyraState->h8[player + 4 * LOCAL_LINEAR] = cstate;
-  
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }

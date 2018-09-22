@@ -7224,10 +7224,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
     diff1targ = work->pool->algorithm.diff1targ;
   }
 
-  uint32_t hashb = le32toh(*hash_32);
-  applog(LOG_DEBUG, ">>>>>>>>>>>>>>>>>>>>>>>>>> %s, %d, %d, %d, %d", bin2hex(work->data, 80), nonce, work->pool->algorithm.diff1targ, (*hash_32), hashb);
-
-  return (hashb <= diff1targ);
+  return (le32toh(*hash_32) <= diff1targ);
 }
 
 static void update_work_stats(struct thr_info *thr, struct work *work)

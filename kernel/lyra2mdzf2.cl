@@ -220,15 +220,12 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 			[p21] "3" (s1.y), \
 			[p30] "4" (s2.x), \
 			[p31] "5" (s2.y)); \
-	if (get_local_id(1) != 0) { \
-		if (LOCAL_LINEAR == 0) sII = as_ulong(s0); \
-	    if (LOCAL_LINEAR == 1) sII = as_ulong(s1); \
-	    if (LOCAL_LINEAR == 2) sII = as_ulong(s2); \
-	} else { \
-		if (LOCAL_LINEAR == 0) sII = as_ulong(s2); \
-	    if (LOCAL_LINEAR == 1) sII = as_ulong(s0); \
-	    if (LOCAL_LINEAR == 2) sII = as_ulong(s1); \
-    }
+	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (LOCAL_LINEAR == 0) sII ^= as_ulong(s0); \
+	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (LOCAL_LINEAR == 1) sII ^= as_ulong(s1); \
+	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (LOCAL_LINEAR == 2) sII ^= as_ulong(s2); \
+	if ((get_local_id(1) & 3) == 0 ) if (LOCAL_LINEAR == 0) sII ^= as_ulong(s2); \
+	if ((get_local_id(1) & 3) == 0 ) if (LOCAL_LINEAR == 1) sII ^= as_ulong(s0); \
+	if ((get_local_id(1) & 3) == 0 ) if (LOCAL_LINEAR == 2) sII ^= as_ulong(s1); \
 
 #define make_hyper_one_macro(state, bigMat) do { \
     { \
@@ -304,48 +301,39 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	} \
 } while (0);
 
-uint broadcast_zero(uint s) {
-	uint p1 = s;
-	uint p2 = s;
-	uint p3 = s;
-	__asm (
-		  "s_nop 0\n"
-		  "v_mov_b32_dpp  %[p1], %[p1] row_ror:4\n"
-		  "v_mov_b32_dpp  %[p2], %[p2] row_ror:8\n"
-		  "v_mov_b32_dpp  %[p3], %[p3] row_ror:12\n"
-		  "s_nop 0\n"
-		  : [p1] "=&v" (p1),
-		    [p2] "=&v" (p2),
-			[p3] "=&v" (p3)
-		  : [p1] "0" (p1),
-		    [p2] "1" (p2),
-			[p3] "2" (p3));
-	int row = get_local_id(1);
-	if (row == 0) {
-		return s;
-	} else if (row == 1) {
-		return p1;
-	} else if (row == 2) {
-		return p2;
-	} else { // row == 3
-		return p3;
-	}
-}
+#define broadcast_zero(s) \
+    p0 = (s[0] & 7); \
+	p1 = (s[0] & 7); \
+	p2 = (s[0] & 7); \
+	p3 = (s[0] & 7); \
+	__asm ( \
+		  "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[p1], %[p1] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[p2], %[p2] row_ror:8\n" \
+		  "v_mov_b32_dpp  %[p3], %[p3] row_ror:12\n" \
+		  "s_nop 0\n" \
+		  : [p1] "=&v" (p1), \
+		    [p2] "=&v" (p2), \
+			[p3] "=&v" (p3) \
+		  : [p1] "0" (p1), \
+		    [p2] "1" (p2), \
+			[p3] "2" (p3)); \
+	if ((get_local_id(1) & 3) == 1) modify = p1; \
+	if ((get_local_id(1) & 3) == 2) modify = p2; \
+	if ((get_local_id(1) & 3) == 3) modify = p3; \
+	if ((get_local_id(1) & 3) == 0) modify = p0;
 
 #define real_matrw_read(sII, bigMat, matrw, off) \
-    { \
-		if (matrw == 0) sII = bigMat[8 * 0 + off]; \
+		if (matrw == 0) sII = bigMat[8 * 0 + off];  \
 		if (matrw == 1) sII = bigMat[8 * 1 + off]; \
 		if (matrw == 2) sII = bigMat[8 * 2 + off]; \
 		if (matrw == 3) sII = bigMat[8 * 3 + off]; \
 		if (matrw == 4) sII = bigMat[8 * 4 + off]; \
 		if (matrw == 5) sII = bigMat[8 * 5 + off]; \
 		if (matrw == 6) sII = bigMat[8 * 6 + off]; \
-		if (matrw == 7) sII = bigMat[8 * 7 + off]; \
-	}
+		if (matrw == 7) sII = bigMat[8 * 7 + off];
 
 #define real_matrw_write(sII, bigMat, matrw, off) \
-    { \
 		if (matrw == 0) bigMat[8 * 0 + off] = sII; \
 		if (matrw == 1) bigMat[8 * 1 + off] = sII; \
 		if (matrw == 2) bigMat[8 * 2 + off] = sII; \
@@ -353,40 +341,39 @@ uint broadcast_zero(uint s) {
 		if (matrw == 4) bigMat[8 * 4 + off] = sII; \
 		if (matrw == 5) bigMat[8 * 5 + off] = sII; \
 		if (matrw == 6) bigMat[8 * 6 + off] = sII; \
-		if (matrw == 7) bigMat[8 * 7 + off] = sII; \
-	}
+		if (matrw == 7) bigMat[8 * 7 + off] = sII;
 
 #define hyper_xor_dpp_macro( matin, matrw, matout, state, bigMat) do { \
     { \
-		si = bigMat[8 * matin]; real_matrw_read(sII, bigMat, matrw, 0); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 0]; real_matrw_read(sII, bigMat, matrw, 0); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 0); bigMat[8 * matout] ^= cstate; \
-		si = bigMat[8 * matin + 1]; real_matrw_read(sII, bigMat, matrw, 1); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		real_matrw_write(sII, bigMat, matrw, 0); bigMat[8 * matout + 0] ^= cstate; \
+		si = bigMat[8 * matin + 1]; real_matrw_read(sII, bigMat, matrw, 1); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 1); bigMat[8 * matout + 1] ^= cstate; \
-		si = bigMat[8 * matin + 2]; real_matrw_read(sII, bigMat, matrw, 2); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 2]; real_matrw_read(sII, bigMat, matrw, 2); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 2); bigMat[8 * matout + 2] ^= cstate; \
-		si = bigMat[8 * matin + 3]; real_matrw_read(sII, bigMat, matrw, 3); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 3]; real_matrw_read(sII, bigMat, matrw, 3); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 3); bigMat[8 * matout + 3] ^= cstate; \
-		si = bigMat[8 * matin + 4]; real_matrw_read(sII, bigMat, matrw, 4); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 4]; real_matrw_read(sII, bigMat, matrw, 4); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 4); bigMat[8 * matout + 4] ^= cstate; \
-		si = bigMat[8 * matin + 5]; real_matrw_read(sII, bigMat, matrw, 5); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 5]; real_matrw_read(sII, bigMat, matrw, 5); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 5); bigMat[8 * matout + 5] ^= cstate; \
-		si = bigMat[8 * matin + 6]; real_matrw_read(sII, bigMat, matrw, 6); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 6]; real_matrw_read(sII, bigMat, matrw, 6); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 6); bigMat[8 * matout + 6] ^= cstate; \
-		si = bigMat[8 * matin + 7]; real_matrw_read(sII, bigMat, matrw, 7); si += sII; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		si = bigMat[8 * matin + 7]; real_matrw_read(sII, bigMat, matrw, 7); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
 		real_matrw_write(sII, bigMat, matrw, 7); bigMat[8 * matout + 7] ^= cstate; \
