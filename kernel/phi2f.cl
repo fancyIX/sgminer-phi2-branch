@@ -132,7 +132,7 @@ typedef union {
 __attribute__((amdgpu_waves_per_eu(1,1)))
 __attribute__((amdgpu_num_vgpr(256)))
 __attribute__((amdgpu_num_sgpr(100)))
-__attribute__((reqd_work_group_size(4, 4, 4)))
+__attribute__((reqd_work_group_size(4, 4, 16)))
 __kernel void search2(__global uchar* sharedDataBuf)
 {
   uint gid = get_global_id(2);
