@@ -735,6 +735,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
 	// If it doesn't work, oh well, build it again next run
     save_opencl_kernel(build_data, clState->program);
+  } else {
+    if (build_data->prebuilt) {
+      clState->prebuilt = true;
+    }
   }
 
   // Load kernels

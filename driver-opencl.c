@@ -1438,10 +1438,18 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
     if (gpu->algorithm.type == ALGO_PHI2 && i == 1) {
-      const size_t off2[] = { 0, *p_global_work_offset };
-	    const size_t gws[] = { 4, globalThreads[0] * 2 };
-	    const size_t expand[] = { 4, 5 };
-      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+      if (clState->prebuilt) {
+        const size_t off2[] = { 0, 0, *p_global_work_offset };
+	      const size_t gws[] = { 4, 4, globalThreads[0] * 2 };
+	      const size_t expand[] = { 4, 4, 16 };
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 3, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+      } else {
+        const size_t off2[] = { 0, *p_global_work_offset };
+	      const size_t gws[] = { 4, globalThreads[0] * 2 };
+	      const size_t expand[] = { 4, 5 };
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+      }
+      
     } else if (gpu->algorithm.type == ALGO_PHI2 && (i == 0 || i == 2)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
@@ -1450,10 +1458,17 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
     } else if (gpu->algorithm.type == ALGO_LYRA2Z && i == 1) {
-      	const size_t off2[] = { 0, *p_global_work_offset };
+      if (clState->prebuilt) {
+        const size_t off2[] = { 0, 0, *p_global_work_offset };
+	      const size_t gws[] = { 4, 4, globalThreads[0] };
+	      const size_t expand[] = { 4, 4, 16 };
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 3, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+      } else {
+        const size_t off2[] = { 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, globalThreads[0] };
 	      const size_t expand[] = { 4, 5 };
-       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+      }
     }
     else
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,

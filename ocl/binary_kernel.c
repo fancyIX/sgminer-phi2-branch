@@ -13,18 +13,42 @@ cl_program load_opencl_binary_kernel(build_kernel_data *data)
   cl_program program;
   cl_program ret = NULL;
 
-  binaryfile = fopen(data->binary_filename, "rb");
+  char prebuilt_bin_path[1024];
+#ifdef _MSC_VER
+  strcpy(prebuilt_bin_path, "bin-kernel\\");
+#else
+  strcpy(prebuilt_bin_path, "./bin-kernel/");
+#endif
+  strcat(prebuilt_bin_path, data->binary_filename);
+
+  binaryfile = fopen(prebuilt_bin_path, "rb");
+
+  if (!binaryfile) {
+    applog(LOG_DEBUG, "No prebuilt binary found, search more");
+    data->prebuilt = false;
+    binaryfile = fopen(data->binary_filename, "rb");
+  } else {
+    applog(LOG_DEBUG, "Prebuilt binary found");
+    data->prebuilt = true;
+  }
 
   if (!binaryfile) {
     applog(LOG_DEBUG, "No binary found, generating from source");
     goto out;
   } else {
     struct stat binary_stat;
-
-    if (unlikely(stat(data->binary_filename, &binary_stat))) {
-      applog(LOG_DEBUG, "Unable to stat binary, generating from source");
-      goto out;
+    if (data->prebuilt) {
+      if (unlikely(stat(prebuilt_bin_path, &binary_stat))) {
+        applog(LOG_DEBUG, "Unable to stat binary, generating from source");
+        goto out;
+      }
+    } else {
+      if (unlikely(stat(data->binary_filename, &binary_stat))) {
+        applog(LOG_DEBUG, "Unable to stat binary, generating from source");
+        goto out;
+      }
     }
+    
     if (!binary_stat.st_size)
       goto out;
 

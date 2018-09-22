@@ -23,6 +23,7 @@ typedef struct __clState {
   size_t max_work_size;
   size_t wsize;
   size_t compute_shaders;
+  bool prebuilt;
 } _clState;
 
 extern int clDevicesNum(void);

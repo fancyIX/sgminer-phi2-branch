@@ -16,6 +16,7 @@ typedef struct _build_kernel_data {
 
   cl_context context;
   cl_device_id *device;
+  bool prebuilt;
 
 // for compiler options
   char platform[64];
