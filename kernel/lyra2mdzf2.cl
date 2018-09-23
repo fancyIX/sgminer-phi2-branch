@@ -89,41 +89,25 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	s[2] += s[3]; s[1] ^= s[2]; s1 = as_uint2(s[1]); s[1] = ROTR64(s1, 63);
 
 #define pull_state(state) \
-    s0 = as_uint2(cstate); \
-	s1 = as_uint2(cstate); \
-	s2 = as_uint2(cstate); \
-	s3 = as_uint2(cstate); \
+    s0 = as_uint2(state[0]); \
+	s1 = as_uint2(state[1]); \
 	__asm ( \
 	      "s_nop 0\n" \
-		  "v_mov_b32_dpp  %[p00], %[p00] quad_perm:[0,0,0,0]\n" \
-	      "v_mov_b32_dpp  %[p01], %[p01] quad_perm:[0,0,0,0]\n" \
-		  "v_mov_b32_dpp  %[p10], %[p10] quad_perm:[1,1,1,1]\n" \
-	      "v_mov_b32_dpp  %[p11], %[p11] quad_perm:[1,1,1,1]\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] quad_perm:[2,2,2,2]\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] quad_perm:[2,2,2,2]\n" \
-		  "v_mov_b32_dpp  %[p30], %[p30] quad_perm:[3,3,3,3]\n" \
-		  "v_mov_b32_dpp  %[p31], %[p31] quad_perm:[3,3,3,3]\n" \
+		  "v_mov_b32_dpp  %[p00], %[p00] quad_perm:[0,0,2,2]\n" \
+	      "v_mov_b32_dpp  %[p01], %[p01] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[p10], %[p10] quad_perm:[1,1,3,3]\n" \
+	      "v_mov_b32_dpp  %[p11], %[p11] quad_perm:[1,1,3,3]\n" \
 		  "s_nop 0" \
 		  : [p00] "=&v" (s0.x), \
 		    [p01] "=&v" (s0.y), \
 			[p10] "=&v" (s1.x), \
-		    [p11] "=&v" (s1.y), \
-			[p20] "=&v" (s2.x), \
-			[p21] "=&v" (s2.y), \
-			[p30] "=&v" (s3.x), \
-			[p31] "=&v" (s3.y) \
+		    [p11] "=&v" (s1.y) \
 		  : [p00] "0" (s0.x), \
 		    [p00] "1" (s0.y), \
 		    [p10] "2" (s1.x), \
-		    [p11] "3" (s1.y), \
-			[p20] "4" (s2.x), \
-			[p21] "5" (s2.y), \
-			[p30] "6" (s3.x), \
-			[p31] "7" (s3.y)); \
+		    [p11] "3" (s1.y)); \
 	state[0] = as_ulong(s0); \
-	state[1] = as_ulong(s1); \
-	state[2] = as_ulong(s2); \
-	state[3] = as_ulong(s3);
+	state[1] = as_ulong(s1);
 
 #define shflldpp(state) \
 	s1 = as_uint2(state[1]); \
@@ -189,11 +173,33 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	cipher_G_macro(state); \
 	shflldpp(state); \
 	cipher_G_macro(state);\
-	shflrdpp(state); \
-	if (LOCAL_LINEAR == 0) cstate = state[0]; \
-	if (LOCAL_LINEAR == 1) cstate = state[1]; \
-	if (LOCAL_LINEAR == 2) cstate = state[2]; \
-	if (LOCAL_LINEAR == 3) cstate = state[3];
+	shflrdpp(state);
+
+#define pull_s2_up(si) \
+	s2 = as_uint2(si[2]); \
+	__asm ( \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[p20], %[p20] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[p21], %[p21] quad_perm:[0,0,2,2]\n" \
+		  "s_nop 0" \
+		  : [p20] "=&v" (s2.x), \
+			[p21] "=&v" (s2.y) \
+		  : [p20] "0" (s2.x), \
+			[p21] "1" (s2.y)); \
+	si[2] = as_ulong(s2);
+
+#define pull_s2_down(si) \
+	s2 = as_uint2(si[2]); \
+	__asm ( \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[p20], %[p20] quad_perm:[1,1,3,3]\n" \
+		  "v_mov_b32_dpp  %[p21], %[p21] quad_perm:[1,1,3,3]\n" \
+		  "s_nop 0" \
+		  : [p20] "=&v" (s2.x), \
+			[p21] "=&v" (s2.y) \
+		  : [p20] "0" (s2.x), \
+			[p21] "1" (s2.y)); \
+	si[2] = as_ulong(s2);
 
 #define xorrot_one_dpp(sII, state) \
 	s0 = as_uint2(state[0]); \
@@ -220,84 +226,111 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 			[p21] "3" (s1.y), \
 			[p30] "4" (s2.x), \
 			[p31] "5" (s2.y)); \
-	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (LOCAL_LINEAR == 0) sII ^= as_ulong(s0); \
-	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (LOCAL_LINEAR == 1) sII ^= as_ulong(s1); \
-	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (LOCAL_LINEAR == 2) sII ^= as_ulong(s2); \
-	if ((get_local_id(1) & 3) == 0 ) if (LOCAL_LINEAR == 0) sII ^= as_ulong(s2); \
-	if ((get_local_id(1) & 3) == 0 ) if (LOCAL_LINEAR == 1) sII ^= as_ulong(s0); \
-	if ((get_local_id(1) & 3) == 0 ) if (LOCAL_LINEAR == 2) sII ^= as_ulong(s1); \
+	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (mindex == 0) sII[0] ^= as_ulong(s0); \
+	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) if (mindex == 1) sII[1] ^= as_ulong(s1); \
+	if ((get_local_id(1) & 3) == 1 || (get_local_id(1) & 3) == 2 || (get_local_id(1) & 3) == 3) sII[2] ^= as_ulong(s2); \
+	if ((get_local_id(1) & 3) == 0 ) if (mindex == 0) sII[0] ^= as_ulong(s2); \
+	if ((get_local_id(1) & 3) == 0 ) if (mindex == 1) sII[1] ^= as_ulong(s0); \
+	if ((get_local_id(1) & 3) == 0 ) sII[2] ^= as_ulong(s1);
+
+#define write_state(notepad, state, row, col) \
+  if (mindex == 0) notepad[8 * row + col] = state[0]; \
+  if (mindex == 1) notepad[8 * row + col] = state[1]; \
+  if (mindex == 0 && col < 4) notepad[64 + 4 * row + col % 4] = state[2]; \
+  if (mindex == 1 && col > 3) notepad[64 + 4 * row + col % 4] = state[2];
+
+#define state_xor_modify(modify, row, col, mindex, state, notepad) \
+  if (modify == row) if (mindex == 0) state[0] ^= notepad[8 * row + col]; \
+  if (modify == row) if (mindex == 1) state[1] ^= notepad[8 * row + col]; \
+  if (modify == row) state[2] ^= notepad[64 + 4 * row + col % 4]; if (col < 4) pull_s2_up(state); if (col > 3) pull_s2_down(state); 
+
+#define state_xor(state, bigMat, mindex, row, col) \
+  if (mindex == 0) si[0] = bigMat[8 * row + col]; if (mindex == 0) state[0] ^= si[0]; \
+  if (mindex == 1) si[1] = bigMat[8 * row + col]; if (mindex == 1) state[1] ^= si[1]; \
+  si[2] = bigMat[64 + 4 * row + col % 4]; if (col < 4) pull_s2_up(si); if (col > 3) pull_s2_down(si); state[2] ^= si[2]
+
+#define xor_state(state, bigMat, mindex, row, col) \
+  if (mindex == 0) si[0] ^= state[0]; if (mindex == 0) bigMat[8 * row + col] = si[0]; \
+  if (mindex == 1) si[1] ^= state[1]; if (mindex == 1) bigMat[8 * row + col] = si[1]; \
+  si[2] ^= state[2]; if (mindex == 0 && col < 4) bigMat[64 + 4 * row + col % 4] = si[2]; if (mindex == 1 && col > 3) bigMat[64 + 4 * row + col % 4] = si[2];
+
+#define state_xor_plus(state, bigMat, mindex, matin, colin, matrw, colrw) \
+   if (mindex == 0) si[0] = bigMat[8 * matin + colin]; if (mindex == 0) sII[0] = bigMat[8 * matrw + colrw]; if (mindex == 0) state[0] ^= si[0] + sII[0]; \
+   if (mindex == 1) si[1] = bigMat[8 * matin + colin]; if (mindex == 1) sII[1] = bigMat[8 * matrw + colrw]; if (mindex == 1) state[1] ^= si[1] + sII[1]; \
+   si[2] = bigMat[64 + 4 * matin + colin % 4]; if (colin < 4) pull_s2_up(si); if (colin > 3) pull_s2_down(si); \
+   sII[2] = bigMat[64 + 4 * matrw + colrw % 4]; if (colrw < 4) pull_s2_up(sII); if (colrw > 3) pull_s2_down(sII); state[2] ^= si[2] + sII[2];
 
 #define make_hyper_one_macro(state, bigMat) do { \
     { \
-		si = bigMat[0]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		state_xor(state, bigMat, mindex, 0, 0); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[15] = si; \
-		si = bigMat[1]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 7); \
+		state_xor(state, bigMat, mindex, 0, 1); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[14] = si; \
-		si = bigMat[2]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 6); \
+		state_xor(state, bigMat, mindex, 0, 2); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[13] = si; \
-		si = bigMat[3]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 5); \
+		state_xor(state, bigMat, mindex, 0, 3); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[12] = si; \
-		si = bigMat[4]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 4); \
+		state_xor(state, bigMat, mindex, 0, 4); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[11] = si; \
-		si = bigMat[5]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 3); \
+		state_xor(state, bigMat, mindex, 0, 5); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[10] = si; \
-		si = bigMat[6]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 2); \
+		state_xor(state, bigMat, mindex, 0, 6); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[9] = si; \
-		si = bigMat[7]; if (LOCAL_LINEAR != 3) cstate ^= si; \
+		xor_state(state, bigMat, mindex, 1, 1); \
+		state_xor(state, bigMat, mindex, 0, 7); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8] = si; \
+		xor_state(state, bigMat, mindex, 1, 0); \
 	} \
 } while (0);
 
 #define make_next_hyper_macro(matin, matrw, matout, state, bigMat) do { \
 	{ \
-	    si = bigMat[8 * matin]; sII = bigMat[8 * matrw]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+		state_xor_plus(state, bigMat, mindex, matin, 0, matrw, 0); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 7] = si; \
+		xor_state(state, bigMat, mindex, matout, 7); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw] = sII; \
-		si = bigMat[8 * matin + 1]; sII = bigMat[8 * matrw + 1]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+		write_state(bigMat, sII, matrw, 0); \
+		state_xor_plus(state, bigMat, mindex, matin, 1, matrw, 1); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 6] = si; \
+		xor_state(state, bigMat, mindex, matout, 6); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 1] = sII; \
-		si = bigMat[8 * matin + 2]; sII = bigMat[8 * matrw + 2]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+        write_state(bigMat, sII, matrw, 1); \
+		state_xor_plus(state, bigMat, mindex, matin, 2, matrw, 2); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 5] = si; \
+		xor_state(state, bigMat, mindex, matout, 5); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 2] = sII; \
-		si = bigMat[8 * matin + 3]; sII = bigMat[8 * matrw + 3]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+        write_state(bigMat, sII, matrw, 2); \
+		state_xor_plus(state, bigMat, mindex, matin, 3, matrw, 3); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 4] = si; \
+		xor_state(state, bigMat, mindex, matout, 4); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 3] = sII; \
-		si = bigMat[8 * matin + 4]; sII = bigMat[8 * matrw + 4]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+        write_state(bigMat, sII, matrw, 3); \
+		state_xor_plus(state, bigMat, mindex, matin, 4, matrw, 4); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 3] = si; \
+		xor_state(state, bigMat, mindex, matout, 3); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 4] = sII; \
-		si = bigMat[8 * matin + 5]; sII = bigMat[8 * matrw + 5]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+        write_state(bigMat, sII, matrw, 4); \
+		state_xor_plus(state, bigMat, mindex, matin, 5, matrw, 5); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 2] = si; \
+		xor_state(state, bigMat, mindex, matout, 2); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 5] = sII; \
-		si = bigMat[8 * matin + 6]; sII = bigMat[8 * matrw + 6]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+        write_state(bigMat, sII, matrw, 5); \
+		state_xor_plus(state, bigMat, mindex, matin, 6, matrw, 6); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout + 1] = si; \
+		xor_state(state, bigMat, mindex, matout, 1); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 6] = sII; \
-		si = bigMat[8 * matin + 7]; sII = bigMat[8 * matrw + 7]; if (LOCAL_LINEAR != 3) cstate ^= si + sII; \
+        write_state(bigMat, sII, matrw, 6); \
+		state_xor_plus(state, bigMat, mindex, matin, 7, matrw, 7); \
 		round_lyra_4way_sw(state); \
-		if (LOCAL_LINEAR != 3) si ^= cstate; bigMat[8 * matout] = si; \
+		xor_state(state, bigMat, mindex, matout, 0); \
 		xorrot_one_dpp(sII, state); \
-        bigMat[8 * matrw + 7] = sII; \
+        write_state(bigMat, sII, matrw, 7); \
 	} \
 } while (0);
 
@@ -324,58 +357,113 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	if ((get_local_id(1) & 3) == 0) modify = p0;
 
 #define real_matrw_read(sII, bigMat, matrw, off) \
-		if (matrw == 0) sII = bigMat[8 * 0 + off];  \
-		if (matrw == 1) sII = bigMat[8 * 1 + off]; \
-		if (matrw == 2) sII = bigMat[8 * 2 + off]; \
-		if (matrw == 3) sII = bigMat[8 * 3 + off]; \
-		if (matrw == 4) sII = bigMat[8 * 4 + off]; \
-		if (matrw == 5) sII = bigMat[8 * 5 + off]; \
-		if (matrw == 6) sII = bigMat[8 * 6 + off]; \
-		if (matrw == 7) sII = bigMat[8 * 7 + off];
+		if (matrw == 0) if (mindex == 0) sII[0] = bigMat[8 * 0 + off]; \
+		if (matrw == 0) if (mindex == 1) sII[1] = bigMat[8 * 0 + off]; \
+		if (matrw == 0) sII[2] = bigMat[64 + 4 * 0 + off % 4]; \
+		if (matrw == 1) if (mindex == 0) sII[0] = bigMat[8 * 1 + off]; \
+		if (matrw == 1) if (mindex == 1) sII[1] = bigMat[8 * 1 + off]; \
+		if (matrw == 1) sII[2] = bigMat[64 + 4 * 1 + off % 4]; \
+		if (matrw == 2) if (mindex == 0) sII[0] = bigMat[8 * 2 + off]; \
+		if (matrw == 2) if (mindex == 1) sII[1] = bigMat[8 * 2 + off]; \
+		if (matrw == 2) sII[2] = bigMat[64 + 4 * 2 + off % 4]; \
+		if (matrw == 3) if (mindex == 0) sII[0] = bigMat[8 * 3 + off]; \
+		if (matrw == 3) if (mindex == 1) sII[1] = bigMat[8 * 3 + off]; \
+		if (matrw == 3) sII[2] = bigMat[64 + 4 * 3 + off % 4]; \
+		if (matrw == 4) if (mindex == 0) sII[0] = bigMat[8 * 4 + off]; \
+		if (matrw == 4) if (mindex == 1) sII[1] = bigMat[8 * 4 + off]; \
+		if (matrw == 4) sII[2] = bigMat[64 + 4 * 4 + off % 4]; \
+		if (matrw == 5) if (mindex == 0) sII[0] = bigMat[8 * 5 + off]; \
+		if (matrw == 5) if (mindex == 1) sII[1] = bigMat[8 * 5 + off]; \
+		if (matrw == 5) sII[2] = bigMat[64 + 4 * 5 + off % 4]; \
+		if (matrw == 6) if (mindex == 0) sII[0] = bigMat[8 * 6 + off]; \
+		if (matrw == 6) if (mindex == 1) sII[1] = bigMat[8 * 6 + off]; \
+		if (matrw == 6) sII[2] = bigMat[64 + 4 * 6 + off % 4]; \
+		if (matrw == 7) if (mindex == 0) sII[0] = bigMat[8 * 7 + off]; \
+		if (matrw == 7) if (mindex == 1) sII[1] = bigMat[8 * 7 + off]; \
+		if (matrw == 7) sII[2] = bigMat[64 + 4 * 7 + off % 4]; \
+		if (off < 4) pull_s2_up(sII); if (off > 3) pull_s2_down(sII);
 
 #define real_matrw_write(sII, bigMat, matrw, off) \
-		if (matrw == 0) bigMat[8 * 0 + off] = sII; \
-		if (matrw == 1) bigMat[8 * 1 + off] = sII; \
-		if (matrw == 2) bigMat[8 * 2 + off] = sII; \
-		if (matrw == 3) bigMat[8 * 3 + off] = sII; \
-		if (matrw == 4) bigMat[8 * 4 + off] = sII; \
-		if (matrw == 5) bigMat[8 * 5 + off] = sII; \
-		if (matrw == 6) bigMat[8 * 6 + off] = sII; \
-		if (matrw == 7) bigMat[8 * 7 + off] = sII;
+		if (matrw == 0) if (mindex == 0) bigMat[8 * 0 + off] = sII[0]; \
+		if (matrw == 0) if (mindex == 1) bigMat[8 * 0 + off] = sII[1]; \
+		if (matrw == 0) if (mindex == 0 && off < 4) bigMat[64 + 4 * 0 + off % 4] = sII[2]; \
+		if (matrw == 0) if (mindex == 1 && off > 3) bigMat[64 + 4 * 0 + off % 4] = sII[2]; \
+		if (matrw == 1) if (mindex == 0) bigMat[8 * 1 + off] = sII[0]; \
+		if (matrw == 1) if (mindex == 1) bigMat[8 * 1 + off] = sII[1]; \
+		if (matrw == 1) if (mindex == 0 && off < 4) bigMat[64 + 4 * 1 + off % 4] = sII[2]; \
+		if (matrw == 1) if (mindex == 1 && off > 3) bigMat[64 + 4 * 1 + off % 4] = sII[2]; \
+		if (matrw == 2) if (mindex == 0) bigMat[8 * 2 + off] = sII[0]; \
+		if (matrw == 2) if (mindex == 1) bigMat[8 * 2 + off] = sII[1]; \
+		if (matrw == 2) if (mindex == 0 && off < 4) bigMat[64 + 4 * 2 + off % 4] = sII[2]; \
+		if (matrw == 2) if (mindex == 1 && off > 3) bigMat[64 + 4 * 2 + off % 4] = sII[2]; \
+		if (matrw == 3) if (mindex == 0) bigMat[8 * 3 + off] = sII[0]; \
+		if (matrw == 3) if (mindex == 1) bigMat[8 * 3 + off] = sII[1]; \
+		if (matrw == 3) if (mindex == 0 && off < 4) bigMat[64 + 4 * 3 + off % 4] = sII[2]; \
+		if (matrw == 3) if (mindex == 1 && off > 3) bigMat[64 + 4 * 3 + off % 4] = sII[2]; \
+		if (matrw == 4) if (mindex == 0) bigMat[8 * 4 + off] = sII[0]; \
+		if (matrw == 4) if (mindex == 1) bigMat[8 * 4 + off] = sII[1]; \
+		if (matrw == 4) if (mindex == 0 && off < 4) bigMat[64 + 4 * 4 + off % 4] = sII[2]; \
+		if (matrw == 4) if (mindex == 1 && off > 3) bigMat[64 + 4 * 4 + off % 4] = sII[2]; \
+		if (matrw == 5) if (mindex == 0) bigMat[8 * 5 + off] = sII[0]; \
+		if (matrw == 5) if (mindex == 1) bigMat[8 * 5 + off] = sII[1]; \
+		if (matrw == 5) if (mindex == 0 && off < 4) bigMat[64 + 4 * 5 + off % 4] = sII[2]; \
+		if (matrw == 5) if (mindex == 1 && off > 3) bigMat[64 + 4 * 5 + off % 4] = sII[2]; \
+		if (matrw == 6) if (mindex == 0) bigMat[8 * 6 + off] = sII[0]; \
+		if (matrw == 6) if (mindex == 1) bigMat[8 * 6 + off] = sII[1]; \
+		if (matrw == 6) if (mindex == 0 && off < 4) bigMat[64 + 4 * 6 + off % 4] = sII[2]; \
+		if (matrw == 6) if (mindex == 1 && off > 3) bigMat[64 + 4 * 6 + off % 4] = sII[2]; \
+		if (matrw == 7) if (mindex == 0) bigMat[8 * 7 + off] = sII[0]; \
+		if (matrw == 7) if (mindex == 1) bigMat[8 * 7 + off] = sII[1]; \
+		if (matrw == 7) if (mindex == 0 && off < 4) bigMat[64 + 4 * 7 + off % 4] = sII[2]; \
+		if (matrw == 7) if (mindex == 1 && off > 3) bigMat[64 + 4 * 7 + off % 4] = sII[2]; \
+
+#define state_xor_plus_modify(state, bigMat, mindex, matin, colin, matrw, colrw) \
+   if (mindex == 0) si[0] = bigMat[8 * matin + colin]; \
+   if (mindex == 1) si[1] = bigMat[8 * matin + colin]; \
+   si[2] = bigMat[64 + 4 * matin + colin % 4]; if (colin < 4) pull_s2_up(si); if (colin > 3) pull_s2_down(si); \
+   real_matrw_read(sII, bigMat, matrw, colrw); \
+   if (mindex == 0) state[0] ^= si[0] + sII[0]; \
+   if (mindex == 1) state[1] ^= si[1] + sII[1]; \
+   state[2] ^= si[2] + sII[2];
+
+#define xor_state_modify(state, bigMat, mindex, row, col) \
+  if (mindex == 0) bigMat[8 * row + col] ^= si[0]; \
+  if (mindex == 1) bigMat[8 * row + col] ^= si[1]; \
+  if (mindex == 0 && col < 4) bigMat[64 + 4 * row + col % 4] ^= si[2]; if (mindex == 1 && col > 3) bigMat[64 + 4 * row + col % 4] ^= si[2];
 
 #define hyper_xor_dpp_macro( matin, matrw, matout, state, bigMat) do { \
     { \
-		si = bigMat[8 * matin + 0]; real_matrw_read(sII, bigMat, matrw, 0); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 0, matrw, 0); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 0); bigMat[8 * matout + 0] ^= cstate; \
-		si = bigMat[8 * matin + 1]; real_matrw_read(sII, bigMat, matrw, 1); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 0); xor_state_modify(state, bigMat, mindex, matout, 0); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 1, matrw, 1); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 1); bigMat[8 * matout + 1] ^= cstate; \
-		si = bigMat[8 * matin + 2]; real_matrw_read(sII, bigMat, matrw, 2); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 1); xor_state_modify(state, bigMat, mindex, matout, 1); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 2, matrw, 2); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 2); bigMat[8 * matout + 2] ^= cstate; \
-		si = bigMat[8 * matin + 3]; real_matrw_read(sII, bigMat, matrw, 3); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 2); xor_state_modify(state, bigMat, mindex, matout, 2); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 3, matrw, 3); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 3); bigMat[8 * matout + 3] ^= cstate; \
-		si = bigMat[8 * matin + 4]; real_matrw_read(sII, bigMat, matrw, 4); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 3); xor_state_modify(state, bigMat, mindex, matout, 3); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 4, matrw, 4); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 4); bigMat[8 * matout + 4] ^= cstate; \
-		si = bigMat[8 * matin + 5]; real_matrw_read(sII, bigMat, matrw, 5); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 4); xor_state_modify(state, bigMat, mindex, matout, 4); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 5, matrw, 5); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 5); bigMat[8 * matout + 5] ^= cstate; \
-		si = bigMat[8 * matin + 6]; real_matrw_read(sII, bigMat, matrw, 6); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 5); xor_state_modify(state, bigMat, mindex, matout, 5); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 6, matrw, 6); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 6); bigMat[8 * matout + 6] ^= cstate; \
-		si = bigMat[8 * matin + 7]; real_matrw_read(sII, bigMat, matrw, 7); if (LOCAL_LINEAR != 3) cstate ^= sII + si; \
+		real_matrw_write(sII, bigMat, matrw, 6); xor_state_modify(state, bigMat, mindex, matout, 6); \
+		state_xor_plus_modify(state, bigMat, mindex, matin, 7, matrw, 7); \
 		round_lyra_4way_sw(state); \
 		xorrot_one_dpp(sII, state); \
-		real_matrw_write(sII, bigMat, matrw, 7); bigMat[8 * matout + 7] ^= cstate; \
+		real_matrw_write(sII, bigMat, matrw, 7); xor_state_modify(state, bigMat, mindex, matout, 7); \
 	} \
 } while (0);
