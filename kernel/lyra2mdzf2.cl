@@ -249,8 +249,8 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
   if (modify == row) state[2] ^= notepad[64 + 4 * row + col % 4]; pull_s2(state, col); 
 
 #define state_xor(state, bigMat, mindex, row, col) \
-  if (mindex == 0) si[0] = bigMat[8 * row + col]; if (mindex == 0) state[0] ^= si[0]; \
-  if (mindex == 1) si[1] = bigMat[8 * row + col]; if (mindex == 1) state[1] ^= si[1]; \
+  if (mindex == 0) si[0] = bigMat[8 * row + col]; if (mindex == 0) state[0] ^= bigMat[8 * row + col]; \
+  if (mindex == 1) si[1] = bigMat[8 * row + col]; if (mindex == 1) state[1] ^= bigMat[8 * row + col]; \
   si[2] = bigMat[64 + 4 * row + col % 4]; pull_s2(si, col); state[2] ^= si[2];
 
 #define xor_state(state, bigMat, mindex, row, col) \
@@ -344,11 +344,11 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	p2 = (s[0] & 7); \
 	p3 = (s[0] & 7); \
 	__asm ( \
-		  "s_nop 1\n" \
+		  "s_nop 0\n" \
 		  "v_mov_b32_dpp  %[p1], %[p1] row_ror:4\n" \
 		  "v_mov_b32_dpp  %[p2], %[p2] row_ror:8\n" \
 		  "v_mov_b32_dpp  %[p3], %[p3] row_ror:12\n" \
-		  "s_nop 1\n" \
+		  "s_nop 0" \
 		  : [p1] "=&v" (p1), \
 		    [p2] "=&v" (p2), \
 			[p3] "=&v" (p3) \
