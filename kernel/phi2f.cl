@@ -150,6 +150,8 @@ __kernel void search2(__global uchar* sharedDataBuf)
 	uint2 s1;
 	uint2 s2;
 	uint2 s3;
+  uint2 ss1;
+	uint2 ss3;
   const uint mindex = (LOCAL_LINEAR & 1) == 0 ? 0 : 1;
 
   //-------------------------------------
@@ -225,14 +227,15 @@ __kernel void search2(__global uchar* sharedDataBuf)
 
   //-------------------------------------
   // save lyra state
+  barrier(CLK_LOCAL_MEM_FENCE);
   if (LOCAL_LINEAR == 0) lyraState->h8[player + 4 * 0] = state[0];
-  if (LOCAL_LINEAR == 0) lyraState->h8[player + 4 * 1] = state[1];
+  if (LOCAL_LINEAR == 1) lyraState->h8[player + 4 * 1] = state[1];
   if (LOCAL_LINEAR == 0) lyraState->h8[player + 4 * 2] = state[2];
-  if (LOCAL_LINEAR == 0) lyraState->h8[player + 4 * 3] = state[3];
+  if (LOCAL_LINEAR == 1) lyraState->h8[player + 4 * 3] = state[3];
   if (LOCAL_LINEAR == 2) lyraState2->h8[player + 4 * 0] = state[0];
-  if (LOCAL_LINEAR == 2) lyraState2->h8[player + 4 * 1] = state[1];
+  if (LOCAL_LINEAR == 3) lyraState2->h8[player + 4 * 1] = state[1];
   if (LOCAL_LINEAR == 2) lyraState2->h8[player + 4 * 2] = state[2];
-  if (LOCAL_LINEAR == 2) lyraState2->h8[player + 4 * 3] = state[3];
+  if (LOCAL_LINEAR == 3) lyraState2->h8[player + 4 * 3] = state[3];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
