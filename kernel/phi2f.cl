@@ -150,18 +150,19 @@ __kernel void search2(__global uchar* sharedDataBuf)
 	uint2 s1;
 	uint2 s2;
 	uint2 s3;
+  long ss0;
   uint2 ss1;
 	uint2 ss3;
   const uint mindex = (LOCAL_LINEAR & 1) == 0 ? 0 : 1;
 
   //-------------------------------------
   // Load Lyra state
-  if (LOCAL_LINEAR == 0 || LOCAL_LINEAR == 1) state[0] = ((ulong)(lyraState->h8[player + 4 * 0]));
-  if (LOCAL_LINEAR == 0 || LOCAL_LINEAR == 1) state[1] = ((ulong)(lyraState->h8[player + 4 * 1]));
+  if (LOCAL_LINEAR == 0) state[0] = ((ulong)(lyraState->h8[player + 4 * 0]));
+  if (LOCAL_LINEAR == 1) state[0] = ((ulong)(lyraState->h8[player + 4 * 1]));
   if (LOCAL_LINEAR == 0 || LOCAL_LINEAR == 1) state[2] = ((ulong)(lyraState->h8[player + 4 * 2]));
   if (LOCAL_LINEAR == 0 || LOCAL_LINEAR == 1) state[3] = ((ulong)(lyraState->h8[player + 4 * 3]));
-  if (LOCAL_LINEAR == 2 || LOCAL_LINEAR == 3) state[0] = ((ulong)(lyraState2->h8[player + 4 * 0]));
-  if (LOCAL_LINEAR == 2 || LOCAL_LINEAR == 3) state[1] = ((ulong)(lyraState2->h8[player + 4 * 1]));
+  if (LOCAL_LINEAR == 2) state[0] = ((ulong)(lyraState2->h8[player + 4 * 0]));
+  if (LOCAL_LINEAR == 3) state[0] = ((ulong)(lyraState2->h8[player + 4 * 1]));
   if (LOCAL_LINEAR == 2 || LOCAL_LINEAR == 3) state[2] = ((ulong)(lyraState2->h8[player + 4 * 2]));
   if (LOCAL_LINEAR == 2 || LOCAL_LINEAR == 3) state[3] = ((ulong)(lyraState2->h8[player + 4 * 3]));
 
@@ -185,6 +186,7 @@ __kernel void search2(__global uchar* sharedDataBuf)
   make_hyper_one_macro(state, notepad);
   
   make_next_hyper_macro(1, 0, 2, state, notepad);
+  
   make_next_hyper_macro(2, 1, 3, state, notepad);
   make_next_hyper_macro(3, 0, 4, state, notepad);
   make_next_hyper_macro(4, 3, 5, state, notepad);
@@ -199,10 +201,13 @@ __kernel void search2(__global uchar* sharedDataBuf)
 
   broadcast_zero(state);
   hyper_xor_dpp_macro(7, modify, 0, state, notepad);
+  
   broadcast_zero(state);
   hyper_xor_dpp_macro(0, modify, 3, state, notepad);
+  
   broadcast_zero(state);
   hyper_xor_dpp_macro(3, modify, 6, state, notepad);
+  
   broadcast_zero(state);
   hyper_xor_dpp_macro(6, modify, 1, state, notepad);
   broadcast_zero(state);
@@ -222,7 +227,7 @@ __kernel void search2(__global uchar* sharedDataBuf)
   state_xor_modify(modify, 5, 0, mindex, state, notepad);
   state_xor_modify(modify, 6, 0, mindex, state, notepad);
   state_xor_modify(modify, 7, 0, mindex, state, notepad);
-
+/**/
   pull_state(state); 
 
   //-------------------------------------
