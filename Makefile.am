@@ -87,6 +87,7 @@ sgminer_SOURCES += algorithm/pascal.c algorithm/pascal.h
 sgminer_SOURCES += algorithm/lbry.c algorithm/lbry.h
 sgminer_SOURCES += algorithm/phi.c algorithm/phi.h
 sgminer_SOURCES += algorithm/phi2.c algorithm/phi2.h
+sgminer_SOURCES += algorithm/allium.c algorithm/allium.h
 
 bin_SCRIPTS	= $(top_srcdir)/kernel/*.cl
 
