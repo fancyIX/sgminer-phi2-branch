@@ -597,8 +597,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     size_t scratchbuf_size;
     if (cgpu->algorithm.type == ALGO_LYRA2REV2) {
       scratchbuf_size = LYRA_SCRATCHBUF_SIZE;
-    } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_ALLIUM || cgpu->algorithm.type == ALGO_LYRA2H) {
+    } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_ALLIUM) {
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE / 2; // LYRA2Z_SCRATCHBUF_SIZE * 8;
+    } else if (cgpu->algorithm.type == ALGO_LYRA2H) {
+      scratchbuf_size = LYRA2H_SCRATCHBUF_SIZE;
     } else { // PHI2
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE;
     }
@@ -829,10 +831,14 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       applog(LOG_DEBUG, "lyra2REv2 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)buf1size);
       // scrypt/n-scrypt
     }
-    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_LYRA2H) {
+    else if (algorithm->type == ALGO_LYRA2Z) {
       buf1size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states
       bufsize = 4 * 8 * cgpu->thread_concurrency;
       // scrypt/n-scrypt
+    }
+    else if (algorithm->type == ALGO_LYRA2H) {
+      bufsize = 4 * 8 * cgpu->thread_concurrency;
+      buf1size = LYRA2H_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
     }
     else {
       size_t ipt = (algorithm->n / cgpu->lookup_gap + (algorithm->n % cgpu->lookup_gap > 0));

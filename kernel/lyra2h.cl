@@ -4,7 +4,6 @@
  * ==========================(LICENSE BEGIN)============================
  * 
  * Copyright (c) 2017 djm34
- * Copyright (c) 2018 fancyIX
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -28,7 +27,6 @@
  * ===========================(LICENSE END)=============================
  *
  * @author   djm34
- * @author   fancyIX
  */
 // typedef unsigned int uint;
 #define NVIDIA_GPU 0
@@ -43,6 +41,7 @@
 
 #ifndef LYRA2Z_CL
 #define LYRA2Z_CL
+
 #if __ENDIAN_LITTLE__
 #define SPH_LITTLE_ENDIAN 1
 #else
@@ -71,54 +70,34 @@ typedef long sph_s64;
 #define SPH_C64(x)    ((sph_u64)(x ## UL))
 #define SPH_T64(x)    ((x) & SPH_C64(0xFFFFFFFFFFFFFFFF))
 
-//#define SPH_ROTL32(x, n)   (((x) << (n)) | ((x) >> (32 - (n))))
-//#define SPH_ROTR32(x, n)   (((x) >> (n)) | ((x) << (32 - (n))))
-//#define SPH_ROTL64(x, n)   (((x) << (n)) | ((x) >> (64 - (n))))
-//#define SPH_ROTR64(x, n)   (((x) >> (n)) | ((x) << (64 - (n))))
-
-#define SPH_ROTL32(x,n) rotate(x,(uint)n)     //faster with driver 14.6
-#define SPH_ROTR32(x,n) rotate(x,(uint)(32-n))
-#define SPH_ROTL64(x,n) rotate(x,(ulong)n)
-#define SPH_ROTR64(x,n) rotate(x,(ulong)(64-n))
-static inline sph_u64 ror64(sph_u64 vw, unsigned a) {
-	uint2 result;
-	uint2 v = as_uint2(vw);
-	unsigned n = (unsigned)(64 - a);
-	if (n == 32) { return as_ulong((uint2)(v.y, v.x)); }
-	if (n < 32) {
-		result.y = ((v.y << (n)) | (v.x >> (32 - n)));
-		result.x = ((v.x << (n)) | (v.y >> (32 - n)));
-	}
-	else {
-		result.y = ((v.x << (n - 32)) | (v.y >> (64 - n)));
-		result.x = ((v.y << (n - 32)) | (v.x >> (64 - n)));
-	}
-	return as_ulong(result);
-}
-
-#define SWAP4(x) as_uint(as_uchar4(x).wzyx)
-#define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
-#define SWAP32(x) as_ulong(as_uint2(x).s10)
 
 #define memshift 3
 #include "blake256.cl"
-#include "lyra2hmdz.cl"
+#include "lyra2v16h.cl"
+
+#define SPH_ROTR32(x,n) rotate(x,(uint)(32-n))
+
+#define SWAP4(x) as_uint(as_uchar4(x).wzyx)
+#define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
+//#define SWAP8(x) as_ulong(as_uchar8(x).s32107654)
+
+#if SPH_BIG_ENDIAN
+  #define DEC64E(x) (x)
+  #define DEC64BE(x) (*(const __global sph_u64 *) (x));
+  #define DEC64LE(x) SWAP8(*(const __global sph_u64 *) (x));
+  #define DEC32LE(x) (*(const __global sph_u32 *) (x));
+#else
+  #define DEC64E(x) SWAP8(x)
+  #define DEC64BE(x) SWAP8(*(const __global sph_u64 *) (x));
+  #define DEC64LE(x) (*(const __global sph_u64 *) (x));
+#define DEC32LE(x) SWAP4(*(const __global sph_u32 *) (x));
+#endif
 
 typedef union {
-    uint h4[8];
-    ulong h8[4];
-    uint4 h16[2];
-    ulong2 hl16[2];
-    ulong4 h32;
-} hash2_t;
-
-typedef union {
-    uint h4[32];
-    ulong h8[16];
-    uint4 h16[8];
-    ulong2 hl16[8];
-    ulong4 h32[4];
-} lyraState_t;
+  unsigned char h1[32];
+  uint h4[8];
+  ulong h8[4];
+} hash_t;
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search(
@@ -139,7 +118,7 @@ __kernel void search(
 )
 {
  uint gid = get_global_id(0);
- __global hash2_t *hash = (__global hash2_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(0))));
+ __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(0))));
 
 
 //  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -197,370 +176,211 @@ barrier(CLK_LOCAL_MEM_FENCE);
 
 }
 
-/// lyra2 p1 
+
+/// lyra2 algo 
+
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search1(__global uint* hashes, __global uchar* sharedDataBuf)
+__kernel void search1(__global uchar* hashes,__global uchar* matrix, __global uint* output, const ulong target)
 {
-    int gid = get_global_id(0);
+ uint gid = get_global_id(0);
+ // __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = (__global hash_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(0))));
+  __global ulong4 *DMatrix = (__global ulong4 *)(matrix + (4 * memshift * 16 * 16 * 8 * (gid - get_global_offset(0))));
 
-    __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
-
-    ulong ttr;
-
-    ulong2 state[8];
-    // state0
-    state[0] = hash->hl16[0];
-    state[1] = hash->hl16[1];
-    // state1
-    state[2] = state[0];
-    state[3] = state[1];
-    // state2
-    state[4] = (ulong2)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL);
-    state[5] = (ulong2)(0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
-    // state3 (low,high,..
-    state[6] = (ulong2)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL);
-    state[7] = (ulong2)(0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
-
-    // Absorbing salt, password and basil: this is the only place in which the block length is hard-coded to 512 bits
-    for (int i = 0; i < 12; ++i)
-    {
-        roundLyra(state);
-    }
-
-    state[0].x ^= 0x20UL;
-    state[0].y ^= 0x20UL;
-    
-    state[1].x ^= 0x20UL;
-    state[1].y ^= 0x10UL;
-    
-    state[2].x ^= 0x10UL;
-    state[2].y ^= 0x10UL;
-    
-    state[3].x ^= 0x80UL;
-    state[3].y ^= 0x0100000000000000UL;
-    
-    for (int i = 0; i < 12; i++)
-    {
-        roundLyra(state);
-    }
-
-    // state0
-    lyraState->hl16[0] = state[0];
-    lyraState->hl16[1] = state[1];
-    // state1
-    lyraState->hl16[2] = state[2];
-    lyraState->hl16[3] = state[3];
-    // state2
-    lyraState->hl16[4] = state[4];
-    lyraState->hl16[5] = state[5];
-    // state3
-    lyraState->hl16[6] = state[6];
-    lyraState->hl16[7] = state[7];
-
-    barrier(CLK_GLOBAL_MEM_FENCE);
-}
-
-
-/// lyra2 algo p2 
-
-__attribute__((reqd_work_group_size(4, 1, 1)))
-__kernel void search2(__global uchar* sharedDataBuf)
-{
-  uint gid = get_global_id(1);
-  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(1))));
-
-  __local ulong roundPad[12 * 1];
-  __local ulong *xchange = roundPad + get_local_id(1) * 4;
-
-  //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
-  __local ulong notepadLDS[192 * 4 * 4 * 1];
-  __local ulong *notepad = notepadLDS + LOCAL_LINEAR;
-  const int player = get_local_id(0);
-
-  ulong state[4];
-
-  //-------------------------------------
-  // Load Lyra state
-  state[0] = (ulong)(lyraState->h8[player]);
-  state[1] = (ulong)(lyraState->h8[player+4]);
-  state[2] = (ulong)(lyraState->h8[player+8]);
-  state[3] = (ulong)(lyraState->h8[player+12]);
+//  uint offset = (4 * memshift * 4 * 4 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS))/32;
+  ulong4 state[4];
+  __local ulong4 temp[48*WORKSIZE];
   
-  __local ulong *dst = notepad + HYPERMATRIX_COUNT;
-  for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
-    dst -= STATE_BLOCK_COUNT; // but blocks backwards
-    for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
-    round_lyra_4way(state, xchange);
-  }
-  make_hyper_one(state, xchange, notepad);
-  make_next_hyper(1, 0, 2, state, roundPad, notepad);
-  make_next_hyper(2, 1, 3, state, roundPad, notepad);
-  make_next_hyper(3, 0, 4, state, roundPad, notepad);
-  make_next_hyper(4, 3, 5, state, roundPad, notepad);
-  make_next_hyper(5, 2, 6, state, roundPad, notepad);
-  make_next_hyper(6, 1, 7, state, roundPad, notepad);
-  make_next_hyper(7, 0, 8,   state, roundPad, notepad);
-  make_next_hyper(8, 3, 9,   state, roundPad, notepad);
-  make_next_hyper(9, 6, 10,  state, roundPad, notepad);
-  make_next_hyper(10, 1, 11, state, roundPad, notepad);
-  make_next_hyper(11, 4, 12, state, roundPad, notepad);
-  make_next_hyper(12, 7, 13, state, roundPad, notepad);
-  make_next_hyper(13, 2, 14, state, roundPad, notepad);
-  make_next_hyper(14, 5, 15, state, roundPad, notepad);
+  state[0].x = hash->h8[0]; //password
+  state[0].y = hash->h8[1]; //password
+  state[0].z = hash->h8[2]; //password
+  state[0].w = hash->h8[3]; //password
+  state[1] = state[0];
+  state[2] = (ulong4)(0x6a09e667f3bcc908UL, 0xbb67ae8584caa73bUL, 0x3c6ef372fe94f82bUL, 0xa54ff53a5f1d36f1UL);
+  state[3] = (ulong4)(0x510e527fade682d1UL, 0x9b05688c2b3e6c1fUL, 0x1f83d9abfb41bd6bUL, 0x5be0cd19137e2179UL);
 
-  uint modify;
+  for (int i = 0; i<12; i++) { round_lyra(state); } 
+
+  state[0] ^= (ulong4)(0x20,0x20,0x20,0x10);
+  state[1] ^= (ulong4)(0x10,0x10,0x80,0x0100000000000000);
+
+  for (int i = 0; i<12; i++) { round_lyra(state); } 
+
+// reducedsqueezedrow0
+  uint ps1 = (memshift * 15);
+//#pragma unroll 4
+  for (int i = 0; i < 16; i++)
+  {
+	  uint s1 = ps1 - memshift * i;
+	  for (int j = 0; j < 3; j++)
+		  (DMatrix)[j+s1] = state[j];
+
+	  for (int j = 0; j < 3; j++)
+		  temp[3*(15-i)+j+48* get_local_id(0)] = state[j];
+
+	  round_lyra(state);
+  }
+ ///// reduceduplexrow1 ////////////
+
+  reduceDuplexf_tmp(state,DMatrix,temp + 48 * get_local_id(0));
+ 
+  reduceDuplexRowSetupf_pass1(1, 0, 2,state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(2, 1, 3, state,DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(3, 0, 4, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(4, 3, 5, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(5, 2, 6, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(6, 1, 7, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(7, 0, 8, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(8, 3, 9, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(9, 6, 10, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(10, 1, 11, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(11, 4, 12, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(12, 7, 13, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass1(13, 2, 14, state, DMatrix, temp + 48 * get_local_id(0));
+  reduceDuplexRowSetupf_pass2(14, 5, 15, state, DMatrix, temp + 48 * get_local_id(0));
+
+  uint rowa;
   uint prev = 15;
   uint iterator = 0;
 
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+//for (uint j = 0; j < 8; j++) {
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+///
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 7) & 15;
+/// 7
+  for (uint i = 0; i<16; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator + 7) & 15;
   }
-  for (uint i = 0; i < LYRA_ROUNDS; i++) {
-	  local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)] & 15;
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1 ) & 15;
+  for (uint i = 0; i<15; i++) {
+	  rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
   }
-  local uint *shorter = (local uint*)roundPad;
-if(get_local_id(0) == 0) {
-	shorter[get_local_id(1)] = (uint)(state[0] % 8);
-}
-barrier(CLK_LOCAL_MEM_FENCE); // nop
-modify = shorter[get_local_id(1)] & 15;
-hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-prev = iterator;
-iterator = (iterator - 1 ) & 15;
+
+      rowa = state[0].x & 15;
+	  reduceDuplexRowf_tmp2(prev, rowa, iterator, state, DMatrix, temp + 48 * get_local_id(0));
+	  prev = iterator;
+	  iterator = (iterator - 1) & 15;
+
+//}
+
+  for (int j = 0; j < 3; j++)
+	  state[j] ^= temp[j + 48 * get_local_id(0)]; //(DMatrix)[j+shift];
+
+//  for (int j = 0; j < 3; j++)
+//	  state[j] ^= temp[j];
+
+  for (int i = 0; i < 12; i++)
+	  round_lyra(state);
+//////////////////////////////////////
 
 
-  notepad += HYPERMATRIX_COUNT * modify;
-  for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
+//  for (int i = 0; i<4; i++) {hash->h8[i] = ((ulong*)state)[i];} 
+//barrier(CLK_LOCAL_MEM_FENCE);
 
-  //-------------------------------------
-  // save lyra state    
-  lyraState->h8[player] = state[0];
-  lyraState->h8[player+4] = state[1];
-  lyraState->h8[player+8] = state[2];
-  lyraState->h8[player+12] = state[3];
-
-  barrier(CLK_GLOBAL_MEM_FENCE);
-}
-
-// lyra2 p3
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search3(__global uint* hashes, __global uchar* sharedDataBuf)
-{
-    int gid = get_global_id(0);
-
-    __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
-
-    ulong ttr;
-
-    ulong2 state[8];
-    // 1. load lyra State
-    state[0] = lyraState->hl16[0];
-    state[1] = lyraState->hl16[1];
-    state[2] = lyraState->hl16[2];
-    state[3] = lyraState->hl16[3];
-    state[4] = lyraState->hl16[4];
-    state[5] = lyraState->hl16[5];
-    state[6] = lyraState->hl16[6];
-    state[7] = lyraState->hl16[7];
-
-    // 2. rounds
-    for (int i = 0; i < 12; ++i)
-    {
-        roundLyra(state);
-    }
-
-    // 3. store result
-    hash->hl16[0] = state[0];
-    hash->hl16[1] = state[1];
-    
-    barrier(CLK_GLOBAL_MEM_FENCE);
-}
-
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search4(__global uchar* hashes, __global uint* output, const ulong target)
-{
-  uint gid = get_global_id(0);
- __global hash2_t *hash = (__global hash2_t *)(hashes + (4 * sizeof(ulong)* (gid - get_global_offset(0))));
-
-  bool result = (hash->h8[3] <= target);
-  if (result) {
+bool result = (((ulong*)state)[3] <= target);
+if (result) {
 	output[atomic_inc(output + 0xFF)] = SWAP4(gid);
-  }
 }
+
+}
+
 
 
 #endif // LYRA2Z_CL

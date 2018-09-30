@@ -1240,7 +1240,7 @@ static cl_int queue_lyra2h_kernel(struct __clState *clState, struct _dev_blk_ctx
 	kernel = &clState->kernel;
 	num = 0;
 	//  CL_SET_ARG(clState->CLbuffer0);
-	CL_SET_ARG(clState->buffer1);
+	CL_SET_ARG(clState->padbuffer8);
 	CL_SET_ARG(blk->work->blk.ctx_a);
 	CL_SET_ARG(blk->work->blk.ctx_b);
 	CL_SET_ARG(blk->work->blk.ctx_c);
@@ -1252,20 +1252,11 @@ static cl_int queue_lyra2h_kernel(struct __clState *clState, struct _dev_blk_ctx
 	CL_SET_ARG(blk->work->blk.cty_a);
 	CL_SET_ARG(blk->work->blk.cty_b);
 	CL_SET_ARG(blk->work->blk.cty_c);
-
-  kernel = clState->extra_kernels;
-	// lyra2_cuda_hash_64 - search1 2 3
-  num = 0;
-  CL_SET_ARG(clState->padbuffer8);
-  CL_SET_ARG(clState->buffer1);
-  num = 0;
-  CL_NEXTKERNEL_SET_ARG(clState->buffer1);
-  num = 0;
-  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
-  CL_SET_ARG(clState->buffer1);
 	num = 0;
-	//output
-	CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+	// keccak - search1
+	kernel = clState->extra_kernels;
+	CL_SET_ARG(clState->padbuffer8);
+	CL_SET_ARG(clState->buffer1);
 	CL_SET_ARG(clState->outputBuffer);
 	CL_SET_ARG(le_target);
 	return status;
@@ -1482,7 +1473,7 @@ static algorithm_settings_t algos[] = {
   { "lyra2re", ALGO_LYRA2RE, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 2 * 8 * 4194304, 0, lyra2re_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2re_kernel, gen_hash, NULL },
   { "lyra2rev2", ALGO_LYRA2REV2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 6, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, lyra2rev2_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2rev2_kernel, gen_hash, append_neoscrypt_compiler_options },
   { "lyra2Z"   , ALGO_LYRA2Z   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, -1, 0, lyra2Z_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2z_kernel, gen_hash, NULL },
-  { "lyra2h"   , ALGO_LYRA2H   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, -1, 0, lyra2h_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2h_kernel, gen_hash, NULL },
+  { "lyra2h"   , ALGO_LYRA2H   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, -1, 0, lyra2h_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2h_kernel, gen_hash, NULL },
   { "allium", ALGO_ALLIUM, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 2 * 8 * 4194304, 0, allium_regenhash, blake256_midstate, blake256_prepare_work, queue_allium_kernel, gen_hash, NULL },
 
   // kernels starting from this will have difficulty calculated by using fuguecoin algorithm
