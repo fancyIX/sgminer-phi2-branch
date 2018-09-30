@@ -272,6 +272,7 @@
     <ClCompile Include="..\algorithm\lyra2re.c" />
     <ClCompile Include="..\algorithm\lyra2rev2.c" />
     <ClCompile Include="..\algorithm\lyra2Z.c" />
+    <ClCompile Include="..\algorithm\lyra2h.c" />
     <ClCompile Include="..\algorithm\allium.c" />
     <ClCompile Include="..\algorithm\neoscrypt.c" />
     <ClCompile Include="..\algorithm\pascal.c" />
@@ -354,6 +355,7 @@
     <ClInclude Include="..\algorithm\lyra2re.h" />
     <ClInclude Include="..\algorithm\lyra2rev2.h" />
     <ClInclude Include="..\algorithm\lyra2Z.h" />
+    <ClInclude Include="..\algorithm\lyra2h.h" />
     <ClInclude Include="..\algorithm\allium.h" />
     <ClInclude Include="..\algorithm\neoscrypt.h" />
     <ClInclude Include="..\algorithm\pascal.h" />

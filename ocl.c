@@ -39,6 +39,7 @@
 #include "algorithm/yescrypt.h"
 #include "algorithm/lyra2rev2.h"
 #include "algorithm/lyra2Z.h"
+#include "algorithm/lyra2h.h"
 #include "algorithm/phi2.h"
 
 /* FIXME: only here for global config vars, replace with configuration.h
@@ -588,7 +589,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   }
 
   // Lyra2re v2 TC
-  else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_PHI2 || cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
+  else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2H || cgpu->algorithm.type == ALGO_PHI2 || cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -598,6 +599,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       scratchbuf_size = LYRA_SCRATCHBUF_SIZE;
     } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_ALLIUM) {
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE / 2; // LYRA2Z_SCRATCHBUF_SIZE * 8;
+    } else if (cgpu->algorithm.type == ALGO_LYRA2H) {
+      scratchbuf_size = LYRA2H_SCRATCHBUF_SIZE;
     } else { // PHI2
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE;
     }
@@ -833,6 +836,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       bufsize = 4 * 8 * cgpu->thread_concurrency;
       // scrypt/n-scrypt
     }
+    else if (algorithm->type == ALGO_LYRA2H) {
+      bufsize = 4 * 8 * cgpu->thread_concurrency;
+      buf1size = LYRA2H_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
+    }
     else {
       size_t ipt = (algorithm->n / cgpu->lookup_gap + (algorithm->n % cgpu->lookup_gap > 0));
       bufsize = 128 * ipt * cgpu->thread_concurrency;
@@ -904,7 +911,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_ALLIUM) {
+    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_ALLIUM || algorithm->type == ALGO_LYRA2H) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {

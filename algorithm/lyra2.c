@@ -61,8 +61,8 @@ int LYRA2(void *K, uint64_t kLen, const void *pwd, uint64_t pwdlen, const void *
 
     const int64_t ROW_LEN_INT64 = BLOCK_LEN_INT64 * nCols;
     const int64_t ROW_LEN_BYTES = ROW_LEN_INT64 * 8;
-    // for Lyra2REv2, nCols = 4, v1 was using 8, for Lyra2Z, timeCost = 8
-    const int64_t BLOCK_LEN = (nCols == 4 || timeCost == 8) ? BLOCK_LEN_BLAKE2_SAFE_INT64 : BLOCK_LEN_BLAKE2_SAFE_BYTES;
+    // for Lyra2REv2, nCols = 4, v1 was using 8, for Lyra2Z, timeCost = 8, for Lyra2h, nCols = 16
+    const int64_t BLOCK_LEN = (nCols == 4 || nCols == 16 || timeCost == 8) ? BLOCK_LEN_BLAKE2_SAFE_INT64 : BLOCK_LEN_BLAKE2_SAFE_BYTES;
 	
     i = (int64_t) ((int64_t) nRows * (int64_t) ROW_LEN_BYTES);
 	uint64_t *wholeMatrix = (uint64_t*)malloc(i);

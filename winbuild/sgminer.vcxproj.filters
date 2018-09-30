@@ -224,6 +224,9 @@
     <ClCompile Include="..\algorithm\lyra2Z.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
+    <ClCompile Include="..\algorithm\lyra2h.c">
+      <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
     <ClCompile Include="..\algorithm\allium.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
@@ -509,6 +512,15 @@
       <Filter>Header Files\algorithm</Filter>
     </ClInclude>
     <ClInclude Include="..\algorithm\phi2.h">
+      <Filter>Header Files\algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\lyra2Z.h">
+      <Filter>Header Files\algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\allium.h">
+      <Filter>Header Files\algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\lyra2h.h">
       <Filter>Header Files\algorithm</Filter>
     </ClInclude>
     <ClInclude Include="..\sph\sph_ripemd.h">
