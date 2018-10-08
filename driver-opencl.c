@@ -1446,7 +1446,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
       } else {
         const size_t off2[] = { 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, globalThreads[0] * 2 };
-	      const size_t expand[] = { 4, 10 };
+	      const size_t expand[] = { 4, 8 };
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       }
       
