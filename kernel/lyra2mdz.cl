@@ -79,13 +79,15 @@
 }
 
 
-#pragma OPENCL EXTENSION cl_amd_media_ops : enable
-#pragma OPENCL EXTENSION cl_amd_media_ops2 : enable
-
 ulong ROTR64(const ulong x2, const uint y)
 {
 	uint2 x = as_uint2(x2);
-	if(y < 32) return(as_ulong(amd_bitalign(x.s10, x, y)));
+	if(y < 32) {
+		if (y % 8 == 0)
+		    return(as_ulong(amd_bytealign(x.s10, x, y / 8)));
+		else
+		    return(as_ulong(amd_bitalign(x.s10, x, y)));
+	}
 	else return(as_ulong(amd_bitalign(x, x.s10, (y - 32))));
 }
 
@@ -93,8 +95,8 @@ ulong ROTR64(const ulong x2, const uint y)
 /// lyra2 algo  ///////////////////////////////////////////////////////////
 #define HASH_SIZE (256 / 8) // size in bytes of an hash in/out
 #define SLOT (get_global_id(1) - get_global_offset(1))
-#define LOCAL_LINEAR (get_local_id(1) * get_local_size(0) + get_local_id(0))
-#define REG_ROW_COUNT (4 * get_local_size(1)) // ideally all happen at the same clock
+#define LOCAL_LINEAR (get_local_id(1) * 4 + get_local_id(0))
+#define REG_ROW_COUNT (4 * 5) // ideally all happen at the same clock
 #define STATE_BLOCK_COUNT (3 * REG_ROW_COUNT)  // very close instructions
 #define LYRA_ROUNDS 8
 #define HYPERMATRIX_COUNT (LYRA_ROUNDS * STATE_BLOCK_COUNT)
