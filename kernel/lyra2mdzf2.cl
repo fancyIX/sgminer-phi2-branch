@@ -40,6 +40,45 @@
  *   head and tail, one coherent matrix expansion, one incoherent mess.
 */
 
+#define rotr64(x, n) ((n) < 32 ? (amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n)) | ((ulong)amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n)) << 32)) : (amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n) - 32) | ((ulong)amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n) - 32) << 32)))
+
+#define Gfunc(a,b,c,d) \
+{ \
+    a += b;  \
+    d ^= a; \
+    ttr = rotr64(d, 32); \
+    d = ttr; \
+ \
+    c += d;  \
+    b ^= c; \
+    ttr = rotr64(b, 24); \
+    b = ttr; \
+ \
+    a += b;  \
+    d ^= a; \
+    ttr = rotr64(d, 16); \
+    d = ttr; \
+ \
+    c += d; \
+    b ^= c; \
+    ttr = rotr64(b, 63); \
+    b = ttr; \
+}
+
+#define roundLyra(state) \
+{ \
+     Gfunc(state[0].x, state[2].x, state[4].x, state[6].x); \
+     Gfunc(state[0].y, state[2].y, state[4].y, state[6].y); \
+     Gfunc(state[1].x, state[3].x, state[5].x, state[7].x); \
+     Gfunc(state[1].y, state[3].y, state[5].y, state[7].y); \
+ \
+     Gfunc(state[0].x, state[2].y, state[5].x, state[7].y); \
+     Gfunc(state[0].y, state[3].x, state[5].y, state[6].x); \
+     Gfunc(state[1].x, state[3].y, state[4].x, state[6].y); \
+     Gfunc(state[1].y, state[2].x, state[4].y, state[7].x); \
+}
+
+
 #if defined(__GCNMINC__)
 uint2 __attribute__((overloadable)) amd_bitalign(uint2 src0, uint2 src1, uint src2)
 {
@@ -82,187 +121,184 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 #define LYRA_ROUNDS 8
 #define HYPERMATRIX_COUNT (LYRA_ROUNDS * STATE_BLOCK_COUNT)
 
+#define SETSGPR100101 \
+    __asm ( \
+	    "s_mov_b32 s100, 0xAAAAAAAA\n" \
+		"s_mov_b32 s101, 0xAAAAAAAA\n");
+
+#ifdef __gfx803__
+#define ADD32_DPP(a, b) \
+    __asm ( \
+	    "v_add_u32  %[aa], vcc, %[bb], %[aa]\n" \
+		"s_lshl_b64 vcc, vcc, 1\n" \
+		"s_and_b64 vcc, vcc, s[100:101]\n" \
+		"v_addc_u32_e32 %[aa], vcc, 0, %[aa], vcc\n" \
+		: [aa] "=&v" (a) \
+		: [aa] "0" (a), \
+		  [bb] "v" (b) \
+		: "vcc");
+#else
+#define ADD32_DPP(a, b) \
+    __asm ( \
+	    "v_add_co_u32  %[aa], vcc, %[bb], %[aa]\n" \
+		"s_lshl_b64 vcc, vcc, 1\n" \
+		"s_and_b64 vcc, vcc, s[100:101]\n" \
+		"v_addc_co_u32 %[aa], vcc, 0, %[aa], vcc\n" \
+		: [aa] "=&v" (a) \
+		: [aa] "0" (a), \
+		  [bb] "v" (b) \
+		: "vcc");
+#endif
+
+#define SWAP32_DPP(s) \
+    ss = s; \
+	{ \
+		__asm ( \
+	      "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[p], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "s_nop 1" \
+		  : [p] "=&v" (s) \
+		  : [pp] "v" (ss)); \
+	}
+
+#define ROTR64_24_DPP(s) \
+    ss = s; \
+	{ \
+		__asm ( \
+	      "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[pp], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "s_nop 1\n" \
+		  "v_alignbyte_b32 %[p], %[pp], %[p], 3" \
+		  : [pp] "=&v" (ss), \
+		    [p] "=&v" (s) \
+		  : [pp] "0" (ss), \
+		    [p] "1" (s)); \
+	}
+
+#define ROTR64_16_DPP(s) \
+    ss = s; \
+	{ \
+		__asm ( \
+	      "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[pp], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "s_nop 1\n" \
+		  "v_alignbyte_b32 %[p], %[pp], %[p], 2" \
+		  : [pp] "=&v" (ss), \
+		    [p] "=&v" (s) \
+		  : [pp] "0" (ss), \
+		    [p] "1" (s)); \
+	}
+
+#define ROTR64_63_DPP(s) \
+    ss = s; \
+	{ \
+		__asm ( \
+	      "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[pp], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "s_nop 1\n" \
+		  "v_alignbit_b32 %[p], %[p], %[pp], 31" \
+		  : [pp] "=&v" (ss), \
+		    [p] "=&v" (s) \
+		  : [pp] "0" (ss), \
+		    [p] "1" (s)); \
+	}
+
 // Usually just #define G(a,b,c,d)...; I have no time to read the Lyra paper
 // but that looks like some kind of block cipher I guess.
 #define cipher_G_macro(s) \
-	s[0] += s[1]; s[3] ^= s[0]; s[3] = SWAP32(s[3]); \
-	s[2] += s[3]; s[1] ^= s[2]; ss1 = as_uint2(s[1]); s[1] = ROTR64_24(ss1); \
-	s[0] += s[1]; s[3] ^= s[0]; ss3 = as_uint2(s[3]); s[3] = ROTR64_16(ss3); \
-	s[2] += s[3]; s[1] ^= s[2]; ss1 = as_uint2(s[1]); s[1] = ROTR64_63(ss1);
-
-#define pull_state(state) \
-    s0 = as_uint2(state[0]); \
-	s1 = as_uint2(state[0]); \
-	__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p00], %[p00] quad_perm:[0,0,2,2]\n" \
-	      "v_mov_b32_dpp  %[p01], %[p01] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[p10], %[p10] quad_perm:[1,1,3,3]\n" \
-	      "v_mov_b32_dpp  %[p11], %[p11] quad_perm:[1,1,3,3]\n" \
-		  "s_nop 1" \
-		  : [p00] "=&v" (s0.x), \
-		    [p01] "=&v" (s0.y), \
-			[p10] "=&v" (s1.x), \
-		    [p11] "=&v" (s1.y) \
-		  : [p00] "0" (s0.x), \
-		    [p00] "1" (s0.y), \
-		    [p10] "2" (s1.x), \
-		    [p11] "3" (s1.y)); \
-	state[0] = as_ulong(s0); \
-	state[1] = as_ulong(s1);
+    ADD32_DPP(s[0], s[1]); s[3] ^= s[0]; SWAP32_DPP(s[3]); \
+    ADD32_DPP(s[2], s[3]); s[1] ^= s[2]; ROTR64_24_DPP(s[1]); \
+    ADD32_DPP(s[0], s[1]); s[3] ^= s[0]; ROTR64_16_DPP(s[3]); \
+    ADD32_DPP(s[2], s[3]); s[1] ^= s[2]; ROTR64_63_DPP(s[1]);
 
 #define shflldpp(state) \
-	s1 = as_uint2(state[1]); \
-	s2 = as_uint2(state[2]); \
-	s3 = as_uint2(state[3]); \
 	__asm ( \
 	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[p10], %[p10] row_ror:12\n" \
-	      "v_mov_b32_dpp  %[p11], %[p11] row_ror:12\n" \
 		  "v_mov_b32_dpp  %[p20], %[p20] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] row_ror:8\n" \
 		  "v_mov_b32_dpp  %[p30], %[p30] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p31], %[p31] row_ror:4\n" \
 		  "s_nop 1" \
-		  : [p10] "=&v" (s1.x), \
-		    [p11] "=&v" (s1.y), \
-			[p20] "=&v" (s2.x), \
-			[p21] "=&v" (s2.y), \
-			[p30] "=&v" (s3.x), \
-			[p31] "=&v" (s3.y) \
-		  : [p10] "0" (s1.x), \
-		    [p11] "1" (s1.y), \
-			[p20] "2" (s2.x), \
-			[p21] "3" (s2.y), \
-			[p30] "4" (s3.x), \
-			[p31] "5" (s3.y)); \
-	state[1] = as_ulong(s1); \
-	state[2] = as_ulong(s2); \
-	state[3] = as_ulong(s3);
+		  : [p10] "=&v" (state[1]), \
+			[p20] "=&v" (state[2]), \
+			[p30] "=&v" (state[3]) \
+		  : [p10] "0" (state[1]), \
+			[p20] "1" (state[2]), \
+			[p30] "2" (state[3]));
 
-#define shflrdpp(state)  \
-	s1 = as_uint2(state[1]); \
-	s2 = as_uint2(state[2]); \
-	s3 = as_uint2(state[3]); \
+#define shflrdpp(state) \
 	__asm ( \
 	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[p10], %[p10] row_ror:4\n" \
-	      "v_mov_b32_dpp  %[p11], %[p11] row_ror:4\n" \
 		  "v_mov_b32_dpp  %[p20], %[p20] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] row_ror:8\n" \
 		  "v_mov_b32_dpp  %[p30], %[p30] row_ror:12\n" \
-		  "v_mov_b32_dpp  %[p31], %[p31] row_ror:12\n" \
 		  "s_nop 1" \
-		  : [p10] "=&v" (s1.x), \
-		    [p11] "=&v" (s1.y), \
-			[p20] "=&v" (s2.x), \
-			[p21] "=&v" (s2.y), \
-			[p30] "=&v" (s3.x), \
-			[p31] "=&v" (s3.y) \
-		  : [p10] "0" (s1.x), \
-		    [p11] "1" (s1.y), \
-			[p20] "2" (s2.x), \
-			[p21] "3" (s2.y), \
-			[p30] "4" (s3.x), \
-			[p31] "5" (s3.y)); \
-	state[1] = as_ulong(s1); \
-	state[2] = as_ulong(s2); \
-	state[3] = as_ulong(s3);
+		  : [p10] "=&v" (state[1]), \
+			[p20] "=&v" (state[2]), \
+			[p30] "=&v" (state[3]) \
+		  : [p10] "0" (state[1]), \
+			[p20] "1" (state[2]), \
+			[p30] "2" (state[3]));
 
 // pad counts 4 entries each hash team of 4
 #define round_lyra_4way_sw(state)   \
-    pull_state(state); \
 	cipher_G_macro(state); \
 	shflldpp(state); \
 	cipher_G_macro(state);\
-	shflrdpp(state); \
-	if (mindex == 1) ss0 = state[0]; \
-	if (mindex == 1) state[0] = state[1];
-
-#define pull_s2(si, col) \
-	s2 = as_uint2(si[2]); \
-	if (col < 4) { __asm ( \
-		  "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] quad_perm:[0,0,2,2]\n" \
-		  "s_nop 1" \
-		  : [p20] "=&v" (s2.x), \
-			[p21] "=&v" (s2.y) \
-		  : [p20] "0" (s2.x), \
-			[p21] "1" (s2.y)); } \
-	if (col > 3) { __asm ( \
-		  "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] quad_perm:[1,1,3,3]\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] quad_perm:[1,1,3,3]\n" \
-		  "s_nop 1" \
-		  : [p20] "=&v" (s2.x), \
-			[p21] "=&v" (s2.y) \
-		  : [p20] "0" (s2.x), \
-			[p21] "1" (s2.y));} \
-	si[2] = as_ulong(s2);
+	shflrdpp(state);
 
 #define xorrot_one_dpp(sII, state) \
-    if (mindex == 1) state[0] = ss0; \
-	s0 = as_uint2(state[0]); \
-	s1 = as_uint2(state[1]); \
-	s2 = as_uint2(state[2]); \
+	s0 = state[0]; \
+	s1 = state[1]; \
+	s2 = state[2]; \
 	__asm ( \
 		  "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[p10], %[p10] row_ror:4\n" \
-	      "v_mov_b32_dpp  %[p11], %[p11] row_ror:4\n" \
 		  "v_mov_b32_dpp  %[p20], %[p20] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p21], %[p21] row_ror:4\n" \
 		  "v_mov_b32_dpp  %[p30], %[p30] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p31], %[p31] row_ror:4\n" \
 		  "s_nop 1" \
-		  : [p10] "=&v" (s0.x), \
-		    [p11] "=&v" (s0.y), \
-			[p20] "=&v" (s1.x), \
-			[p21] "=&v" (s1.y), \
-			[p30] "=&v" (s2.x), \
-			[p31] "=&v" (s2.y) \
-		  : [p10] "0" (s0.x), \
-		    [p11] "1" (s0.y), \
-			[p20] "2" (s1.x), \
-			[p21] "3" (s1.y), \
-			[p30] "4" (s2.x), \
-			[p31] "5" (s2.y)); \
-	if ((get_local_id(1) & 3) == 1) if (mindex == 0) sII[0] ^= as_ulong(s0); \
-	if ((get_local_id(1) & 3) == 1) if (mindex == 1) sII[0] ^= as_ulong(s1); \
-	if ((get_local_id(1) & 3) == 1) sII[2] ^= as_ulong(s2); \
-	if ((get_local_id(1) & 3) == 2) if (mindex == 0) sII[0] ^= as_ulong(s0); \
-	if ((get_local_id(1) & 3) == 2) if (mindex == 1) sII[0] ^= as_ulong(s1); \
-	if ((get_local_id(1) & 3) == 2) sII[2] ^= as_ulong(s2); \
-	if ((get_local_id(1) & 3) == 3) if (mindex == 0) sII[0] ^= as_ulong(s0); \
-	if ((get_local_id(1) & 3) == 3) if (mindex == 1) sII[0] ^= as_ulong(s1); \
-	if ((get_local_id(1) & 3) == 3) sII[2] ^= as_ulong(s2); \
-	if ((get_local_id(1) & 3) == 0) if (mindex == 0) sII[0] ^= as_ulong(s2); \
-	if ((get_local_id(1) & 3) == 0) if (mindex == 1) sII[0] ^= as_ulong(s0); \
-	if ((get_local_id(1) & 3) == 0) sII[2] ^= as_ulong(s1); \
-	if (mindex == 1) ss0 = state[0]; \
-	if (mindex == 1) state[0] = state[1];
+		  : [p10] "=&v" (s0), \
+			[p20] "=&v" (s1), \
+			[p30] "=&v" (s2) \
+		  : [p10] "0" (s0), \
+			[p20] "1" (s1), \
+			[p30] "2" (s2)); \
+	if ((get_local_id(1) & 3) == 1) sII[0] ^= (s0); \
+	if ((get_local_id(1) & 3) == 1) sII[1] ^= (s1); \
+	if ((get_local_id(1) & 3) == 1) sII[2] ^= (s2); \
+	if ((get_local_id(1) & 3) == 2) sII[0] ^= (s0); \
+	if ((get_local_id(1) & 3) == 2) sII[1] ^= (s1); \
+	if ((get_local_id(1) & 3) == 2) sII[2] ^= (s2); \
+	if ((get_local_id(1) & 3) == 3) sII[0] ^= (s0); \
+	if ((get_local_id(1) & 3) == 3) sII[1] ^= (s1); \
+	if ((get_local_id(1) & 3) == 3) sII[2] ^= (s2); \
+	if ((get_local_id(1) & 3) == 0) sII[0] ^= (s2); \
+	if ((get_local_id(1) & 3) == 0) sII[1] ^= (s0); \
+	if ((get_local_id(1) & 3) == 0) sII[2] ^= (s1); \
 
 #define write_state(notepad, state, row, col) \
-  notepad[8 * row + col] = state[0]; \
-  if (mindex == 0) if (col < 4) notepad[64 + 4 * row + col % 4] = state[2]; \
-  if (mindex == 1) if (col > 3) notepad[64 + 4 * row + col % 4] = state[2];
+  notepad[24 * row + col * 3] = state[0]; \
+  notepad[24 * row + col * 3 + 1] = state[1]; \
+  notepad[24 * row + col * 3 + 2] = state[2];
 
 #define state_xor_modify(modify, row, col, mindex, state, notepad) \
-  if (modify == row) state[0] ^= notepad[8 * row + col]; \
-  if (modify == row) state[2] ^= notepad[64 + 4 * row + col % 4]; pull_s2(state, col); 
+  if (modify == row) state[0] ^= notepad[24 * row + col * 3]; \
+  if (modify == row) state[1] ^= notepad[24 * row + col * 3 + 1]; \
+  if (modify == row) state[2] ^= notepad[24 * row + col * 3 + 2];
 
 #define state_xor(state, bigMat, mindex, row, col) \
-  si[0] = bigMat[8 * row + col]; state[0] ^= bigMat[8 * row + col]; \
-  si[2] = bigMat[64 + 4 * row + col % 4]; pull_s2(si, col); state[2] ^= si[2];
+  si[0] = bigMat[24 * row + col * 3]; state[0] ^= bigMat[24 * row + col * 3]; \
+  si[1] = bigMat[24 * row + col * 3 + 1]; state[1] ^= bigMat[24 * row + col * 3 + 1]; \
+  si[2] = bigMat[24 * row + col * 3 + 2]; state[2] ^= bigMat[24 * row + col * 3 + 2];
 
 #define xor_state(state, bigMat, mindex, row, col) \
-  si[0] ^= state[0]; bigMat[8 * row + col] = si[0]; \
-  si[2] ^= state[2]; if (mindex == 0) if (col < 4) bigMat[64 + 4 * row + col % 4] = si[2]; if (mindex == 1) if (col > 3) bigMat[64 + 4 * row + col % 4] = si[2];
+  si[0] ^= state[0]; bigMat[24 * row + col * 3] = si[0]; \
+  si[1] ^= state[1]; bigMat[24 * row + col * 3 + 1] = si[1]; \
+  si[2] ^= state[2]; bigMat[24 * row + col * 3 + 2] = si[2];
 
 #define state_xor_plus(state, bigMat, mindex, matin, colin, matrw, colrw) \
-   si[0] = bigMat[8 * matin + colin]; sII[0] = bigMat[8 * matrw + colrw]; state[0] ^= bigMat[8 * matin + colin] + bigMat[8 * matrw + colrw]; \
-   si[2] = bigMat[64 + 4 * matin + colin % 4]; pull_s2(si, colin); \
-   sII[2] = bigMat[64 + 4 * matrw + colrw % 4]; pull_s2(sII, colrw); state[2] ^= si[2] + sII[2];
+   si[0] = bigMat[24 * matin + colin * 3]; sII[0] = bigMat[24 * matrw + colrw * 3]; ss = si[0]; ADD32_DPP(ss, sII[0]); state[0] ^= ss; \
+   si[1] = bigMat[24 * matin + colin * 3 + 1]; sII[1] = bigMat[24 * matrw + colrw * 3 + 1]; ss = si[1]; ADD32_DPP(ss, sII[1]); state[1] ^= ss; \
+   si[2] = bigMat[24 * matin + colin * 3 + 2]; sII[2] = bigMat[24 * matrw + colrw * 3 + 2]; ss = si[2]; ADD32_DPP(ss, sII[2]); state[2] ^= ss;
 
 #define make_hyper_one_macro(state, bigMat) do { \
     { \
@@ -339,85 +375,98 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 } while (0);
 
 #define broadcast_zero(s) \
-    if (mindex == 1) s[1] = s[0]; \
-    if (mindex == 1) s[0] = ss0; \
     p0 = (s[0] & 7); \
 	p1 = (s[0] & 7); \
 	p2 = (s[0] & 7); \
 	p3 = (s[0] & 7); \
 	__asm ( \
 		  "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[p0], %[p0] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[p1], %[p1] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[p2], %[p2] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[p3], %[p3] quad_perm:[0,0,2,2]\n" \
 		  "v_mov_b32_dpp  %[p1], %[p1] row_ror:4\n" \
 		  "v_mov_b32_dpp  %[p2], %[p2] row_ror:8\n" \
 		  "v_mov_b32_dpp  %[p3], %[p3] row_ror:12\n" \
 		  "s_nop 0" \
-		  : [p1] "=&v" (p1), \
+		  : [p0] "=&v" (p0), \
+		    [p1] "=&v" (p1), \
 		    [p2] "=&v" (p2), \
 			[p3] "=&v" (p3) \
-		  : [p1] "0" (p1), \
-		    [p2] "1" (p2), \
-			[p3] "2" (p3)); \
+		  : [p0] "0" (p0), \
+		    [p1] "1" (p1), \
+			[p2] "2" (p2), \
+			[p3] "3" (p3)); \
 	if ((get_local_id(1) & 3) == 1) modify = p1; \
 	if ((get_local_id(1) & 3) == 2) modify = p2; \
 	if ((get_local_id(1) & 3) == 3) modify = p3; \
 	if ((get_local_id(1) & 3) == 0) modify = p0; \
-	if (mindex == 1) s[0] = s[1]; \
 
 #define real_matrw_read(sII, bigMat, matrw, off) \
-		if (matrw == 0) sII[0] = bigMat[8 * 0 + off]; \
-		if (matrw == 0) sII[2] = bigMat[64 + 4 * 0 + off % 4]; \
-		if (matrw == 1) sII[0] = bigMat[8 * 1 + off]; \
-		if (matrw == 1) sII[2] = bigMat[64 + 4 * 1 + off % 4]; \
-		if (matrw == 2) sII[0] = bigMat[8 * 2 + off]; \
-		if (matrw == 2) sII[2] = bigMat[64 + 4 * 2 + off % 4]; \
-		if (matrw == 3) sII[0] = bigMat[8 * 3 + off]; \
-		if (matrw == 3) sII[2] = bigMat[64 + 4 * 3 + off % 4]; \
-		if (matrw == 4) sII[0] = bigMat[8 * 4 + off]; \
-		if (matrw == 4) sII[2] = bigMat[64 + 4 * 4 + off % 4]; \
-		if (matrw == 5) sII[0] = bigMat[8 * 5 + off]; \
-		if (matrw == 5) sII[2] = bigMat[64 + 4 * 5 + off % 4]; \
-		if (matrw == 6) sII[0] = bigMat[8 * 6 + off]; \
-		if (matrw == 6) sII[2] = bigMat[64 + 4 * 6 + off % 4]; \
-		if (matrw == 7) sII[0] = bigMat[8 * 7 + off]; \
-		if (matrw == 7) sII[2] = bigMat[64 + 4 * 7 + off % 4]; \
-		pull_s2(sII, off);
+		if (matrw == 0) sII[0] = bigMat[24 * 0 + off * 3]; \
+		if (matrw == 0) sII[1] = bigMat[24 * 0 + off * 3 + 1]; \
+		if (matrw == 0) sII[2] = bigMat[24 * 0 + off * 3 + 2]; \
+		if (matrw == 1) sII[0] = bigMat[24 * 1 + off * 3]; \
+		if (matrw == 1) sII[1] = bigMat[24 * 1 + off * 3 + 1]; \
+		if (matrw == 1) sII[2] = bigMat[24 * 1 + off * 3 + 2]; \
+		if (matrw == 2) sII[0] = bigMat[24 * 2 + off * 3]; \
+		if (matrw == 2) sII[1] = bigMat[24 * 2 + off * 3 + 1]; \
+		if (matrw == 2) sII[2] = bigMat[24 * 2 + off * 3 + 2]; \
+		if (matrw == 3) sII[0] = bigMat[24 * 3 + off * 3]; \
+		if (matrw == 3) sII[1] = bigMat[24 * 3 + off * 3 + 1]; \
+		if (matrw == 3) sII[2] = bigMat[24 * 3 + off * 3 + 2]; \
+		if (matrw == 4) sII[0] = bigMat[24 * 4 + off * 3]; \
+		if (matrw == 4) sII[1] = bigMat[24 * 4 + off * 3 + 1]; \
+		if (matrw == 4) sII[2] = bigMat[24 * 4 + off * 3 + 2]; \
+		if (matrw == 5) sII[0] = bigMat[24 * 5 + off * 3]; \
+		if (matrw == 5) sII[1] = bigMat[24 * 5 + off * 3 + 1]; \
+		if (matrw == 5) sII[2] = bigMat[24 * 5 + off * 3 + 2]; \
+		if (matrw == 6) sII[0] = bigMat[24 * 6 + off * 3]; \
+		if (matrw == 6) sII[1] = bigMat[24 * 6 + off * 3 + 1]; \
+		if (matrw == 6) sII[2] = bigMat[24 * 6 + off * 3 + 2]; \
+		if (matrw == 7) sII[0] = bigMat[24 * 7 + off * 3]; \
+		if (matrw == 7) sII[1] = bigMat[24 * 7 + off * 3 + 1]; \
+		if (matrw == 7) sII[2] = bigMat[24 * 7 + off * 3 + 2];
 
 #define real_matrw_write(sII, bigMat, matrw, off) \
-		if (matrw == 0) bigMat[8 * 0 + off] = sII[0]; \
-		if (matrw == 0) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 0 + off % 4] = sII[2]; \
-		if (matrw == 0) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 0 + off % 4] = sII[2]; \
-		if (matrw == 1) bigMat[8 * 1 + off] = sII[0]; \
-		if (matrw == 1) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 1 + off % 4] = sII[2]; \
-		if (matrw == 1) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 1 + off % 4] = sII[2]; \
-		if (matrw == 2) bigMat[8 * 2 + off] = sII[0]; \
-		if (matrw == 2) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 2 + off % 4] = sII[2]; \
-		if (matrw == 2) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 2 + off % 4] = sII[2]; \
-		if (matrw == 3) bigMat[8 * 3 + off] = sII[0]; \
-		if (matrw == 3) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 3 + off % 4] = sII[2]; \
-		if (matrw == 3) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 3 + off % 4] = sII[2]; \
-		if (matrw == 4) bigMat[8 * 4 + off] = sII[0]; \
-		if (matrw == 4) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 4 + off % 4] = sII[2]; \
-		if (matrw == 4) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 4 + off % 4] = sII[2]; \
-		if (matrw == 5) bigMat[8 * 5 + off] = sII[0]; \
-		if (matrw == 5) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 5 + off % 4] = sII[2]; \
-		if (matrw == 5) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 5 + off % 4] = sII[2]; \
-		if (matrw == 6) bigMat[8 * 6 + off] = sII[0]; \
-		if (matrw == 6) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 6 + off % 4] = sII[2]; \
-		if (matrw == 6) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 6 + off % 4] = sII[2]; \
-		if (matrw == 7) bigMat[8 * 7 + off] = sII[0]; \
-		if (matrw == 7) if (mindex == 0) if (off < 4) bigMat[64 + 4 * 7 + off % 4] = sII[2]; \
-		if (matrw == 7) if (mindex == 1) if (off > 3) bigMat[64 + 4 * 7 + off % 4] = sII[2]; \
+		if (matrw == 0) bigMat[24 * 0 + off * 3] = sII[0]; \
+		if (matrw == 0) bigMat[24 * 0 + off * 3 + 1] = sII[1]; \
+		if (matrw == 0) bigMat[24 * 0 + off * 3 + 2] = sII[2]; \
+		if (matrw == 1) bigMat[24 * 1 + off * 3] = sII[0]; \
+		if (matrw == 1) bigMat[24 * 1 + off * 3 + 1] = sII[1]; \
+		if (matrw == 1) bigMat[24 * 1 + off * 3 + 2] = sII[2]; \
+		if (matrw == 2) bigMat[24 * 2 + off * 3] = sII[0]; \
+		if (matrw == 2) bigMat[24 * 2 + off * 3 + 1] = sII[1]; \
+		if (matrw == 2) bigMat[24 * 2 + off * 3 + 2] = sII[2]; \
+		if (matrw == 3) bigMat[24 * 3 + off * 3] = sII[0]; \
+		if (matrw == 3) bigMat[24 * 3 + off * 3 + 1] = sII[1]; \
+		if (matrw == 3) bigMat[24 * 3 + off * 3 + 2] = sII[2]; \
+		if (matrw == 4) bigMat[24 * 4 + off * 3] = sII[0]; \
+		if (matrw == 4) bigMat[24 * 4 + off * 3 + 1] = sII[1]; \
+		if (matrw == 4) bigMat[24 * 4 + off * 3 + 2] = sII[2]; \
+		if (matrw == 5) bigMat[24 * 5 + off * 3] = sII[0]; \
+		if (matrw == 5) bigMat[24 * 5 + off * 3 + 1] = sII[1]; \
+		if (matrw == 5) bigMat[24 * 5 + off * 3 + 2] = sII[2]; \
+		if (matrw == 6) bigMat[24 * 6 + off * 3] = sII[0]; \
+		if (matrw == 6) bigMat[24 * 6 + off * 3 + 1] = sII[1]; \
+		if (matrw == 6) bigMat[24 * 6 + off * 3 + 2] = sII[2]; \
+		if (matrw == 7) bigMat[24 * 7 + off * 3] = sII[0]; \
+		if (matrw == 7) bigMat[24 * 7 + off * 3 + 1] = sII[1]; \
+		if (matrw == 7) bigMat[24 * 7 + off * 3 + 2] = sII[2];
 
 #define state_xor_plus_modify(state, bigMat, mindex, matin, colin, matrw, colrw) \
-   si[0] = bigMat[8 * matin + colin]; \
-   si[2] = bigMat[64 + 4 * matin + colin % 4]; pull_s2(si, colin); \
+   si[0] = bigMat[24 * matin + colin * 3]; \
+   si[1] = bigMat[24 * matin + colin * 3 + 1]; \
+   si[2] = bigMat[24 * matin + colin * 3 + 2]; \
    real_matrw_read(sII, bigMat, matrw, colrw); \
-   state[0] ^= si[0] + sII[0]; \
-   state[2] ^= si[2] + sII[2];
+   ss = si[0]; ADD32_DPP(ss, sII[0]); state[0] ^= ss; \
+   ss = si[1]; ADD32_DPP(ss, sII[1]); state[1] ^= ss; \
+   ss = si[2]; ADD32_DPP(ss, sII[2]); state[2] ^= ss;
 
 #define xor_state_modify(state, bigMat, mindex, row, col) \
-  bigMat[8 * row + col] ^= state[0]; \
-  if (mindex == 0) if (col < 4) bigMat[64 + 4 * row + col % 4] ^= state[2]; if (mindex == 1) if (col > 3) bigMat[64 + 4 * row + col % 4] ^= state[2];
+  bigMat[24 * row + col * 3] ^= state[0]; \
+  bigMat[24 * row + col * 3 + 1] ^= state[1]; \
+  bigMat[24 * row + col * 3 + 2] ^= state[2];
 
 #define hyper_xor_dpp_macro( matin, matrw, matout, state, bigMat) do { \
     { \
