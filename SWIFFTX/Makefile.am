@@ -1,0 +1,3 @@
+noinst_LIBRARIES	= libSWIFFTX.a
+
+libSWIFFTX_a_SOURCES	= SWIFFTX.c 

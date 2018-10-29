@@ -379,6 +379,7 @@ AC_CONFIG_FILES([
 	ccan/Makefile
 	lib/Makefile
 	sph/Makefile
+	SWIFFTX/Makefile
 	])
 AC_OUTPUT
 

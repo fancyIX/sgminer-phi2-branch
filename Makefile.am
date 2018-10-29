@@ -8,7 +8,7 @@ EXTRA_DIST	= example.conf m4/gnulib-cache.m4 \
 		  API.class API.java api-example.c hexdump.c \
 		  doc/API doc/FAQ doc/GPU doc/SCRYPT doc/windows-build.txt
 
-SUBDIRS		= lib submodules ccan sph
+SUBDIRS		= lib submodules ccan sph SWIFFTX
 
 bin_PROGRAMS     = sgminer
 
@@ -16,7 +16,7 @@ sgminer_CPPFLAGS = $(PTHREAD_FLAGS) -std=gnu99 $(JANSSON_CPPFLAGS)
 sgminer_LDFLAGS  = $(PTHREAD_FLAGS)
 sgminer_LDADD    = $(DLOPEN_FLAGS) @LIBCURL_LIBS@ @JANSSON_LIBS@ @PTHREAD_LIBS@ \
 		  @OPENCL_LIBS@ @NCURSES_LIBS@ @PDCURSES_LIBS@ @WS2_LIBS@ \
-		  @MM_LIBS@ @RT_LIBS@ @MATH_LIBS@ lib/libgnu.a ccan/libccan.a sph/libsph.a
+		  @MM_LIBS@ @RT_LIBS@ @MATH_LIBS@ lib/libgnu.a ccan/libccan.a sph/libsph.a SWIFFTX/libSWIFFTX.a
 
 sgminer_CPPFLAGS += -I$(top_builddir)/lib -I$(top_srcdir)/lib @OPENCL_FLAGS@ @LIBCURL_CFLAGS@
 
@@ -89,6 +89,7 @@ sgminer_SOURCES += algorithm/lbry.c algorithm/lbry.h
 sgminer_SOURCES += algorithm/phi.c algorithm/phi.h
 sgminer_SOURCES += algorithm/phi2.c algorithm/phi2.h
 sgminer_SOURCES += algorithm/allium.c algorithm/allium.h
+sgminer_SOURCES += algorithm/x22i.c algorithm/x22i.h
 
 bin_SCRIPTS	= $(top_srcdir)/kernel/*.cl
 

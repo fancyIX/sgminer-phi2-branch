@@ -176,6 +176,9 @@
     <ClCompile Include="..\algorithm\bitblock.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
+    <ClCompile Include="..\algorithm\bitblock.c">
+      <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
     <ClCompile Include="..\algorithm\x14.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
@@ -189,6 +192,15 @@
       <Filter>Source Files\sph</Filter>
     </ClCompile>
     <ClCompile Include="..\sph\whirlpool.c">
+      <Filter>Source Files\sph</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sph\haval.c">
+      <Filter>Source Files\sph</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sph\tiger.c">
+      <Filter>Source Files\sph</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SWIFFTX\SWIFFTX.c">
       <Filter>Source Files\sph</Filter>
     </ClCompile>
     <ClCompile Include="..\ocl.c">
@@ -445,7 +457,16 @@
     <ClInclude Include="..\sph\sph_whirlpool.h">
       <Filter>Header Files\sph</Filter>
     </ClInclude>
-    <ClInclude Include="..\sph\sph_shabal.h">
+    <ClInclude Include="..\sph\sph_whirlpool.h">
+      <Filter>Header Files\sph</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sph\sph_haval.h">
+      <Filter>Header Files\sph</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\SWIFFTX.h">
+      <Filter>Header Files\sph</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sph\sph_tiger.h">
       <Filter>Header Files\sph</Filter>
     </ClInclude>
     <ClInclude Include="..\algorithm\neoscrypt.h">

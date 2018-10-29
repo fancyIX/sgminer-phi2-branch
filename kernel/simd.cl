@@ -1681,6 +1681,25 @@ __constant static const unsigned short yoff_b_n[] = {
       MAJ, p3, p0, XCAT(PP8_, M7_7_ ## isp)); \
   } while (0)
 
+#define ONE_ROUND_BIG_PRECOMP(ri, isp, p0, p1, p2, p3)   do { \
+    STEP_BIG_(WB_P_ ## ri ## 0, \
+      IF,  p0, p1, XCAT(PP8_, M7_0_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 1, \
+      IF,  p1, p2, XCAT(PP8_, M7_1_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 2, \
+      IF,  p2, p3, XCAT(PP8_, M7_2_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 3, \
+      IF,  p3, p0, XCAT(PP8_, M7_3_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 4, \
+      MAJ, p0, p1, XCAT(PP8_, M7_4_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 5, \
+      MAJ, p1, p2, XCAT(PP8_, M7_5_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 6, \
+      MAJ, p2, p3, XCAT(PP8_, M7_6_ ## isp)); \
+    STEP_BIG_(WB_P_ ## ri ## 7, \
+      MAJ, p3, p0, XCAT(PP8_, M7_7_ ## isp)); \
+  } while (0)
+
 __constant static const u32 SIMD_IV512[] = {
   C32(0x0BA16B95), C32(0x72F999AD), C32(0x9FECC2AE), C32(0xBA3264FC),
   C32(0x5E894929), C32(0x8E9F30E5), C32(0x2F1DAA37), C32(0xF0F2C558),

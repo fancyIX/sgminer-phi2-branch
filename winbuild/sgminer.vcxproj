@@ -263,6 +263,7 @@
     <ClCompile Include="..\algorithm.c" />
     <ClCompile Include="..\algorithm\animecoin.c" />
     <ClCompile Include="..\algorithm\bitblock.c" />
+    <ClCompile Include="..\algorithm\x22i.c" />
     <ClCompile Include="..\algorithm\blake256.c" />
     <ClCompile Include="..\algorithm\blakecoin.c" />
     <ClCompile Include="..\algorithm\credits.c" />
@@ -337,6 +338,9 @@
     <ClCompile Include="..\sph\shavite.c" />
     <ClCompile Include="..\sph\simd.c" />
     <ClCompile Include="..\sph\skein.c" />
+    <ClCompile Include="..\sph\haval.c" />
+    <ClCompile Include="..\sph\tiger.c" />
+    <ClInclude Include="..\SWIFFTX\SWIFFTX.c" />
     <ClCompile Include="..\algorithm\twecoin.c" />
     <ClCompile Include="..\sph\whirlpool.c" />
     <ClCompile Include="..\util.c" />
@@ -346,6 +350,7 @@
     <ClInclude Include="..\algorithm.h" />
     <ClInclude Include="..\algorithm\animecoin.h" />
     <ClInclude Include="..\algorithm\bitblock.h" />
+    <ClInclude Include="..\algorithm\x22i.h" />
     <ClInclude Include="..\algorithm\blake256.h" />
     <ClInclude Include="..\algorithm\blakecoin.h" />
     <ClInclude Include="..\algorithm\credits.h" />
@@ -421,6 +426,9 @@
     <ClInclude Include="..\sph\sph_types.h" />
     <ClInclude Include="..\algorithm\twecoin.h" />
     <ClInclude Include="..\sph\sph_whirlpool.h" />
+    <ClInclude Include="..\sph\sph_haval.h" />
+    <ClInclude Include="..\sph\sph_tiger.h" />
+    <ClInclude Include="..\SWIFFTX\SWIFFTX.h" />
     <ClInclude Include="..\uthash.h" />
     <ClInclude Include="..\util.h" />
     <ClInclude Include="..\warn-on-use.h" />
