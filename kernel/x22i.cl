@@ -1455,7 +1455,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   if (tid < 256) {
   #pragma unroll
   for (int i=0; i<(256/blockSize); i++) {
-    S_SBox[tid + i*blockSize] = SBox[tid + i*blockSize];
+    S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
   }
 
   #pragma unroll
@@ -1465,10 +1465,10 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   }
 
   {
-    uint* inout = &g_hash [thread<<4];
-    uint* in1   = &g_hash1[thread<<4];
-    uint* in2   = &g_hash2[thread<<4];
-    uint* in3   = &g_hash3[thread<<4];
+    __global uint* inout = &g_hash [thread<<4];
+    __global uint* in1   = &g_hash1[thread<<4];
+    __global uint* in2   = &g_hash2[thread<<4];
+    __global uint* in3   = &g_hash3[thread<<4];
 
     #pragma unroll
     for (int i = 0; i < 16; i++) {

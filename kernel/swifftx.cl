@@ -1,8 +1,3 @@
-static __forceinline__ __device__
-int4 operator+ (int4 a, int4 b) { return make_int4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-
-static __forceinline__ __device__
-int4 operator- (int4 a, int4 b) { return make_int4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 
 #define BLOCKSZ 32
 
@@ -22,17 +17,17 @@ typedef unsigned long long swift_uint64_t;
 #define SWIFFTX_INPUT_BLOCK_SIZE 256
 #define SWIFFTX_OUTPUT_BLOCK_SIZE 65
 #define FIELD_SIZE 257
-#define N 64
-#define EIGHTH_N (N / 8)
-#define M (SWIFFTX_INPUT_BLOCK_SIZE / 8)   // 32
-#define M_2 25 // 3 * (N/8) + 1
-#define W 8
+#define SFT_N 64
+#define EIGHTH_N (SFT_N / 8)
+#define SFT_M (SWIFFTX_INPUT_BLOCK_SIZE / 8)   // 32
+#define SFT_M_2 25 // 3 * (SFT_N/8) + 1
+#define SFT_W 8
 
 #define ADD_SUB(A, B) {int temp = (B); B = ((A) - (B)); A = ((A) + (temp));}
 #define Q_REDUCE(A) (((A) & 0xff) - ((A) >> 8))
 
 
-#define BYTE(x, n) __byte_perm(x, 0, 0x4440 + (n))
+#define SFT_BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
 
 
 
@@ -59,7 +54,7 @@ swift_int16_t  fftTable[256 * EIGHTH_N] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1
 __constant
  static const
 //__device__ const
-swift_int16_t As[3 * M * N] =
+swift_int16_t As[3 * SFT_M * SFT_N] =
 {141,  78, 139,  75, 238, 205, 129, 126,  22, 245, 197, 169, 142, 118, 105,  78,
   50, 149,  29, 208, 114,  34,  85, 117,  67, 148,  86, 256,  25,  49, 133,  93,
   95,  36,  68, 231, 211, 102, 151, 128, 224, 117, 193,  27, 102, 187,   7, 105,
@@ -446,9 +441,9 @@ swift_int16_t As[3 * M * N] =
  177, 112, 162,  35, 231,   6,   8, 241,  99,   6, 191,  45, 113, 113, 101, 104};
 
 __constant
- const
+ const static
 //__constant__
-unsigned char (16) SBox[256] = {
+unsigned char SFT_SBox[256] = {
 //0     1    2      3     4    5     6     7      8    9     A      B    C     D     E     F
 0x7d, 0xd1, 0x70, 0x0b, 0xfa, 0x39, 0x18, 0xc3, 0xf3, 0xbb, 0xa7, 0xd4, 0x84, 0x25, 0x3b, 0x3c,   // 0
 0x2c, 0x15, 0x69, 0x9a, 0xf9, 0x27, 0xfb, 0x02, 0x52, 0xba, 0xa8, 0x4b, 0x20, 0xb5, 0x8b, 0x3a,   // 1
@@ -489,8 +484,8 @@ swift_int16_t TranslateToBase256(swift_int32_t input[EIGHTH_N], unsigned char ou
 
   #pragma unroll
   for (int i = 0; i < EIGHTH_N; i += 2) {
-    output[i] = BYTE(pairs[i >> 1], 0);
-    output[i + 1] = BYTE(pairs[i >> 1], 1);
+    output[i] = SFT_BYTE(pairs[i >> 1], 0);
+    output[i + 1] = SFT_BYTE(pairs[i >> 1], 1);
   }
 
   return (pairs[EIGHTH_N/2 - 1] >> 16);
@@ -550,8 +545,8 @@ void e_FFT_staged(const unsigned char input[EIGHTH_N], swift_int32_t *output,
 
 
 void e_FFT_staged_int4(const unsigned char input[EIGHTH_N], swift_int32_t *output,
-		       const swift_int16_t *fftTable,
-		       const swift_int16_t *multipliers,
+		       __local const swift_int16_t *fftTable,
+		       __constant const swift_int16_t *multipliers,
 		       int i /* stage */) {
 
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7;
@@ -565,8 +560,8 @@ void e_FFT_staged_int4(const unsigned char input[EIGHTH_N], swift_int32_t *outpu
   F6  = multipliers[6 + (i << 3)] * *(&fftTable[input[6] << 3] + i);
   F7  = multipliers[7 + (i << 3)] * *(&fftTable[input[7] << 3] + i);
 
-  int4 a0 = make_int4(F0, F2, F4, F6);
-  int4 a1 = make_int4(F1, F3, F5, F7);
+  int4 a0 = (int4) (F0, F2, F4, F6);
+  int4 a1 = (int4) (F1, F3, F5, F7);
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
 
@@ -575,8 +570,8 @@ void e_FFT_staged_int4(const unsigned char input[EIGHTH_N], swift_int32_t *outpu
   a1.y <<= 4;
   a1.w <<= 4;
 
-  int4 b0 = make_int4(a0.x, a1.x, a0.z, a1.z);
-  int4 b1 = make_int4(a0.y, a1.y, a0.w, a1.w);
+  int4 b0 = (int4) (a0.x, a1.x, a0.z, a1.z);
+  int4 b1 = (int4) (a0.y, a1.y, a0.w, a1.w);
 
   ADD_SUB4(b0, b1);
 
@@ -584,8 +579,8 @@ void e_FFT_staged_int4(const unsigned char input[EIGHTH_N], swift_int32_t *outpu
   b1.z <<= 4;
   b1.w <<= 6;
 
-  int4 c0 = make_int4(b0.x, b0.y, b1.x, b1.y);
-  int4 c1 = make_int4(b0.z, b0.w, b1.z, b1.w);
+  int4 c0 = (int4) (b0.x, b0.y, b1.x, b1.y);
+  int4 c1 = (int4) (b0.z, b0.w, b1.z, b1.w);
 
   ADD_SUB4(c0, c1);
 
@@ -610,84 +605,84 @@ void setzero(void *a, int size) {
 
 void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
 			    unsigned char output[SWIFFTX_OUTPUT_BLOCK_SIZE],
-			    const unsigned char SBox[256],
-			    const swift_int16_t As[3*M*N],
-			    const swift_int16_t fftTable[256 * EIGHTH_N],
-			    const swift_int16_t multipliers[64]) {
-  swift_int32_t sum[3*N];
-  setzero(sum, 3*N*sizeof(swift_int32_t));
+			    __local const unsigned char SBox[256],
+			    __constant const swift_int16_t As[3*SFT_M*SFT_N],
+			    __local const swift_int16_t fftTable[256 * EIGHTH_N],
+			    __constant const swift_int16_t multipliers[64]) {
+  swift_int32_t sum[3*SFT_N];
+  setzero(sum, 3*SFT_N*sizeof(swift_int32_t));
 
   #pragma nounroll
-  for (int i=0; i<M; ++i) {
+  for (int i=0; i<SFT_M; ++i) {
     #pragma unroll
     for (int stride=0; stride<8; stride++) { // 0 8 16 24 32 40 48 56
       swift_int32_t fftOut[8];
       e_FFT_staged_int4(input + (i << 3), fftOut, fftTable, multipliers, stride);
-      const swift_int16_t *As_i = As + (i*N);
+      __constant const swift_int16_t *As_i = As + (i*SFT_N);
 
       #pragma unroll
-      for (int j=0; j<N/8; j++) {
+      for (int j=0; j<SFT_N/8; j++) {
 	const int jj = stride + (j << 3);
-	const swift_int16_t *As_j = As_i + jj;
+	__constant const swift_int16_t *As_j = As_i + jj;
 	const swift_int32_t *f = fftOut + j;
 
 	#pragma unroll
 	for (int k=0; k<3; ++k) {
-	  const swift_int16_t *a = As_j + (k << 11); //As + (k * M * N) + (i * N) + j;
-	  sum[k*N + jj] += (*f) * (*a);
+	  __constant const swift_int16_t *a = As_j + (k << 11); //As + (k * SFT_M * SFT_N) + (i * SFT_N) + j;
+	  sum[k*SFT_N + jj] += (*f) * (*a);
 	}
       }
     }
   }
 
-  unsigned char intermediate[N*3 + 8];
+  unsigned char intermediate[SFT_N*3 + 8];
   setzero(intermediate, 24);
 
   #pragma unroll
   for (int k=0; k<3; ++k) {
 
     #pragma unroll
-    for (int j=0; j<N; ++j) {
-      sum[k*N + j] = (__FIELD_SIZE_22__ + sum[k*N + j]) % FIELD_SIZE;
+    for (int j=0; j<SFT_N; ++j) {
+      sum[k*SFT_N + j] = (__FIELD_SIZE_22__ + sum[k*SFT_N + j]) % FIELD_SIZE;
     }
 
     int carry=0;
     #pragma unroll
     for (int j = 0; j < 8; ++j) {
-      int carryBit = TranslateToBase256(sum + (k*N) + (j << 3), intermediate + (k*N) + (j << 3));
+      int carryBit = TranslateToBase256(sum + (k*SFT_N) + (j << 3), intermediate + (k*SFT_N) + (j << 3));
       carry |= carryBit << j;
     }
 
-    intermediate[3*N+k] = carry;
+    intermediate[3*SFT_N+k] = carry;
   }
 
   #pragma unroll
-  for (int i = 0; i < (3 * N) + 3; ++i)
+  for (int i = 0; i < (3 * SFT_N) + 3; ++i)
     intermediate[i] = SBox[intermediate[i]];
 
   #pragma unroll
-  for (int i = (3 * N) + 3; i < (3 * N) + 8; ++i)
+  for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i)
     intermediate[i] = 0x7d;
 
-  setzero(sum, N*sizeof(swift_int32_t));
+  setzero(sum, SFT_N*sizeof(swift_int32_t));
 
   #pragma nounroll
-  for (int i=0; i<M_2; ++i) {
+  for (int i=0; i<SFT_M_2; ++i) {
     swift_int32_t fftOut[8];
     #pragma unroll
     for (int stride=0; stride<8; stride++) {
       e_FFT_staged_int4(intermediate + (i << 3), fftOut, fftTable, multipliers, stride);
       #pragma unroll
-      for (int j=0; j<N/8; ++j) {
+      for (int j=0; j<SFT_N/8; ++j) {
 	const int jj = stride + (j << 3);
-	const swift_int16_t *a = As + (i * N) + jj;
+	__constant const swift_int16_t *a = As + (i * SFT_N) + jj;
 	const swift_int32_t *f = fftOut + j;
 	sum[jj] += (*f) * (*a);
       }
     }
   }
   #pragma unroll
-  for (int j=0; j<N; ++j) {
+  for (int j=0; j<SFT_N; ++j) {
     sum[j] = (__FIELD_SIZE_22__ + sum[j]) % FIELD_SIZE;
   }
 
