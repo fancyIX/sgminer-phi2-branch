@@ -1443,73 +1443,47 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 {
     uint gid = get_global_id(0);
     uint offset = get_global_offset(0);
-    uint in[64], out[16 + 1];
-    __global uint* inout = &g_hash [(gid - offset)<<4];
-    __global uint* in1   = &g_hash1[(gid - offset)<<4];
-    __global uint* in2   = &g_hash2[(gid - offset)<<4];
-    __global uint* in3   = &g_hash3[(gid - offset)<<4];
-    __global int *fftOut = &Matrix[(gid - offset) * NN * MM];
+    uint thread = gid - offset;
+    uint tid = get_local_id(0);
+  __local unsigned char S_SBox[256];
+  __local swift_int16_t S_fftTable[256 * EIGHTH_N];
+
+  uint in[64];
+
+  const int blockSize = min(256, WORKSIZE); //blockDim.x;
+
+  if (tid < 256) {
+  #pragma unroll
+  for (int i=0; i<(256/blockSize); i++) {
+    S_SBox[tid + i*blockSize] = SBox[tid + i*blockSize];
+  }
+
+  #pragma unroll
+  for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
+    S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
+  }
+  }
+
+  {
+    uint* inout = &g_hash [thread<<4];
+    uint* in1   = &g_hash1[thread<<4];
+    uint* in2   = &g_hash2[thread<<4];
+    uint* in3   = &g_hash3[thread<<4];
 
     #pragma unroll
-		for (int i = 0; i < 16; i++) {
-			in[i     ] = inout[i];
-			in[i + 16] = in1  [i];
-			in[i + 32] = in2  [i];
-			in[i + 48] = in3  [i];
-		}
-
-		{
-      int i;
-      // Will store the result of the FFT parts:
-      __private unsigned char intermediate[NN * 3 + 8];
-      __private swift_int32_t result[NN];
-      unsigned char carry0,carry1,carry2;
-
-      // Do the three SWIFFTS while remembering the three carry bytes (each carry byte gets
-      // overriden by the following SWIFFT):
-
-      // 1. Compute the FFT of the input - the common part for the first 3 SWIFFTs:
-      SWIFFTFFT((const unsigned char *) in, MM, fftOut);
-
-      // 2. Compute the sums of the 3 SWIFFTs, each using a different set of coefficients:
-
-      // 2a. The first SWIFFT:
-      SWIFFTSum(fftOut, MM, intermediate, As, result);
-      // Remember the carry byte:
-      carry0 = intermediate[NN];
-
-      // 2b. The second one:
-      SWIFFTSum(fftOut, MM, intermediate + NN, As + (MM * NN), result);
-      carry1 = intermediate[2 * NN];
-
-      // 2c. The third one:
-      SWIFFTSum(fftOut, MM, intermediate + (2 * NN), As + 2 * (MM * NN), result);
-      carry2 = intermediate[3 * NN];
-
-      //2d. Put three carry bytes in their place
-      intermediate[3 * NN] = carry0;
-      intermediate[(3 * NN) + 1] = carry1;
-      intermediate[(3 * NN) + 2] = carry2;
-
-      // Padding  intermediate output with 5 zeroes.
-      // memset(intermediate + (3 * NN) + 3, 0, 5);
-      for (i = 0; i < 5; i++) {
-        intermediate[(3 * NN) + 3 + i] = 0;
-      }
-
-      // Apply the S-Box:
-      for (i = 0; i < (3 * NN) + 8; ++i)
-      {
-        intermediate[i] = SBox[intermediate[i]];
-      }
-
-      // 3. The final and last SWIFFT:
-      SWIFFTFFT(intermediate, 3 * (NN/8) + 1, fftOut);
-      SWIFFTSum(fftOut,       3 * (NN/8) + 1, (unsigned char *) out, As, result);
+    for (int i = 0; i < 16; i++) {
+      in[i     ] = inout[i];
+      in[i + 16] = in1  [i];
+      in[i + 32] = in2  [i];
+      in[i + 48] = in3  [i];
     }
 
-		#pragma unroll
-		for (int i = 0; i < 16; i++) inout[i] = out[i];
+    e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers);
+
+    #pragma unroll
+    for (int i = 0; i < 16; i++)
+      inout[i] = in[i];
+   }
 }
 
 // haval

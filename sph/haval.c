@@ -814,7 +814,7 @@ haval_out(sph_haval_context *sc, void *dst)
 	DSTATE;
 	unsigned char *buf;
 
-	buf = dst;
+	buf = (unsigned char *) dst;
 	RSTATE;
 	switch (sc->olen) {
 	case 4:
@@ -883,26 +883,26 @@ haval_out(sph_haval_context *sc, void *dst)
 void \
 sph_haval ## xxx ## _ ## y ## _init(void *cc) \
 { \
-	haval_init(cc, xxx >> 5, y); \
+	haval_init((sph_haval_context *) cc, xxx >> 5, y); \
 } \
  \
 void \
 sph_haval ## xxx ## _ ## y (void *cc, const void *data, size_t len) \
 { \
-	haval ## y(cc, data, len); \
+	haval ## y((sph_haval_context *) cc, data, len); \
 } \
  \
 void \
 sph_haval ## xxx ## _ ## y ## _close(void *cc, void *dst) \
 { \
-	haval ## y ## _close(cc, 0, 0, dst); \
+	haval ## y ## _close((sph_haval_context *) cc, 0, 0, dst); \
 } \
  \
 void \
 sph_haval ## xxx ## _ ## y ## addbits_and_close( \
 	void *cc, unsigned ub, unsigned n, void *dst) \
 { \
-	haval ## y ## _close(cc, ub, n, dst); \
+	haval ## y ## _close((sph_haval_context *) cc, ub, n, dst); \
 }
 
 API(128, 3)

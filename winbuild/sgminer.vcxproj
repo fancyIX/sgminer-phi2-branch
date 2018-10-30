@@ -340,7 +340,12 @@
     <ClCompile Include="..\sph\skein.c" />
     <ClCompile Include="..\sph\haval.c" />
     <ClCompile Include="..\sph\tiger.c" />
-    <ClInclude Include="..\SWIFFTX\SWIFFTX.c" />
+    <ClInclude Include="..\SWIFFTX\hash_interface.h" />
+    <ClInclude Include="..\SWIFFTX\inttypes.h" />
+    <ClInclude Include="..\SWIFFTX\sha3_interface.h" />
+    <ClInclude Include="..\SWIFFTX\stdbool.h" />
+    <ClInclude Include="..\SWIFFTX\stdint.h" />
+    <ClCompile Include="..\SWIFFTX\SWIFFTX.c" />
     <ClCompile Include="..\algorithm\twecoin.c" />
     <ClCompile Include="..\sph\whirlpool.c" />
     <ClCompile Include="..\util.c" />
@@ -436,6 +441,7 @@
     <ClInclude Include="dist\include\winbuild.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\SWIFFTX\Makefile.am" />
     <None Include="README.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
