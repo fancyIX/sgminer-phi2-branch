@@ -27,6 +27,12 @@
     <Filter Include="Header Files\algorithm">
       <UniqueIdentifier>{8cc454ef-b019-4f41-bb22-2dd8941888c8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\SWIFFTX">
+      <UniqueIdentifier>{95386bcd-6dc7-472d-a3cc-2bde8cad1b36}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SWIFFTX">
+      <UniqueIdentifier>{ccf835be-7815-4997-8c02-b7067ca52a6c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\adl.c">
@@ -176,6 +182,9 @@
     <ClCompile Include="..\algorithm\bitblock.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
+    <ClCompile Include="..\algorithm\bitblock.c">
+      <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
     <ClCompile Include="..\algorithm\x14.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
@@ -189,6 +198,12 @@
       <Filter>Source Files\sph</Filter>
     </ClCompile>
     <ClCompile Include="..\sph\whirlpool.c">
+      <Filter>Source Files\sph</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sph\haval.c">
+      <Filter>Source Files\sph</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sph\tiger.c">
       <Filter>Source Files\sph</Filter>
     </ClCompile>
     <ClCompile Include="..\ocl.c">
@@ -271,6 +286,12 @@
     </ClCompile>
     <ClCompile Include="..\algorithm\yescryptcommon.c">
       <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\x22i.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SWIFFTX\SWIFFTX.c">
+      <Filter>Source Files\SWIFFTX</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -445,7 +466,16 @@
     <ClInclude Include="..\sph\sph_whirlpool.h">
       <Filter>Header Files\sph</Filter>
     </ClInclude>
-    <ClInclude Include="..\sph\sph_shabal.h">
+    <ClInclude Include="..\sph\sph_whirlpool.h">
+      <Filter>Header Files\sph</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sph\sph_haval.h">
+      <Filter>Header Files\sph</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\SWIFFTX.h">
+      <Filter>Header Files\sph</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sph\sph_tiger.h">
       <Filter>Header Files\sph</Filter>
     </ClInclude>
     <ClInclude Include="..\algorithm\neoscrypt.h">
@@ -529,8 +559,30 @@
     <ClInclude Include="..\sph\sph_gost.h">
       <Filter>Header Files\sph</Filter>
     </ClInclude>
+    <ClInclude Include="..\algorithm\x22i.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\sph\sph_shabal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\hash_interface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\inttypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\sha3_interface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\stdint.h">
+      <Filter>Header Files\SWIFFTX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SWIFFTX\stdbool.h">
+      <Filter>Header Files\SWIFFTX</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.txt" />
+    <None Include="..\SWIFFTX\Makefile.am" />
   </ItemGroup>
 </Project>

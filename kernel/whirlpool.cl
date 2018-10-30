@@ -1123,17 +1123,17 @@ __constant static const sph_u64 plain_RC[10] = {
 
 /* ====================================================================== */
 
-#define BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
+#define WHIRLPOOL_BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
 
 #define ROUND_ELT(table, in, i0, i1, i2, i3, i4, i5, i6, i7) \
-	(table ## 0[BYTE(in ## i0, 0)] \
-	^ table ## 1[BYTE(in ## i1, 1)] \
-	^ table ## 2[BYTE(in ## i2, 2)] \
-	^ table ## 3[BYTE(in ## i3, 3)] \
-	^ table ## 4[BYTE(in ## i4, 4)] \
-	^ table ## 5[BYTE(in ## i5, 5)] \
-	^ table ## 6[BYTE(in ## i6, 6)] \
-	^ table ## 7[BYTE(in ## i7, 7)])
+	(table ## 0[WHIRLPOOL_BYTE(in ## i0, 0)] \
+	^ table ## 1[WHIRLPOOL_BYTE(in ## i1, 1)] \
+	^ table ## 2[WHIRLPOOL_BYTE(in ## i2, 2)] \
+	^ table ## 3[WHIRLPOOL_BYTE(in ## i3, 3)] \
+	^ table ## 4[WHIRLPOOL_BYTE(in ## i4, 4)] \
+	^ table ## 5[WHIRLPOOL_BYTE(in ## i5, 5)] \
+	^ table ## 6[WHIRLPOOL_BYTE(in ## i6, 6)] \
+	^ table ## 7[WHIRLPOOL_BYTE(in ## i7, 7)])
 
 #define ROUND(table, in, out, c0, c1, c2, c3, c4, c5, c6, c7)   do { \
 		out ## 0 = ROUND_ELT(table, in, 0, 7, 6, 5, 4, 3, 2, 1) ^ c0; \

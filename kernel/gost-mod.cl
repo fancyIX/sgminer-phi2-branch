@@ -33,6 +33,38 @@
 extern "C"{
 #endif
 
+
+#if SPH_LITTLE_ENDIAN
+
+#define C32e(x)     ((SPH_C32(x) >> 24) \
+          | ((SPH_C32(x) >>  8) & SPH_C32(0x0000FF00)) \
+          | ((SPH_C32(x) <<  8) & SPH_C32(0x00FF0000)) \
+          | ((SPH_C32(x) << 24) & SPH_C32(0xFF000000)))
+#define dec32e_aligned   sph_dec32le_aligned
+#define enc32e           sph_enc32le
+
+#define C64e(x)     ((SPH_C64(x) >> 56) \
+          | ((SPH_C64(x) >> 40) & SPH_C64(0x000000000000FF00)) \
+          | ((SPH_C64(x) >> 24) & SPH_C64(0x0000000000FF0000)) \
+          | ((SPH_C64(x) >>  8) & SPH_C64(0x00000000FF000000)) \
+          | ((SPH_C64(x) <<  8) & SPH_C64(0x000000FF00000000)) \
+          | ((SPH_C64(x) << 24) & SPH_C64(0x0000FF0000000000)) \
+          | ((SPH_C64(x) << 40) & SPH_C64(0x00FF000000000000)) \
+          | ((SPH_C64(x) << 56) & SPH_C64(0xFF00000000000000)))
+#define dec64e_aligned   sph_dec64le_aligned
+#define enc64e           sph_enc64le
+
+#else
+
+#define C32e(x)     SPH_C32(x)
+#define dec32e_aligned   sph_dec32be_aligned
+#define enc32e           sph_enc32be
+#define C64e(x)     SPH_C64(x)
+#define dec64e_aligned   sph_dec64be_aligned
+#define enc64e           sph_enc64be
+
+#endif
+
 //--------------------------------------------------------------------------------------------
 //
 //	stribog implementation
@@ -929,11 +961,11 @@ __constant const ulong CC[12][8] = {
 
 
 #define GOST_G_N(N,h,m) do {\
-        NN = (sph_u64*) N;\
+        NNN = (sph_u64*) N;\
         hh = (sph_u64*) h;\
         mm = (sph_u64*) m;\
         \
-        GOST_XOR(NN,hh,K);\
+        GOST_XOR(NNN,hh,K);\
         \
         ucK = (unsigned char*)K;\
         \
@@ -987,7 +1019,7 @@ __constant const ulong CC[12][8] = {
         K = K_mem;\
         t = t_mem;\
         unsigned char *ucstate, *ucK;\
-        const sph_u64 *NN;\
+        const sph_u64 *NNN;\
         sph_u64 *hh;\
         const sph_u64 *mm;\
         int t_addm=0;\

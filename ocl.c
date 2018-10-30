@@ -41,6 +41,7 @@
 #include "algorithm/lyra2Z.h"
 #include "algorithm/lyra2h.h"
 #include "algorithm/phi2.h"
+#include "algorithm/x22i.h"
 
 /* FIXME: only here for global config vars, replace with configuration.h
  * or similar as soon as config is in a struct instead of littered all
@@ -589,7 +590,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   }
 
   // Lyra2re v2 TC
-  else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2H || cgpu->algorithm.type == ALGO_PHI2 || cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
+  else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_X22I || cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2H || cgpu->algorithm.type == ALGO_PHI2 || cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -601,6 +602,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE / 2; // LYRA2Z_SCRATCHBUF_SIZE * 8;
     } else if (cgpu->algorithm.type == ALGO_LYRA2H) {
       scratchbuf_size = LYRA2H_SCRATCHBUF_SIZE;
+    } else if (cgpu->algorithm.type == ALGO_X22I) {
+      scratchbuf_size = X22I_SCRATCHBUF_SIZE;
     } else { // PHI2
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE;
     }
@@ -776,6 +779,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   size_t buf1size;
   size_t buf3size;
   size_t buf2size;
+  size_t buf4size;
+  size_t buf5size;
   size_t readbufsize = 128;
   if (algorithm->type == ALGO_CRE) readbufsize = 168;
   else if (algorithm->type == ALGO_DECRED) readbufsize = 192;
@@ -863,6 +868,12 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
     applog(LOG_DEBUG, "phi2 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
   }
+  else if (algorithm->type == ALGO_X22I) {
+    buf4size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states  // only do half lyar2v2
+    bufsize = 8 * 8 * cgpu->thread_concurrency;
+
+    applog(LOG_DEBUG, "x22i buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
+  }
   else {
     bufsize = (size_t)algorithm->rw_buffer_size;
     applog(LOG_DEBUG, "Buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
@@ -933,6 +944,27 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       clState->buffer3 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf3size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer3) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer3), decrease TC or increase LG", status);
+        return NULL;
+      }
+    } else if (algorithm->type == ALGO_X22I) {
+      clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer1) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
+        return NULL;
+      }
+      clState->buffer2 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer2) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer2), decrease TC or increase LG", status);
+        return NULL;
+      }
+      clState->buffer3 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer3) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer3), decrease TC or increase LG", status);
+        return NULL;
+      }
+      clState->MidstateBuf = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf4size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->MidstateBuf) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (MidstateBuf), decrease TC or increase LG", status);
         return NULL;
       }
     }

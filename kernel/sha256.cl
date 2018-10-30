@@ -10,12 +10,12 @@
 
 #define P(a,b,c,d,e,f,g,h,x,K)                  \
 {                                               \
-    temp1 = h + S3(e) + F1(e,f,g) + (K + x);      \
-    d += temp1; h = temp1 + S2(a) + F0(a,b,c);  \
+    temp1 = h + S3(e) + FF1(e,f,g) + (K + x);      \
+    d += temp1; h = temp1 + S2(a) + FF0(a,b,c);  \
 }
 
-#define F0(y, x, z) bitselect(z, y, z ^ x)
-#define F1(x, y, z) bitselect(z, y, x)
+#define FF0(y, x, z) bitselect(z, y, z ^ x)
+#define FF1(x, y, z) bitselect(z, y, x)
 
 #define R0 (W0 = S1(W14) + W9 + S0(W1) + W0)
 #define R1 (W1 = S1(W15) + W10 + S0(W2) + W1)
@@ -147,3 +147,7 @@ inline uint8 sha256_round(uint16 data, uint8 buf)
 	return (res);
 }
 
+#define PLAST(a,b,c,d,e,f,g,h,x,K)                  \
+{                                               \
+  d += h + S3(e) + FF1(e,f,g) + (x + K);              \
+}
