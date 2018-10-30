@@ -128,10 +128,11 @@ ulong ROTL64_2(const uint2 vv, const int r) { return as_ulong((amd_bitalign((vv)
 #include "gost-mod.cl"
 #include "swifftx.cl"
 #include "tiger.cl"
-#include "sha256.cl"
+#include "sha256f.cl"
 
 #define SWAP4(x) as_uint(as_uchar4(x).wzyx)
 #define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
+#define SWAP32(a)    (as_uint(as_uchar4(a).wzyx))
 
 #if SPH_BIG_ENDIAN
   #define DEC64E(x) (x)
@@ -172,13 +173,12 @@ typedef union {
     ulong4 h8[4];
 } lyraState_t;
 
+// blake
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search(__global unsigned char* block, __global hash_t* hashes)
 {
     uint gid = get_global_id(0);
     __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
-  // blake
 
   sph_u64 V0 = BLAKE_IV512[0], V1 = BLAKE_IV512[1], V2 = BLAKE_IV512[2], V3 = BLAKE_IV512[3];
   sph_u64 V4 = BLAKE_IV512[4], V5 = BLAKE_IV512[5], V6 = BLAKE_IV512[6], V7 = BLAKE_IV512[7];
@@ -1439,15 +1439,16 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 
 // swifftx hash hash1 hash2 hash3
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
+__kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3, __global int *Matrix)
 {
     uint gid = get_global_id(0);
     uint offset = get_global_offset(0);
-    uint in[64], out[16];
+    uint in[64], out[16 + 1];
     __global uint* inout = &g_hash [(gid - offset)<<4];
     __global uint* in1   = &g_hash1[(gid - offset)<<4];
     __global uint* in2   = &g_hash2[(gid - offset)<<4];
     __global uint* in3   = &g_hash3[(gid - offset)<<4];
+    __global int *fftOut = &Matrix[(gid - offset) * NN * MM];
 
     #pragma unroll
 		for (int i = 0; i < 16; i++) {
@@ -1457,7 +1458,55 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 			in[i + 48] = in3  [i];
 		}
 
-		ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)out);
+		{
+      int i;
+      // Will store the result of the FFT parts:
+      __private unsigned char intermediate[NN * 3 + 8];
+      __private swift_int32_t result[NN];
+      unsigned char carry0,carry1,carry2;
+
+      // Do the three SWIFFTS while remembering the three carry bytes (each carry byte gets
+      // overriden by the following SWIFFT):
+
+      // 1. Compute the FFT of the input - the common part for the first 3 SWIFFTs:
+      SWIFFTFFT((const unsigned char *) in, MM, fftOut);
+
+      // 2. Compute the sums of the 3 SWIFFTs, each using a different set of coefficients:
+
+      // 2a. The first SWIFFT:
+      SWIFFTSum(fftOut, MM, intermediate, As, result);
+      // Remember the carry byte:
+      carry0 = intermediate[NN];
+
+      // 2b. The second one:
+      SWIFFTSum(fftOut, MM, intermediate + NN, As + (MM * NN), result);
+      carry1 = intermediate[2 * NN];
+
+      // 2c. The third one:
+      SWIFFTSum(fftOut, MM, intermediate + (2 * NN), As + 2 * (MM * NN), result);
+      carry2 = intermediate[3 * NN];
+
+      //2d. Put three carry bytes in their place
+      intermediate[3 * NN] = carry0;
+      intermediate[(3 * NN) + 1] = carry1;
+      intermediate[(3 * NN) + 2] = carry2;
+
+      // Padding  intermediate output with 5 zeroes.
+      // memset(intermediate + (3 * NN) + 3, 0, 5);
+      for (i = 0; i < 5; i++) {
+        intermediate[(3 * NN) + 3 + i] = 0;
+      }
+
+      // Apply the S-Box:
+      for (i = 0; i < (3 * NN) + 8; ++i)
+      {
+        intermediate[i] = SBox[intermediate[i]];
+      }
+
+      // 3. The final and last SWIFFT:
+      SWIFFTFFT(intermediate, 3 * (NN/8) + 1, fftOut);
+      SWIFFTSum(fftOut,       3 * (NN/8) + 1, (unsigned char *) out, As, result);
+    }
 
 		#pragma unroll
 		for (int i = 0; i < 16; i++) inout[i] = out[i];
@@ -1514,62 +1563,57 @@ __kernel void search17(__global hash_t* hashes)
   hash->h4[6] = s6;
   hash->h4[7] = s7;
 
+  // padding 0 for x22i
+  hash->h4[0 + 8] = 0;
+  hash->h4[1 + 8] = 0;
+  hash->h4[2 + 8] = 0;
+  hash->h4[3 + 8] = 0;
+  hash->h4[4 + 8] = 0;
+  hash->h4[5 + 8] = 0;
+  hash->h4[6 + 8] = 0;
+  hash->h4[7 + 8] = 0;
+
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 // tiger
-__attribute__((reqd_work_group_size(256, 1, 1)))
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search18(__global uint *d_hash)
 {
-	__local ulong sharedMem[768];
-    uint tid = get_local_id(0);
-//	if(threadIdx.x < 256)
-	{
-		sharedMem[tid]      = T1[tid];
-		sharedMem[tid+256]  = T2[tid];
-		sharedMem[tid+512]  = T3[tid];
-		//sharedMem[threadIdx.x+768]  = T4[threadIdx.x];
-	}
-	barrier(CLK_LOCAL_MEM_FENCE);
-
   uint gid = get_global_id(0);
   uint offset = get_global_offset(0);
-  {
-		__global ulong* inout = (__global ulong*)&d_hash[(gid - offset)<<4];
+
+		__global ulong* inout = (__global ulong*)(d_hash + 16 * (gid - offset));
 		ulong buf[3], in[8], in2[8];
-
-		#pragma unroll
+#pragma unroll
 		for (int i = 0; i < 8; i++) in[i] = inout[i];
-
-		#pragma unroll
+#pragma unroll
 		for (int i = 0; i < 3; i++) buf[i] = III[i];
 
 		TIGER_ROUND_BODY(in, buf);
 
 		in2[0] = 1;
-		#pragma unroll
+#pragma unroll
 		for (int i = 1 ; i < 7; i++) in2[i] = 0;
 		in2[7] = 0x200;
 		TIGER_ROUND_BODY(in2, buf);
-
-		#pragma unroll
+#pragma unroll
 		for (int i = 0; i < 3; i++) inout[i] = buf[i];
 
 		// 0 padding for x22
-		#pragma unroll
+#pragma unroll
 		for (int i = 3; i < 8; i++) inout[i] = 0;
-	}
 }
 
 // lyra2v2
 // lyra2v2 p1
-__attribute__((reqd_work_group_size(256, 1, 1)))
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search19(__global uint* hashes, __global uint* lyraStates)
 {
     int gid = get_global_id(0);
     
-    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* (get_global_id(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (get_global_id(0))));
+    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* ((gid-get_global_offset(0))<<1)));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid-get_global_offset(0))));
 
     ulong ttr;
 
@@ -1631,7 +1675,7 @@ __kernel void search20(__global uint* lyraStates)
 {
      __local struct SharedState smState[64];
 
-    int gid = get_global_id(0) >> 2;
+    int gid = (get_global_id(0)-get_global_offset(0)) >> 2;
     __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid)));
 
     ulong state[4];
@@ -1852,13 +1896,13 @@ __kernel void search20(__global uint* lyraStates)
     barrier(CLK_LOCAL_MEM_FENCE);
 }
 // lyra2v2 p3
-__attribute__((reqd_work_group_size(256, 1, 1)))
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search21(__global uint* hashes, __global uint* lyraStates)
 {
     int gid = get_global_id(0);
 
-    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* (get_global_id(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (get_global_id(0))));
+    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* ((gid-get_global_offset(0))<<1)));
+    __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (get_global_id(0)-get_global_offset(0))));
 
     ulong ttr;
 
@@ -1965,73 +2009,73 @@ __kernel void search23(__global hash_t* hashes, volatile __global uint* output, 
   uint v6 = 0x1F83D9AB;
   uint v7 = 0x5BE0CD19;
 
-  P( v0, v1, v2, v3, v4, v5, v6, v7, W0, 0x428A2F98 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, W1, 0x71374491 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, W2, 0xB5C0FBCF );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, W3, 0xE9B5DBA5 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, W4, 0x3956C25B );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, W5, 0x59F111F1 );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, W6, 0x923F82A4 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, W7, 0xAB1C5ED5 );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, W8, 0xD807AA98 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, W9, 0x12835B01 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, W10, 0x243185BE );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, W11, 0x550C7DC3 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, W12, 0x72BE5D74 );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, W13, 0x80DEB1FE );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, W14, 0x9BDC06A7 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, W15, 0xC19BF174 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, W0, 0x428A2F98 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, W1, 0x71374491 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, W2, 0xB5C0FBCF );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, W3, 0xE9B5DBA5 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, W4, 0x3956C25B );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, W5, 0x59F111F1 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, W6, 0x923F82A4 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, W7, 0xAB1C5ED5 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, W8, 0xD807AA98 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, W9, 0x12835B01 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, W10, 0x243185BE );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, W11, 0x550C7DC3 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, W12, 0x72BE5D74 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, W13, 0x80DEB1FE );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, W14, 0x9BDC06A7 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, W15, 0xC19BF174 );
 
-  P( v0, v1, v2, v3, v4, v5, v6, v7, R0, 0xE49B69C1 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, R1, 0xEFBE4786 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, R2, 0x0FC19DC6 );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, R3, 0x240CA1CC );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, R4, 0x2DE92C6F );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, R5, 0x4A7484AA );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, R6, 0x5CB0A9DC );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, R7, 0x76F988DA );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, R8, 0x983E5152 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, R9, 0xA831C66D );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, R10, 0xB00327C8 );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, R11, 0xBF597FC7 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, R12, 0xC6E00BF3 );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, R13, 0xD5A79147 );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, R14, 0x06CA6351 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, R15, 0x14292967 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R0, 0xE49B69C1 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R1, 0xEFBE4786 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R2, 0x0FC19DC6 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R3, 0x240CA1CC );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R4, 0x2DE92C6F );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R5, 0x4A7484AA );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R6, 0x5CB0A9DC );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R7, 0x76F988DA );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R8, 0x983E5152 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R9, 0xA831C66D );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R10, 0xB00327C8 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R11, 0xBF597FC7 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R12, 0xC6E00BF3 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R13, 0xD5A79147 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R14, 0x06CA6351 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R15, 0x14292967 );
 
-  P( v0, v1, v2, v3, v4, v5, v6, v7, R0,  0x27B70A85 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, R1,  0x2E1B2138 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, R2,  0x4D2C6DFC );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, R3,  0x53380D13 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, R4,  0x650A7354 );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, R5,  0x766A0ABB );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, R6,  0x81C2C92E );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, R7,  0x92722C85 );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, R8,  0xA2BFE8A1 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, R9,  0xA81A664B );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, R10, 0xC24B8B70 );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, R11, 0xC76C51A3 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, R12, 0xD192E819 );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, R13, 0xD6990624 );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, R14, 0xF40E3585 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, R15, 0x106AA070 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R0,  0x27B70A85 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R1,  0x2E1B2138 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R2,  0x4D2C6DFC );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R3,  0x53380D13 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R4,  0x650A7354 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R5,  0x766A0ABB );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R6,  0x81C2C92E );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R7,  0x92722C85 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R8,  0xA2BFE8A1 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R9,  0xA81A664B );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R10, 0xC24B8B70 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R11, 0xC76C51A3 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R12, 0xD192E819 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R13, 0xD6990624 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R14, 0xF40E3585 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R15, 0x106AA070 );
 
-  P( v0, v1, v2, v3, v4, v5, v6, v7, R0,  0x19A4C116 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, R1,  0x1E376C08 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, R2,  0x2748774C );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, R3,  0x34B0BCB5 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, R4,  0x391C0CB3 );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, R5,  0x4ED8AA4A );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, R6,  0x5B9CCA4F );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, R7,  0x682E6FF3 );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, R8,  0x748F82EE );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, R9,  0x78A5636F );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, R10, 0x84C87814 );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, R11, 0x8CC70208 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, R12, 0x90BEFFFA );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, R13, 0xA4506CEB );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, RD14, 0xBEF9A3F7 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, RD15, 0xC67178F2 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R0,  0x19A4C116 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R1,  0x1E376C08 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R2,  0x2748774C );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R3,  0x34B0BCB5 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R4,  0x391C0CB3 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R5,  0x4ED8AA4A );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R6,  0x5B9CCA4F );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R7,  0x682E6FF3 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R8,  0x748F82EE );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R9,  0x78A5636F );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R10, 0x84C87814 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R11, 0x8CC70208 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R12, 0x90BEFFFA );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R13, 0xA4506CEB );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_RD14, 0xBEF9A3F7 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_RD15, 0xC67178F2 );
 
   v0 += 0x6A09E667;
   uint s0 = v0;
@@ -2050,77 +2094,77 @@ __kernel void search23(__global hash_t* hashes, volatile __global uint* output, 
   v7 += 0x5BE0CD19;
   uint s7 = v7;
 
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x80000000, 0x428A2F98 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0, 0x71374491 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0, 0xB5C0FBCF );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0, 0xE9B5DBA5 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0, 0x3956C25B );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0, 0x59F111F1 );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0, 0x923F82A4 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 0, 0xAB1C5ED5 );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0, 0xD807AA98 );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0, 0x12835B01 );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0, 0x243185BE );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0, 0x550C7DC3 );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0, 0x72BE5D74 );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0, 0x80DEB1FE );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0, 0x9BDC06A7 );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 512, 0xC19BF174 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x80000000, 0x428A2F98 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0, 0x71374491 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0, 0xB5C0FBCF );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0, 0xE9B5DBA5 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0, 0x3956C25B );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0, 0x59F111F1 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0, 0x923F82A4 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0, 0xAB1C5ED5 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0, 0xD807AA98 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0, 0x12835B01 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0, 0x243185BE );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0, 0x550C7DC3 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0, 0x72BE5D74 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0, 0x80DEB1FE );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0, 0x9BDC06A7 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 512, 0xC19BF174 );
 
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x80000000U, 0xE49B69C1U );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0x01400000U, 0xEFBE4786U );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0x00205000U, 0x0FC19DC6U );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0x00005088U, 0x240CA1CCU );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0x22000800U, 0x2DE92C6FU );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0x22550014U, 0x4A7484AAU );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0x05089742U, 0x5CB0A9DCU );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 0xa0000020U, 0x76F988DAU );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x5a880000U, 0x983E5152U );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0x005c9400U, 0xA831C66DU );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0x0016d49dU, 0xB00327C8U );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0xfa801f00U, 0xBF597FC7U );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0xd33225d0U, 0xC6E00BF3U );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0x11675959U, 0xD5A79147U );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0xf6e6bfdaU, 0x06CA6351U );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 0xb30c1549U, 0x14292967U );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x08b2b050U, 0x27B70A85U );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0x9d7c4c27U, 0x2E1B2138U );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0x0ce2a393U, 0x4D2C6DFCU );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0x88e6e1eaU, 0x53380D13U );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0xa52b4335U, 0x650A7354U );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0x67a16f49U, 0x766A0ABBU );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0xd732016fU, 0x81C2C92EU );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 0x4eeb2e91U, 0x92722C85U );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x5dbf55e5U, 0xA2BFE8A1U );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0x8eee2335U, 0xA81A664BU );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0xe2bc5ec2U, 0xC24B8B70U );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0xa83f4394U, 0xC76C51A3U );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0x45ad78f7U, 0xD192E819U );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0x36f3d0cdU, 0xD6990624U );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0xd99c05e8U, 0xF40E3585U );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 0xb0511dc7U, 0x106AA070U );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x69bc7ac4U, 0x19A4C116U );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0xbd11375bU, 0x1E376C08U );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0xe3ba71e5U, 0x2748774CU );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0x3b209ff2U, 0x34B0BCB5U );
-  P( v4, v5, v6, v7, v0, v1, v2, v3, 0x18feee17U, 0x391C0CB3U );
-  P( v3, v4, v5, v6, v7, v0, v1, v2, 0xe25ad9e7U, 0x4ED8AA4AU );
-  P( v2, v3, v4, v5, v6, v7, v0, v1, 0x13375046U, 0x5B9CCA4FU );
-  P( v1, v2, v3, v4, v5, v6, v7, v0, 0x0515089dU, 0x682E6FF3U );
-  P( v0, v1, v2, v3, v4, v5, v6, v7, 0x4f0d0f04U, 0x748F82EEU );
-  P( v7, v0, v1, v2, v3, v4, v5, v6, 0x2627484eU, 0x78A5636FU );
-  P( v6, v7, v0, v1, v2, v3, v4, v5, 0x310128d2U, 0x84C87814U );
-  P( v5, v6, v7, v0, v1, v2, v3, v4, 0xc668b434U, 0x8CC70208U );
-  PLAST( v4, v5, v6, v7, v0, v1, v2, v3, 0x420841ccU, 0x90BEFFFAU );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x80000000U, 0xE49B69C1U );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x01400000U, 0xEFBE4786U );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x00205000U, 0x0FC19DC6U );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0x00005088U, 0x240CA1CCU );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0x22000800U, 0x2DE92C6FU );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x22550014U, 0x4A7484AAU );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0x05089742U, 0x5CB0A9DCU );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0xa0000020U, 0x76F988DAU );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x5a880000U, 0x983E5152U );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x005c9400U, 0xA831C66DU );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x0016d49dU, 0xB00327C8U );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0xfa801f00U, 0xBF597FC7U );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0xd33225d0U, 0xC6E00BF3U );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x11675959U, 0xD5A79147U );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0xf6e6bfdaU, 0x06CA6351U );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0xb30c1549U, 0x14292967U );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x08b2b050U, 0x27B70A85U );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x9d7c4c27U, 0x2E1B2138U );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x0ce2a393U, 0x4D2C6DFCU );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0x88e6e1eaU, 0x53380D13U );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0xa52b4335U, 0x650A7354U );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x67a16f49U, 0x766A0ABBU );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0xd732016fU, 0x81C2C92EU );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0x4eeb2e91U, 0x92722C85U );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x5dbf55e5U, 0xA2BFE8A1U );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x8eee2335U, 0xA81A664BU );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0xe2bc5ec2U, 0xC24B8B70U );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0xa83f4394U, 0xC76C51A3U );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0x45ad78f7U, 0xD192E819U );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x36f3d0cdU, 0xD6990624U );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0xd99c05e8U, 0xF40E3585U );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0xb0511dc7U, 0x106AA070U );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x69bc7ac4U, 0x19A4C116U );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0xbd11375bU, 0x1E376C08U );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0xe3ba71e5U, 0x2748774CU );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0x3b209ff2U, 0x34B0BCB5U );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0x18feee17U, 0x391C0CB3U );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0xe25ad9e7U, 0x4ED8AA4AU );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0x13375046U, 0x5B9CCA4FU );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0x0515089dU, 0x682E6FF3U );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x4f0d0f04U, 0x748F82EEU );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x2627484eU, 0x78A5636FU );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x310128d2U, 0x84C87814U );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0xc668b434U, 0x8CC70208U );
+  SHA256_PLAST( v4, v5, v6, v7, v0, v1, v2, v3, 0x420841ccU, 0x90BEFFFAU );
 
-  hash->h4[0] = SWAP4(v0 + s0);
-  hash->h4[1] = SWAP4(v1 + s1);
-  hash->h4[2] = SWAP4(v2 + s2);
-  hash->h4[3] = SWAP4(v3 + s3);
-  hash->h4[4] = SWAP4(v4 + s4);
-  hash->h4[5] = SWAP4(v5 + s5);
-  hash->h4[6] = SWAP4(v6 + s6);
-  hash->h4[7] = SWAP4(v7 + s7);
+  hash->h4[0] = SWAP32(v0 + s0);
+  hash->h4[1] = SWAP32(v1 + s1);
+  hash->h4[2] = SWAP32(v2 + s2);
+  hash->h4[3] = SWAP32(v3 + s3);
+  hash->h4[4] = SWAP32(v4 + s4);
+  hash->h4[5] = SWAP32(v5 + s5);
+  hash->h4[6] = SWAP32(v6 + s6);
+  hash->h4[7] = SWAP32(v7 + s7);
 
   bool result = (hash->h8[3] <= target);
   if (result)

@@ -1437,6 +1437,9 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   }
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
+    if (gpu->algorithm.type == ALGO_X22I && (i == 15)) {
+      //continue;
+    }
     if (gpu->algorithm.type == ALGO_PHI2 && i == 1) {
       if (clState->prebuilt) {
         const size_t off2[] = { 0, 0, *p_global_work_offset };
@@ -1484,15 +1487,22 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
     } else if (gpu->algorithm.type == ALGO_X22I && (i == 18 || i == 20)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
-      globalThreads2[0] = globalThreads[0] * 2;
+      globalThreads2[0] = globalThreads[0] * 1; // only do half lyar2v2
       localThreads2[0] = localThreads[0];
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
     } else if (gpu->algorithm.type == ALGO_X22I && (i == 19)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
-      globalThreads2[0] = globalThreads[0] * 2;
+      globalThreads2[0] = globalThreads[0] * 4; // only do half lyar2v2
       localThreads2[0] = 64;
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+        globalThreads2, localThreads2, 0, NULL, NULL);
+    } else if (gpu->algorithm.type == ALGO_X22I && (i == 15)) {
+      size_t globalThreads2[1];
+      size_t localThreads2[1];
+      globalThreads2[0] = globalThreads[0];
+      localThreads2[0] = localThreads[0];
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
     }
@@ -1561,6 +1571,10 @@ static void opencl_thread_shutdown(struct thr_info *thr)
 	clReleaseMemObject(clState->buffer2);
 	if (clState->buffer3)
 	clReleaseMemObject(clState->buffer3);
+  if (clState->MidstateBuf)
+	clReleaseMemObject(clState->MidstateBuf);
+  if (clState->MatrixBuf)
+	clReleaseMemObject(clState->MatrixBuf);
     if (clState->padbuffer8)
       clReleaseMemObject(clState->padbuffer8);
     clReleaseKernel(clState->kernel);

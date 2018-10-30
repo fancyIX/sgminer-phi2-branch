@@ -94,11 +94,6 @@ void x22ihash(void *output, const void *input)
 	sph_blake512_close(&ctx_blake, hash);
 
 	sph_bmw512_init(&ctx_bmw);
-	/*
-	// ZERO hash test, leads to "624381675728598999"
-	unsigned char test[64] = {0};
-	sph_bmw512(&ctx_bmw, (const void*) test, 64);
-	*/
 	sph_bmw512(&ctx_bmw, (const void*) hash, 64);
 	sph_bmw512_close(&ctx_bmw, hash);
 

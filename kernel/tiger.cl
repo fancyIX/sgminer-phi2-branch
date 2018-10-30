@@ -1,3 +1,5 @@
+#define SPH_T64(x)    ((x) & SPH_C64(0xFFFFFFFFFFFFFFFF))
+
 #define SPH_C64(x)    (x ## ULL)
 #define SPH_C32(x)    (x ## U)
 #define SPH_T64(x)  (x)
@@ -532,28 +534,21 @@ __constant static const ulong T4[256] = {
 	SPH_C64(0xC83223F1720AEF96), SPH_C64(0xC3A0396F7363A51F)
 };
 
-inline uint __byte_perm (const uint a, const uint b, const uint c)
-{
-    uint r;
-    __asm ("prmt.b32 %0, %1, %2, %3;" : "=r"(r)    : "r"(a),    "r"(b),    "r"(c)   );
-    return r;
-}
 
-// #define TIGER_BYTE(x, n) __byte_perm(((uint*)&(x))[(n) / 4], 0, 0x4440 + ((n) % 4))
-#define TIGER_BYTE(x, n)  ((unsigned)((x) >> (8 * (n))) & 0xFF)
+#define BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
 
 #define TIGER_ROUND(a, b, c, x, mul)    { \
 	ulong t0, t1; \
 	c ^= x; \
-	t0 = sharedMem[TIGER_BYTE(c, 0)] ^ sharedMem[TIGER_BYTE(c, 2)+256] ^ sharedMem[TIGER_BYTE(c, 4)+512] ^ (T4[TIGER_BYTE(c, 6)]); \
-	t1 = sharedMem[TIGER_BYTE(c, 7)] ^ sharedMem[TIGER_BYTE(c, 5)+256] ^ sharedMem[TIGER_BYTE(c, 3)+512] ^ (T4[TIGER_BYTE(c, 1)]); \
+	t0 = T1[BYTE(c, 0)] ^ T2[BYTE(c, 2)] ^ T3[BYTE(c, 4)] ^ T4[BYTE(c, 6)]; \
+	t1 = T1[BYTE(c, 7)] ^ T2[BYTE(c, 5)] ^ T3[BYTE(c, 3)] ^ T4[BYTE(c, 1)]; \
 	a -= t0; \
 	b += t1; \
 	b *= mul; \
 }
 
 
-#define PASS(a, b, c, mul)    { \
+#define TIGER_PASS(a, b, c, mul)    { \
 		TIGER_ROUND(a, b, c, X0, mul); \
 		TIGER_ROUND(b, c, a, X1, mul); \
 		TIGER_ROUND(c, a, b, X2, mul); \
@@ -601,11 +596,11 @@ inline uint __byte_perm (const uint a, const uint b, const uint c)
 		X5 = (in[5]); \
 		X6 = (in[6]); \
 		X7 = (in[7]); \
-		PASS(A, B, C, 5); \
+		TIGER_PASS(A, B, C, 5); \
 		KSCHED; \
-		PASS(C, A, B, 7); \
+		TIGER_PASS(C, A, B, 7); \
 		KSCHED; \
-		PASS(B, C, A, 9); \
+		TIGER_PASS(B, C, A, 9); \
  \
 		(r)[0] ^= A; \
 		(r)[1] = SPH_T64(B - (r)[1]); \
