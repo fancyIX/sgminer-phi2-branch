@@ -819,7 +819,6 @@ static cl_int queue_x22i_kernel(struct __clState *clState, struct _dev_blk_ctx *
   CL_SET_ARG_N(1, clState->buffer1);
   CL_SET_ARG_N(2, clState->buffer2);
   CL_SET_ARG_N(3, clState->buffer3);
-  CL_SET_ARG_N(4, clState->MatrixBuf);
   // haval - search17
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
   // tiger - search18

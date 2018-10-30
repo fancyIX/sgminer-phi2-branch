@@ -870,7 +870,6 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   }
   else if (algorithm->type == ALGO_X22I) {
     buf4size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states  // only do half lyar2v2
-    buf5size = 1024 * 8 * cgpu->thread_concurrency; //swifftx matrix
     bufsize = 8 * 8 * cgpu->thread_concurrency;
 
     applog(LOG_DEBUG, "x22i buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
@@ -966,11 +965,6 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       clState->MidstateBuf = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf4size, NULL, &status);
       if (status != CL_SUCCESS && !clState->MidstateBuf) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (MidstateBuf), decrease TC or increase LG", status);
-        return NULL;
-      }
-      clState->MatrixBuf = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf5size, NULL, &status);
-      if (status != CL_SUCCESS && !clState->MatrixBuf) {
-        applog(LOG_DEBUG, "Error %d: clCreateBuffer (MatrixBuf), decrease TC or increase LG", status);
         return NULL;
       }
     }

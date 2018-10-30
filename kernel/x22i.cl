@@ -1439,7 +1439,7 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 
 // swifftx hash hash1 hash2 hash3
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3, __global int *Matrix)
+__kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
 {
     uint gid = get_global_id(0);
     uint offset = get_global_offset(0);
