@@ -1438,7 +1438,7 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 }
 
 // swifftx hash hash1 hash2 hash3
-__attribute__((reqd_work_group_size(128, 1, 1)))
+__attribute__((reqd_work_group_size(16, 8, 1)))
 __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
 {
     uint gid = get_global_id(0);
@@ -1447,24 +1447,26 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     uint tid = get_local_id(0);
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
-  __local unsigned char S_intermediate[(SFT_N*3 + 8) * 128];
+  __local swift_int32_t S_sum[3*SFT_N * SFT_NSLOT];
+  __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
+  __local uchar S_carry[8 * SFT_NSLOT];
 
   uint in[64];
 
-  const int blockSize = min(256, 128); //blockDim.x;
+  const int blockSize = min(256, WORKSIZE); //blockDim.x;
 
-  if (tid < 256) {
-  #pragma unroll
-  for (int i=0; i<(256/blockSize); i++) {
-    S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
-  }
+  if (tid < 256 && SFT_STRIDE == 0) {
+    #pragma unroll
+    for (int i=0; i<(256/blockSize); i++) {
+      S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
+    }
 
-  #pragma unroll
-  for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
-    S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
+    #pragma unroll
+    for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
+      S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
   }
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
 
   {
     __global uint* inout = &g_hash [thread<<4];
@@ -1480,11 +1482,13 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
       in[i + 48] = in3  [i];
     }
 
-    e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers, S_intermediate);
+    e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry);
 
-    #pragma unroll
-    for (int i = 0; i < 16; i++)
-      inout[i] = in[i];
+    if (SFT_STRIDE < 2) {
+      #pragma unroll
+      for (int i = 0; i < 8; i++)
+        inout[i] = in[8 * SFT_STRIDE + i];
+    }
    }
 }
 
