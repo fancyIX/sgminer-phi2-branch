@@ -1438,7 +1438,7 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 }
 
 // swifftx hash hash1 hash2 hash3
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__attribute__((reqd_work_group_size(128, 1, 1)))
 __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
 {
     uint gid = get_global_id(0);
@@ -1447,10 +1447,11 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     uint tid = get_local_id(0);
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
+  __local unsigned char S_intermediate[(SFT_N*3 + 8) * 128];
 
   uint in[64];
 
-  const int blockSize = min(256, WORKSIZE); //blockDim.x;
+  const int blockSize = min(256, 128); //blockDim.x;
 
   if (tid < 256) {
   #pragma unroll
@@ -1463,6 +1464,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
   }
   }
+  barrier(CLK_LOCAL_MEM_FENCE);
 
   {
     __global uint* inout = &g_hash [thread<<4];
@@ -1478,7 +1480,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
       in[i + 48] = in3  [i];
     }
 
-    e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers);
+    e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers, S_intermediate);
 
     #pragma unroll
     for (int i = 0; i < 16; i++)
