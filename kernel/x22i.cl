@@ -1438,13 +1438,13 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 }
 
 // swifftx hash hash1 hash2 hash3
-__attribute__((reqd_work_group_size(16, 8, 1)))
+__attribute__((reqd_work_group_size(8, 16, 1)))
 __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
 {
-    uint gid = get_global_id(0);
-    uint offset = get_global_offset(0);
+    uint gid = get_global_id(1);
+    uint offset = get_global_offset(1);
     uint thread = gid - offset;
-    uint tid = get_local_id(0);
+    uint tid = get_local_id(1);
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local swift_int32_t S_sum[3*SFT_N * SFT_NSLOT];
@@ -1453,7 +1453,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 
   uint in[64];
 
-  const int blockSize = min(256, WORKSIZE); //blockDim.x;
+  const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
   if (tid < 256 && SFT_STRIDE == 0) {
     #pragma unroll
@@ -1484,11 +1484,8 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 
     e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry);
 
-    if (SFT_STRIDE < 2) {
-      #pragma unroll
-      for (int i = 0; i < 8; i++)
-        inout[i] = in[8 * SFT_STRIDE + i];
-    }
+        inout[2 * SFT_STRIDE] = in[2 * SFT_STRIDE];
+        inout[2 * SFT_STRIDE + 1] = in[2 * SFT_STRIDE + 1];
    }
 }
 

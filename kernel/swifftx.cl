@@ -1,17 +1,17 @@
 
 #define BLOCKSZ 32
 
-typedef signed char swift_int8_t;
-typedef unsigned char swift_uint8_t;
+typedef char swift_int8_t;
+typedef uchar swift_uint8_t;
 
 typedef short swift_int16_t;
-typedef unsigned short swift_uint16_t;
+typedef ushort swift_uint16_t;
 
 typedef int swift_int32_t;
-typedef unsigned int swift_uint32_t;
+typedef uint swift_uint32_t;
 
-typedef long long swift_int64_t;
-typedef unsigned long long swift_uint64_t;
+typedef long swift_int64_t;
+typedef ulong swift_uint64_t;
 
 
 #define SWIFFTX_INPUT_BLOCK_SIZE 256
@@ -465,16 +465,19 @@ unsigned char SFT_SBox[256] = {
 
 #define SFT_NSTRIDE (8)
 #define SFT_NSLOT (16)
-#define SFT_LOCAL_LINEAR (get_local_id(1) * SFT_NSLOT + get_local_id(0))
-#define SFT_STRIDE (get_local_id(1))
-#define SFT_SLOT (get_local_id(0))
+#define SFT_LOCAL_LINEAR (get_local_id(1) * SFT_NSTRIDE + get_local_id(0))
+#define SFT_STRIDE (get_local_id(0))
+#define SFT_SLOT (get_local_id(1))
 #define SFT_SUM_SZ (3*SFT_N)
+#define SFT_BLOCK (get_local_id(1) * SFT_NSTRIDE)
+
+//#define SFT_SUM_STRIDE(i) (sum[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (((i) - SFT_STRIDE) / SFT_NSTRIDE)])
 #define SFT_SUM(i) (sum[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_SUM_STRIDE(i) (sum[SFT_SLOT + SFT_NSLOT * (i)])
-#define SFT_INTERMEDIATE(i) (intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_INTERMEDIATE_STRIDE(i) (intermediate[SFT_SLOT + SFT_NSLOT * (i)])
+#define SFT_SUM_STRIDE(i) (sum[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 #define SFT_CARRY(i) (carry[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_CARRY_STRIDE(i) (carry[SFT_SLOT + SFT_NSLOT * (i)])
+#define SFT_CARRY_STRIDE(i) (carry[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
+#define SFT_INTERMEDIATE(i) (intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
+#define SFT_INTERMEDIATE_STRIDE(i) (intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 
 swift_int16_t TranslateToBase256(swift_int32_t input[EIGHTH_N], unsigned char output[EIGHTH_N]) {
   swift_int32_t pairs[EIGHTH_N / 2];
@@ -556,7 +559,7 @@ swift_int16_t TranslateToBase256_O(__local swift_int32_t *sum, uint sb, unsigned
     output[i] = SFT_BYTE(pairs[i >> 1], 0);
     output[i + 1] = SFT_BYTE(pairs[i >> 1], 1);
   }
-
+  
   return (pairs[EIGHTH_N/2 - 1] >> 16);
 }
 
@@ -681,11 +684,14 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
           __local uchar *carry) {
   // swift_int32_t sum[3*SFT_N];
   // setzero(sum, 3*SFT_N*sizeof(swift_int32_t));
+  
   #pragma unroll
-  for (int i = 0; i < 3*SFT_N*sizeof(swift_int32_t) / SFT_NSTRIDE; i++) {
-    SFT_SUM(i) = 0;
+  for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {
+    const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
+    SFT_SUM_STRIDE(ii) = 0;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
+
 
   #pragma nounroll
   for (int i=0; i<SFT_M; ++i) {
@@ -706,16 +712,21 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
           __constant const swift_int16_t *a = As_j + (k << 11); //As + (k * SFT_M * SFT_N) + (i * SFT_N) + j;
           SFT_SUM_STRIDE(k*SFT_N + jj) += (*f) * (*a);
         }
+        
       }
+      barrier(CLK_LOCAL_MEM_FENCE);
     //}
   }
-  barrier(CLK_LOCAL_MEM_FENCE);
+  
 
   //unsigned char intermediate[SFT_N*3 + 8];
   //setzero(intermediate, 24);
-  for (int i = 0; i < 24 / SFT_NSTRIDE; i++) {
-    SFT_INTERMEDIATE(i) = 0;
+  if (SFT_STRIDE == 0) {
+    for (int i = 0; i < 24; i++) {
+      SFT_INTERMEDIATE_STRIDE(i) = 0;
+    }
   }
+  
   barrier(CLK_LOCAL_MEM_FENCE);
 
   // for (int stride = 0; stride < 8; stride++)
@@ -736,19 +747,24 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
       // carry |= carryBit << jj;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+    int carryb = 0;
     if (SFT_STRIDE == 0) {
-      int carryb = 0;
-      for (int s = 0; s < SFT_NSTRIDE; s++) {
-        carryb |= SFT_CARRY_STRIDE(s);
+      for (int j = 0; j < SFT_NSTRIDE; j++) {
+        carryb |= SFT_CARRY_STRIDE(j) << j;
       }
       SFT_INTERMEDIATE_STRIDE(3*SFT_N+k) = carryb;
     }
+    barrier(CLK_LOCAL_MEM_FENCE);
   }
-  barrier(CLK_LOCAL_MEM_FENCE);
+  
 
   #pragma unroll
   //for (int i = 0; i < (3 * SFT_N) + 3; ++i)
     //intermediate[i] = SBox[intermediate[i]];
+  //#pragma unroll
+  //for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i)
+  //  intermediate[i] = 0x7d;
+
   for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {
     SFT_INTERMEDIATE(i) = SBox[SFT_INTERMEDIATE(i)];
   }
@@ -761,14 +777,11 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
     }
   }
   barrier(CLK_LOCAL_MEM_FENCE);
-
-  //#pragma unroll
-  //for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i)
-  //  intermediate[i] = 0x7d;
-
+  
   //setzero(sum, SFT_N*sizeof(swift_int32_t));
-  for (int i = 0; i < 24 / SFT_NSTRIDE; i++) {
-    SFT_SUM(i) = 0;
+  for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {
+    const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
+    SFT_SUM_STRIDE(ii) = 0;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -786,18 +799,23 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
         SFT_SUM_STRIDE(jj) += (*f) * (*a);
       }
     //}
+    barrier(CLK_LOCAL_MEM_FENCE);
   }
-  barrier(CLK_LOCAL_MEM_FENCE);
+  
+  /**/
   #pragma unroll
   for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {
-    SFT_SUM(j) = (__FIELD_SIZE_22__ + SFT_SUM(j)) % FIELD_SIZE;
+    const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
+    SFT_SUM_STRIDE(jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(jj)) % FIELD_SIZE;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
   #pragma unroll
   for (int j = 0; j < 1; ++j) {
-    const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
+    const uint jj = SFT_STRIDE + (j * SFT_NSTRIDE);
     TranslateToBase256_O(sum, (jj << 3), output + (jj << 3));
   }
+
+  
   barrier(CLK_LOCAL_MEM_FENCE);
 }
