@@ -685,7 +685,7 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   // swift_int32_t sum[3*SFT_N];
   // setzero(sum, 3*SFT_N*sizeof(swift_int32_t));
   
-  #pragma unroll
+  //#pragma unroll
   for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {
     const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
     SFT_SUM_STRIDE(ii) = 0;
@@ -758,7 +758,7 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   }
   
 
-  #pragma unroll
+  //#pragma unroll
   //for (int i = 0; i < (3 * SFT_N) + 3; ++i)
     //intermediate[i] = SBox[intermediate[i]];
   //#pragma unroll
@@ -803,14 +803,14 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   }
   
   /**/
-  #pragma unroll
+  //#pragma unroll
   for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {
     const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
     SFT_SUM_STRIDE(jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(jj)) % FIELD_SIZE;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  #pragma unroll
+  //#pragma unroll
   for (int j = 0; j < 1; ++j) {
     const uint jj = SFT_STRIDE + (j * SFT_NSTRIDE);
     TranslateToBase256_O(sum, (jj << 3), output + (jj << 3));
