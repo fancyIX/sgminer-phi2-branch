@@ -472,345 +472,283 @@ unsigned char SFT_SBox[256] = {
 #define SFT_BLOCK (get_local_id(1) * SFT_NSTRIDE)
 
 //#define SFT_SUM_STRIDE(i) (sum[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (((i) - SFT_STRIDE) / SFT_NSTRIDE)])
-#define SFT_SUM(i) (sum[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_SUM_STRIDE(i) (sum[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
-#define SFT_CARRY(i) (carry[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_CARRY_STRIDE(i) (carry[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
-#define SFT_INTERMEDIATE(i) (intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_INTERMEDIATE_STRIDE(i) (intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
+#define SFT_SUM(i) (S_sum[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
+#define SFT_SUM_STRIDE(i) (S_sum[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
+#define SFT_CARRY(i) (S_carry[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
+#define SFT_CARRY_STRIDE(i) (S_carry[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
+#define SFT_INTERMEDIATE(i) (S_intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
+#define SFT_INTERMEDIATE_STRIDE(i) (S_intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 
-swift_int16_t TranslateToBase256(swift_int32_t input[EIGHTH_N], unsigned char output[EIGHTH_N]) {
-  swift_int32_t pairs[EIGHTH_N / 2];
+#define PRAGMA(X) _Pragma(#X)
+#define PRAGMA_UNROLL PRAGMA(unroll)
+#define PRAGMA_NOUNROLL PRAGMA(nounroll)
 
-  #pragma unroll
-  for (int i = 0; i < EIGHTH_N; i += 2) {
-    pairs[i >> 1] = input[i] + input[i + 1] + (input[i + 1] << 8);
-  }
+#define TranslateToBase256_L(sum,sb,intermediate,ib,pairs) do { \
+  PRAGMA_UNROLL \
+  for (int i = 0; i < EIGHTH_N; i += 2) { \
+    pairs[i >> 1] = SFT_SUM_STRIDE(sb + i) + SFT_SUM_STRIDE(sb + i + 1) + (SFT_SUM_STRIDE(sb + i + 1) << 8); \
+  } \
+ \
+  PRAGMA_UNROLL \
+  for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) { \
+ \
+    PRAGMA_UNROLL \
+    for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) { \
+      swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9); \
+      pairs[j] = temp & 0xffff; \
+      pairs[j + 1] += (temp >> 16); \
+    } \
+  } \
+ \
+  PRAGMA_UNROLL \
+  for (int i = 0; i < EIGHTH_N; i += 2) { \
+    SFT_INTERMEDIATE_STRIDE(ib + i) = SFT_BYTE(pairs[i >> 1], 0); \
+    SFT_INTERMEDIATE_STRIDE(ib + i + 1) = SFT_BYTE(pairs[i >> 1], 1); \
+  } \
+ \
+  SFT_CARRY_STRIDE(jj) = (pairs[EIGHTH_N/2 - 1] >> 16); \
+} while (0);
 
-  #pragma unroll
-  for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) {
-
-    #pragma unroll
-    for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) {
-      swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9);
-      pairs[j] = temp & 0xffff;
-      pairs[j + 1] += (temp >> 16);
-    }
-  }
-
-  #pragma unroll
-  for (int i = 0; i < EIGHTH_N; i += 2) {
-    output[i] = SFT_BYTE(pairs[i >> 1], 0);
-    output[i + 1] = SFT_BYTE(pairs[i >> 1], 1);
-  }
-
-  return (pairs[EIGHTH_N/2 - 1] >> 16);
-}
-
-swift_int16_t TranslateToBase256_L(__local swift_int32_t *sum, uint sb, __local unsigned char *intermediate, uint ib) {
-  swift_int32_t pairs[EIGHTH_N / 2];
-
-  #pragma unroll
-  for (int i = 0; i < EIGHTH_N; i += 2) {
-    pairs[i >> 1] = SFT_SUM_STRIDE(sb + i) + SFT_SUM_STRIDE(sb + i + 1) + (SFT_SUM_STRIDE(sb + i + 1) << 8);
-  }
-
-  #pragma unroll
-  for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) {
-
-    #pragma unroll
-    for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) {
-      swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9);
-      pairs[j] = temp & 0xffff;
-      pairs[j + 1] += (temp >> 16);
-    }
-  }
-
-  #pragma unroll
-  for (int i = 0; i < EIGHTH_N; i += 2) {
-    SFT_INTERMEDIATE_STRIDE(ib + i) = SFT_BYTE(pairs[i >> 1], 0);
-    SFT_INTERMEDIATE_STRIDE(ib + i + 1) = SFT_BYTE(pairs[i >> 1], 1);
-  }
-
-  return (pairs[EIGHTH_N/2 - 1] >> 16);
-}
-
-swift_int16_t TranslateToBase256_O(__local swift_int32_t *sum, uint sb, unsigned char *output) {
-  swift_int32_t pairs[EIGHTH_N / 2];
-
-  #pragma unroll
-  for (int i = 0; i < EIGHTH_N; i += 2) {
-    pairs[i >> 1] = SFT_SUM_STRIDE(sb + i) + SFT_SUM_STRIDE(sb + i + 1) + (SFT_SUM_STRIDE(sb + i + 1) << 8);
-  }
-
-  #pragma unroll
-  for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) {
-
-    #pragma unroll
-    for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) {
-      swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9);
-      pairs[j] = temp & 0xffff;
-      pairs[j + 1] += (temp >> 16);
-    }
-  }
-
-  #pragma unroll
-  for (int i = 0; i < EIGHTH_N; i += 2) {
-    output[i] = SFT_BYTE(pairs[i >> 1], 0);
-    output[i + 1] = SFT_BYTE(pairs[i >> 1], 1);
-  }
-  
-  return (pairs[EIGHTH_N/2 - 1] >> 16);
-}
-
-
-void e_FFT_staged_int4(const unsigned char input[EIGHTH_N], swift_int32_t *output,
-		       __local const swift_int16_t *fftTable,
-		       __constant const swift_int16_t *multipliers,
-		       int i /* stage */) {
-
-  swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7;
-
-  F0  = multipliers[0 + (i << 3)] * *(&fftTable[input[0] << 3] + i);
-  F1  = multipliers[1 + (i << 3)] * *(&fftTable[input[1] << 3] + i);
-  F2  = multipliers[2 + (i << 3)] * *(&fftTable[input[2] << 3] + i);
-  F3  = multipliers[3 + (i << 3)] * *(&fftTable[input[3] << 3] + i);
-  F4  = multipliers[4 + (i << 3)] * *(&fftTable[input[4] << 3] + i);
-  F5  = multipliers[5 + (i << 3)] * *(&fftTable[input[5] << 3] + i);
-  F6  = multipliers[6 + (i << 3)] * *(&fftTable[input[6] << 3] + i);
-  F7  = multipliers[7 + (i << 3)] * *(&fftTable[input[7] << 3] + i);
-
-  int4 a0 = (int4) (F0, F2, F4, F6);
-  int4 a1 = (int4) (F1, F3, F5, F7);
+#define TranslateToBase256_O(sum,sb,output,pairs) do { \
+ \
+  PRAGMA_UNROLL \
+  for (int i = 0; i < EIGHTH_N; i += 2) { \
+    pairs[i >> 1] = SFT_SUM_STRIDE(sb + i) + SFT_SUM_STRIDE(sb + i + 1) + (SFT_SUM_STRIDE(sb + i + 1) << 8); \
+  } \
+ \
+  PRAGMA_UNROLL \
+  for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) { \
+ \
+    PRAGMA_UNROLL \
+    for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) { \
+      swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9); \
+      pairs[j] = temp & 0xffff; \
+      pairs[j + 1] += (temp >> 16); \
+    } \
+  } \
+ \
+  PRAGMA_UNROLL \
+  for (int i = 0; i < EIGHTH_N; i += 2) { \
+    (output)[i] = SFT_BYTE(pairs[i >> 1], 0); \
+    (output)[i + 1] = SFT_BYTE(pairs[i >> 1], 1); \
+  } \
+   \
+  SFT_CARRY_STRIDE(jj) = (pairs[EIGHTH_N/2 - 1] >> 16); \
+} while (0);
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
 
-  ADD_SUB4(a0, a1);
+#define e_FFT_staged_int4(input,output, fftTable,multipliers,i) { \
+ \
+  swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
+ \
+  F0  = multipliers[0 + (i << 3)] * *(&fftTable[(input)[0] << 3] + i); \
+  F1  = multipliers[1 + (i << 3)] * *(&fftTable[(input)[1] << 3] + i); \
+  F2  = multipliers[2 + (i << 3)] * *(&fftTable[(input)[2] << 3] + i); \
+  F3  = multipliers[3 + (i << 3)] * *(&fftTable[(input)[3] << 3] + i); \
+  F4  = multipliers[4 + (i << 3)] * *(&fftTable[(input)[4] << 3] + i); \
+  F5  = multipliers[5 + (i << 3)] * *(&fftTable[(input)[5] << 3] + i); \
+  F6  = multipliers[6 + (i << 3)] * *(&fftTable[(input)[6] << 3] + i); \
+  F7  = multipliers[7 + (i << 3)] * *(&fftTable[(input)[7] << 3] + i); \
+ \
+  int4 a0 = (int4) (F0, F2, F4, F6); \
+  int4 a1 = (int4) (F1, F3, F5, F7); \
+ \
+ \
+  ADD_SUB4(a0, a1); \
+ \
+  a1.y <<= 4; \
+  a1.w <<= 4; \
+ \
+  int4 b0 = (int4) (a0.x, a1.x, a0.z, a1.z); \
+  int4 b1 = (int4) (a0.y, a1.y, a0.w, a1.w); \
+ \
+  ADD_SUB4(b0, b1); \
+ \
+  b0.w <<= 2; \
+  b1.z <<= 4; \
+  b1.w <<= 6; \
+ \
+  int4 c0 = (int4) (b0.x, b0.y, b1.x, b1.y); \
+  int4 c1 = (int4) (b0.z, b0.w, b1.z, b1.w); \
+ \
+  ADD_SUB4(c0, c1); \
+ \
+  (output)[0] = Q_REDUCE(c0.x); \
+  (output)[1] = Q_REDUCE(c0.y); \
+  (output)[2] = Q_REDUCE(c0.z); \
+  (output)[3] = Q_REDUCE(c0.w); \
+  (output)[4] = Q_REDUCE(c1.x); \
+  (output)[5] = Q_REDUCE(c1.y); \
+  (output)[6] = Q_REDUCE(c1.z); \
+  (output)[7] = Q_REDUCE(c1.w); \
+} while (0);
 
-  a1.y <<= 4;
-  a1.w <<= 4;
-
-  int4 b0 = (int4) (a0.x, a1.x, a0.z, a1.z);
-  int4 b1 = (int4) (a0.y, a1.y, a0.w, a1.w);
-
-  ADD_SUB4(b0, b1);
-
-  b0.w <<= 2;
-  b1.z <<= 4;
-  b1.w <<= 6;
-
-  int4 c0 = (int4) (b0.x, b0.y, b1.x, b1.y);
-  int4 c1 = (int4) (b0.z, b0.w, b1.z, b1.w);
-
-  ADD_SUB4(c0, c1);
-
-  output[0] = Q_REDUCE(c0.x);
-  output[1] = Q_REDUCE(c0.y);
-  output[2] = Q_REDUCE(c0.z);
-  output[3] = Q_REDUCE(c0.w);
-  output[4] = Q_REDUCE(c1.x);
-  output[5] = Q_REDUCE(c1.y);
-  output[6] = Q_REDUCE(c1.z);
-  output[7] = Q_REDUCE(c1.w);
-}
-
-void e_FFT_staged_int4_L(__local const unsigned char *intermediate, uint ib, swift_int32_t *output,
-		       __local const swift_int16_t *fftTable,
-		       __constant const swift_int16_t *multipliers,
-		       int i /* stage */) {
-
-  swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7;
-
-  F0  = multipliers[0 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 0) << 3] + i);
-  F1  = multipliers[1 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 1) << 3] + i);
-  F2  = multipliers[2 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 2) << 3] + i);
-  F3  = multipliers[3 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 3) << 3] + i);
-  F4  = multipliers[4 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 4) << 3] + i);
-  F5  = multipliers[5 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 5) << 3] + i);
-  F6  = multipliers[6 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 6) << 3] + i);
-  F7  = multipliers[7 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 7) << 3] + i);
-
-  int4 a0 = (int4) (F0, F2, F4, F6);
-  int4 a1 = (int4) (F1, F3, F5, F7);
-
-#define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
-
-  ADD_SUB4(a0, a1);
-
-  a1.y <<= 4;
-  a1.w <<= 4;
-
-  int4 b0 = (int4) (a0.x, a1.x, a0.z, a1.z);
-  int4 b1 = (int4) (a0.y, a1.y, a0.w, a1.w);
-
-  ADD_SUB4(b0, b1);
-
-  b0.w <<= 2;
-  b1.z <<= 4;
-  b1.w <<= 6;
-
-  int4 c0 = (int4) (b0.x, b0.y, b1.x, b1.y);
-  int4 c1 = (int4) (b0.z, b0.w, b1.z, b1.w);
-
-  ADD_SUB4(c0, c1);
-
-  output[0] = Q_REDUCE(c0.x);
-  output[1] = Q_REDUCE(c0.y);
-  output[2] = Q_REDUCE(c0.z);
-  output[3] = Q_REDUCE(c0.w);
-  output[4] = Q_REDUCE(c1.x);
-  output[5] = Q_REDUCE(c1.y);
-  output[6] = Q_REDUCE(c1.z);
-  output[7] = Q_REDUCE(c1.w);
-}
+#define e_FFT_staged_int4_L(intermediate, ib, output, fftTable, multipliers,i ) { \
+ \
+  swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
+ \
+  F0  = multipliers[0 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 0) << 3] + i); \
+  F1  = multipliers[1 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 1) << 3] + i); \
+  F2  = multipliers[2 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 2) << 3] + i); \
+  F3  = multipliers[3 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 3) << 3] + i); \
+  F4  = multipliers[4 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 4) << 3] + i); \
+  F5  = multipliers[5 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 5) << 3] + i); \
+  F6  = multipliers[6 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 6) << 3] + i); \
+  F7  = multipliers[7 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 7) << 3] + i); \
+ \
+  int4 a0 = (int4) (F0, F2, F4, F6); \
+  int4 a1 = (int4) (F1, F3, F5, F7); \
+ \
+ \
+  ADD_SUB4(a0, a1); \
+ \
+  a1.y <<= 4; \
+  a1.w <<= 4; \
+ \
+  int4 b0 = (int4) (a0.x, a1.x, a0.z, a1.z); \
+  int4 b1 = (int4) (a0.y, a1.y, a0.w, a1.w); \
+ \
+  ADD_SUB4(b0, b1); \
+ \
+  b0.w <<= 2; \
+  b1.z <<= 4; \
+  b1.w <<= 6; \
+ \
+  int4 c0 = (int4) (b0.x, b0.y, b1.x, b1.y); \
+  int4 c1 = (int4) (b0.z, b0.w, b1.z, b1.w); \
+ \
+  ADD_SUB4(c0, c1); \
+ \
+  output[0] = Q_REDUCE(c0.x); \
+  output[1] = Q_REDUCE(c0.y); \
+  output[2] = Q_REDUCE(c0.z); \
+  output[3] = Q_REDUCE(c0.w); \
+  output[4] = Q_REDUCE(c1.x); \
+  output[5] = Q_REDUCE(c1.y); \
+  output[6] = Q_REDUCE(c1.z); \
+  output[7] = Q_REDUCE(c1.w); \
+} while (0);
 
 //__shared__ swift_int32_t __FIELD_SIZE_22__;
 #define __FIELD_SIZE_22__ (FIELD_SIZE << 22)
 
-void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
-			    unsigned char output[SWIFFTX_OUTPUT_BLOCK_SIZE],
-			    __local const unsigned char SBox[256],
-			    __constant const swift_int16_t As[3*SFT_M*SFT_N],
-			    __local const swift_int16_t fftTable[256 * EIGHTH_N],
-			    __constant const swift_int16_t multipliers[64],
-          __local swift_int32_t *sum,
-          __local unsigned char *intermediate,
-          __local uchar *carry) {
-  // swift_int32_t sum[3*SFT_N];
-  // setzero(sum, 3*SFT_N*sizeof(swift_int32_t));
-  
-  #pragma unroll
-  for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {
-    const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
-    SFT_SUM_STRIDE(ii) = 0;
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-
-  #pragma nounroll
-  for (int i=0; i<SFT_M; ++i) {
-    //#pragma unroll
-    //for (int stride=0; stride<8; stride++) { // 0 8 16 24 32 40 48 56
-      swift_int32_t fftOut[8];
-      e_FFT_staged_int4(input + (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);
-      __constant const swift_int16_t *As_i = As + (i*SFT_N);
-
-      #pragma unroll
-      for (int j=0; j<SFT_N/ SFT_NSTRIDE; j++) {
-        const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
-        __constant const swift_int16_t *As_j = As_i + jj;
-        const swift_int32_t *f = fftOut + j;
-
-        #pragma unroll
-        for (int k=0; k<3; ++k) {
-          __constant const swift_int16_t *a = As_j + (k << 11); //As + (k * SFT_M * SFT_N) + (i * SFT_N) + j;
-          SFT_SUM_STRIDE(k*SFT_N + jj) += (*f) * (*a);
-        }
-        
-      }
-      barrier(CLK_LOCAL_MEM_FENCE);
-    //}
-  }
-  
-
-  //unsigned char intermediate[SFT_N*3 + 8];
-  //setzero(intermediate, 24);
-  if (SFT_STRIDE == 0) {
-    for (int i = 0; i < 24; i++) {
-      SFT_INTERMEDIATE_STRIDE(i) = 0;
-    }
-  }
-  
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  // for (int stride = 0; stride < 8; stride++)
-  #pragma unroll
-  for (int k=0; k<3; ++k) {
-
-    #pragma unroll
-    for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {
-      const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
-      SFT_SUM_STRIDE(k*SFT_N + jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(k*SFT_N + jj)) % FIELD_SIZE;
-    }
-
-    // int carry=0;
-    #pragma unroll
-    for (int j = 0; j < 1 ; ++j) {
-      const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
-      SFT_CARRY_STRIDE(jj) = TranslateToBase256_L(sum, (k*SFT_N) + (jj << 3), intermediate, (k*SFT_N) + (jj << 3));
-      // carry |= carryBit << jj;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-    int carryb = 0;
-    if (SFT_STRIDE == 0) {
-      for (int j = 0; j < SFT_NSTRIDE; j++) {
-        carryb |= SFT_CARRY_STRIDE(j) << j;
-      }
-      SFT_INTERMEDIATE_STRIDE(3*SFT_N+k) = carryb;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-  }
-  
-
-  #pragma unroll
-  //for (int i = 0; i < (3 * SFT_N) + 3; ++i)
-    //intermediate[i] = SBox[intermediate[i]];
-  //#pragma unroll
-  //for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i)
-  //  intermediate[i] = 0x7d;
-
-  for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {
-    SFT_INTERMEDIATE(i) = SBox[SFT_INTERMEDIATE(i)];
-  }
-  if (SFT_STRIDE == 0) {
-    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 0) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 0)];
-    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 1) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 1)];
-    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 2) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 2)];
-    for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i) {
-      SFT_INTERMEDIATE_STRIDE(i) = 0x7d;
-    }
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-  
-  #pragma unroll
-  //setzero(sum, SFT_N*sizeof(swift_int32_t));
-  for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {
-    const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
-    SFT_SUM_STRIDE(ii) = 0;
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  #pragma nounroll
-  for (int i=0; i<SFT_M_2; ++i) {
-    swift_int32_t fftOut[8];
-    //#pragma unroll
-    //for (int stride=0; stride<8; stride++) {
-      e_FFT_staged_int4_L(intermediate, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);
-      #pragma unroll
-      for (int j=0; j<SFT_N/8; ++j) {
-        const int jj = SFT_STRIDE + (j << 3);
-        __constant const swift_int16_t *a = As + (i * SFT_N) + jj;
-        const swift_int32_t *f = fftOut + j;
-        SFT_SUM_STRIDE(jj) += (*f) * (*a);
-      }
-    //}
-    barrier(CLK_LOCAL_MEM_FENCE);
-  }
-  
-  /**/
-  #pragma unroll
-  for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {
-    const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
-    SFT_SUM_STRIDE(jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(jj)) % FIELD_SIZE;
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  #pragma unroll
-  for (int j = 0; j < 1; ++j) {
-    const uint jj = SFT_STRIDE + (j * SFT_NSTRIDE);
-    TranslateToBase256_O(sum, (jj << 3), output + (jj << 3));
-  }
-
-  
-  barrier(CLK_LOCAL_MEM_FENCE);
-}
+#define e_ComputeSingleSWIFFTX(input,output,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs) do {    \
+      \
+  PRAGMA_UNROLL    \
+  for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {   \
+    const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);   \
+    SFT_SUM_STRIDE(ii) = 0;   \
+  }   \
+  barrier(CLK_LOCAL_MEM_FENCE);   \
+   \
+   \
+  PRAGMA_NOUNROLL   \
+  for (int i=0; i<SFT_M; ++i) {   \
+      swift_int32_t fftOut[8];   \
+      e_FFT_staged_int4(input + (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
+      __constant const swift_int16_t *As_i = As + (i*SFT_N);   \
+   \
+      PRAGMA_UNROLL   \
+      for (int j=0; j<SFT_N/ SFT_NSTRIDE; j++) {   \
+        const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
+        __constant const swift_int16_t *As_j = As_i + jj;   \
+        const swift_int32_t *f = fftOut + j;   \
+   \
+        PRAGMA_UNROLL   \
+        for (int k=0; k<3; ++k) {   \
+          __constant const swift_int16_t *a = As_j + (k << 11);   \
+          SFT_SUM_STRIDE(k*SFT_N + jj) += (*f) * (*a);   \
+        }   \
+           \
+      }   \
+      barrier(CLK_LOCAL_MEM_FENCE);   \
+  }   \
+     \
+   \
+  if (SFT_STRIDE == 0) {   \
+    for (int i = 0; i < 24; i++) {   \
+      SFT_INTERMEDIATE_STRIDE(i) = 0;   \
+    }   \
+  }   \
+     \
+  barrier(CLK_LOCAL_MEM_FENCE);   \
+   \
+  PRAGMA_UNROLL   \
+  for (int k=0; k<3; ++k) {   \
+   \
+    PRAGMA_UNROLL   \
+    for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {   \
+      const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
+      SFT_SUM_STRIDE(k*SFT_N + jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(k*SFT_N + jj)) % FIELD_SIZE;   \
+    }   \
+   \
+    PRAGMA_UNROLL   \
+    for (int j = 0; j < 1 ; ++j) {   \
+      const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
+      TranslateToBase256_L(sum, (k*SFT_N) + (jj << 3), intermediate, (k*SFT_N) + (jj << 3), pairs);   \
+    }   \
+    barrier(CLK_LOCAL_MEM_FENCE);   \
+    int carryb = 0;   \
+    if (SFT_STRIDE == 0) {   \
+      for (int j = 0; j < SFT_NSTRIDE; j++) {   \
+        carryb |= SFT_CARRY_STRIDE(j) << j;   \
+      }   \
+      SFT_INTERMEDIATE_STRIDE(3*SFT_N+k) = carryb;   \
+    }   \
+    barrier(CLK_LOCAL_MEM_FENCE);   \
+  }   \
+     \
+   \
+  PRAGMA_UNROLL   \
+   \
+  for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {   \
+    SFT_INTERMEDIATE(i) = SBox[SFT_INTERMEDIATE(i)];   \
+  }   \
+  if (SFT_STRIDE == 0) {   \
+    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 0) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 0)];   \
+    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 1) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 1)];   \
+    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 2) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 2)];   \
+    for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i) {   \
+      SFT_INTERMEDIATE_STRIDE(i) = 0x7d;   \
+    }   \
+  }   \
+  barrier(CLK_LOCAL_MEM_FENCE);   \
+     \
+  PRAGMA_UNROLL   \
+  for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {   \
+    const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);   \
+    SFT_SUM_STRIDE(ii) = 0;   \
+  }   \
+  barrier(CLK_LOCAL_MEM_FENCE);   \
+   \
+  PRAGMA_NOUNROLL   \
+  for (int i=0; i<SFT_M_2; ++i) {   \
+    swift_int32_t fftOut[8];   \
+      e_FFT_staged_int4_L(intermediate, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
+      PRAGMA_UNROLL   \
+      for (int j=0; j<SFT_N/8; ++j) {   \
+        const int jj = SFT_STRIDE + (j << 3);   \
+        __constant const swift_int16_t *a = As + (i * SFT_N) + jj;   \
+        const swift_int32_t *f = fftOut + j;   \
+        SFT_SUM_STRIDE(jj) += (*f) * (*a);   \
+      }   \
+    barrier(CLK_LOCAL_MEM_FENCE);   \
+  }   \
+     \
+  PRAGMA_UNROLL   \
+  for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {   \
+    const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
+    SFT_SUM_STRIDE(jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(jj)) % FIELD_SIZE;   \
+  }   \
+  barrier(CLK_LOCAL_MEM_FENCE);   \
+   \
+  PRAGMA_UNROLL   \
+  for (int j = 0; j < 1; ++j) {   \
+    const uint jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
+    TranslateToBase256_O(sum, (jj << 3), output + (jj << 3), pairs);   \
+  }   \
+   \
+     \
+  barrier(CLK_LOCAL_MEM_FENCE);   \
+} while (0);
