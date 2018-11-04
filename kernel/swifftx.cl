@@ -667,12 +667,6 @@ void e_FFT_staged_int4_L(__local const unsigned char *intermediate, uint ib, swi
 //__shared__ swift_int32_t __FIELD_SIZE_22__;
 #define __FIELD_SIZE_22__ (FIELD_SIZE << 22)
 
-void setzero(void *a, int size) {
-  swift_int64_t *ptr = (swift_int64_t *)a;
-  #pragma unroll
-  for (int i=0; i<(size/8); i++) ptr[i] = 0;
-}
-
 void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
 			    unsigned char output[SWIFFTX_OUTPUT_BLOCK_SIZE],
 			    __local const unsigned char SBox[256],
@@ -778,6 +772,7 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   }
   barrier(CLK_LOCAL_MEM_FENCE);
   
+  #pragma unroll
   //setzero(sum, SFT_N*sizeof(swift_int32_t));
   for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {
     const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
