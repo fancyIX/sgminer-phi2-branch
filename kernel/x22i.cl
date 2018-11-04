@@ -1450,6 +1450,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local swift_int32_t S_sum[3*SFT_N * SFT_NSLOT];
   __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
   __local uchar S_carry[8 * SFT_NSLOT];
+  swift_int32_t pairs[EIGHTH_N / 2];
 
   uint in[64];
 
@@ -1482,7 +1483,8 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
       in[i + 48] = in3  [i];
     }
 
-    e_ComputeSingleSWIFFTX((unsigned char*)in, (unsigned char*)in, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry);
+    unsigned char* inptr = (unsigned char*)in;
+    e_ComputeSingleSWIFFTX(inptr, inptr, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
 
         inout[2 * SFT_STRIDE] = in[2 * SFT_STRIDE];
         inout[2 * SFT_STRIDE + 1] = in[2 * SFT_STRIDE + 1];
