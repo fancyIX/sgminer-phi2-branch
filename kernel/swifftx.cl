@@ -685,7 +685,7 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   // swift_int32_t sum[3*SFT_N];
   // setzero(sum, 3*SFT_N*sizeof(swift_int32_t));
   
-  //#pragma unroll
+  #pragma unroll
   for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {
     const int ii = SFT_STRIDE + (i * SFT_NSTRIDE);
     SFT_SUM_STRIDE(ii) = 0;
@@ -701,13 +701,13 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
       e_FFT_staged_int4(input + (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);
       __constant const swift_int16_t *As_i = As + (i*SFT_N);
 
-      //#pragma unroll
+      #pragma unroll
       for (int j=0; j<SFT_N/ SFT_NSTRIDE; j++) {
         const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
         __constant const swift_int16_t *As_j = As_i + jj;
         const swift_int32_t *f = fftOut + j;
 
-        //#pragma unroll
+        #pragma unroll
         for (int k=0; k<3; ++k) {
           __constant const swift_int16_t *a = As_j + (k << 11); //As + (k * SFT_M * SFT_N) + (i * SFT_N) + j;
           SFT_SUM_STRIDE(k*SFT_N + jj) += (*f) * (*a);
@@ -730,17 +730,17 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   barrier(CLK_LOCAL_MEM_FENCE);
 
   // for (int stride = 0; stride < 8; stride++)
-  //#pragma unroll
+  #pragma unroll
   for (int k=0; k<3; ++k) {
 
-    //#pragma unroll
+    #pragma unroll
     for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {
       const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
       SFT_SUM_STRIDE(k*SFT_N + jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(k*SFT_N + jj)) % FIELD_SIZE;
     }
 
     // int carry=0;
-    //#pragma unroll
+    #pragma unroll
     for (int j = 0; j < 1 ; ++j) {
       const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
       SFT_CARRY_STRIDE(jj) = TranslateToBase256_L(sum, (k*SFT_N) + (jj << 3), intermediate, (k*SFT_N) + (jj << 3));
@@ -758,7 +758,7 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   }
   
 
-  //#pragma unroll
+  #pragma unroll
   //for (int i = 0; i < (3 * SFT_N) + 3; ++i)
     //intermediate[i] = SBox[intermediate[i]];
   //#pragma unroll
@@ -785,13 +785,13 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  //#pragma nounroll
+  #pragma nounroll
   for (int i=0; i<SFT_M_2; ++i) {
     swift_int32_t fftOut[8];
     //#pragma unroll
     //for (int stride=0; stride<8; stride++) {
       e_FFT_staged_int4_L(intermediate, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);
-      //#pragma unroll
+      #pragma unroll
       for (int j=0; j<SFT_N/8; ++j) {
         const int jj = SFT_STRIDE + (j << 3);
         __constant const swift_int16_t *a = As + (i * SFT_N) + jj;
@@ -803,14 +803,14 @@ void e_ComputeSingleSWIFFTX(unsigned char input[SWIFFTX_INPUT_BLOCK_SIZE],
   }
   
   /**/
-  //#pragma unroll
+  #pragma unroll
   for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {
     const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);
     SFT_SUM_STRIDE(jj) = (__FIELD_SIZE_22__ + SFT_SUM_STRIDE(jj)) % FIELD_SIZE;
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  //#pragma unroll
+  #pragma unroll
   for (int j = 0; j < 1; ++j) {
     const uint jj = SFT_STRIDE + (j * SFT_NSTRIDE);
     TranslateToBase256_O(sum, (jj << 3), output + (jj << 3));

@@ -1456,12 +1456,12 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
   if (tid < 256 && SFT_STRIDE == 0) {
-    //#pragma unroll
+    #pragma unroll
     for (int i=0; i<(256/blockSize); i++) {
       S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
     }
 
-    //#pragma unroll
+    #pragma unroll
     for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
       S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
     }
@@ -1474,7 +1474,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global uint* in2   = &g_hash2[thread<<4];
     __global uint* in3   = &g_hash3[thread<<4];
 
-    //#pragma unroll
+    #pragma unroll
     for (int i = 0; i < 16; i++) {
       in[i     ] = inout[i];
       in[i + 16] = in1  [i];
