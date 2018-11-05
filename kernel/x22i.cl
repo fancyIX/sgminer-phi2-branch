@@ -1457,8 +1457,6 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local uchar S_carry[8 * SFT_NSLOT];
   swift_int32_t pairs[EIGHTH_N / 2];
 
-  __local uchar S_in[256 * SFT_NSLOT];
-
   const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
   if (tid < 256 && SFT_STRIDE == 0) {
@@ -1466,29 +1464,15 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     for (int i=0; i<(256/blockSize); i++) {
       S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
     }
-
-    #pragma unroll
-    for (int i = 0; i < 64; i++) {
-      (S_in[SFT_SLOT + SFT_NSLOT * (i)]) = SFT_BYTE(inout[i / 4], (i & 3));
-      (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 1)]) = SFT_BYTE(in1  [(i) / 4], (i & 3));
-      (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 2)]) = SFT_BYTE(in2  [(i) / 4], (i & 3));
-      (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 3)]) = SFT_BYTE(in3  [(i) / 4], (i & 3));
-    }
     barrier(CLK_LOCAL_MEM_FENCE);
   }
 
   {
-    e_ComputeSingleSWIFFTX(S_in, S_in, S_SBox, As, fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
-
     __global unsigned char* inoutptr = (__global unsigned char*)inout;
-        inoutptr[2 * SFT_STRIDE * 4 + 0] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 0)];
-        inoutptr[2 * SFT_STRIDE * 4 + 1] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 1)];
-        inoutptr[2 * SFT_STRIDE * 4 + 2] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 2)];
-        inoutptr[2 * SFT_STRIDE * 4 + 3] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 3)];
-        inoutptr[2 * SFT_STRIDE * 4 + 4] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 4)];
-        inoutptr[2 * SFT_STRIDE * 4 + 5] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 5)];
-        inoutptr[2 * SFT_STRIDE * 4 + 6] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 6)];
-        inoutptr[2 * SFT_STRIDE * 4 + 7] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 7)];
+    __global unsigned char* in1ptr = (__global unsigned char*)in1;
+    __global unsigned char* in2ptr = (__global unsigned char*)in2;
+    __global unsigned char* in3ptr = (__global unsigned char*)in3;
+    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, As, fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
    }
 }
 
