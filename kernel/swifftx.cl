@@ -479,6 +479,8 @@ unsigned char SFT_SBox[256] = {
 #define SFT_INTERMEDIATE(i) (S_intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
 #define SFT_INTERMEDIATE_STRIDE(i) (S_intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 
+#define SFT_BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
+
 #define PRAGMA(X) _Pragma(#X)
 #define PRAGMA_UNROLL PRAGMA(unroll)
 #define PRAGMA_NOUNROLL PRAGMA(nounroll)
@@ -509,7 +511,7 @@ unsigned char SFT_SBox[256] = {
   SFT_CARRY_STRIDE(jj) = (pairs[EIGHTH_N/2 - 1] >> 16); \
 } while (0);
 
-#define TranslateToBase256_O(sum,sb,output,pairs) do { \
+#define TranslateToBase256_O(sum,sb,output,ob,pairs) do { \
  \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
@@ -529,8 +531,8 @@ unsigned char SFT_SBox[256] = {
  \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
-    (output)[i] = SFT_BYTE(pairs[i >> 1], 0); \
-    (output)[i + 1] = SFT_BYTE(pairs[i >> 1], 1); \
+    (output)[SFT_SLOT + SFT_NSLOT * ((ob) + i)] = SFT_BYTE(pairs[i >> 1], 0); \
+    (output)[SFT_SLOT + SFT_NSLOT * ((ob) + i + 1)] = SFT_BYTE(pairs[i >> 1], 1); \
   } \
    \
   SFT_CARRY_STRIDE(jj) = (pairs[EIGHTH_N/2 - 1] >> 16); \
@@ -538,18 +540,18 @@ unsigned char SFT_SBox[256] = {
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
 
-#define e_FFT_staged_int4(input,output, fftTable,multipliers,i) { \
+#define e_FFT_staged_int4_I(input,ib,output, fftTable,multipliers,i) { \
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
-  F0  = multipliers[0 + (i << 3)] * *(&fftTable[(input)[0] << 3] + i); \
-  F1  = multipliers[1 + (i << 3)] * *(&fftTable[(input)[1] << 3] + i); \
-  F2  = multipliers[2 + (i << 3)] * *(&fftTable[(input)[2] << 3] + i); \
-  F3  = multipliers[3 + (i << 3)] * *(&fftTable[(input)[3] << 3] + i); \
-  F4  = multipliers[4 + (i << 3)] * *(&fftTable[(input)[4] << 3] + i); \
-  F5  = multipliers[5 + (i << 3)] * *(&fftTable[(input)[5] << 3] + i); \
-  F6  = multipliers[6 + (i << 3)] * *(&fftTable[(input)[6] << 3] + i); \
-  F7  = multipliers[7 + (i << 3)] * *(&fftTable[(input)[7] << 3] + i); \
+  F0  = multipliers[0 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 0)] << 3] + i); \
+  F1  = multipliers[1 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 1)] << 3] + i); \
+  F2  = multipliers[2 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 2)] << 3] + i); \
+  F3  = multipliers[3 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 3)] << 3] + i); \
+  F4  = multipliers[4 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 4)] << 3] + i); \
+  F5  = multipliers[5 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 5)] << 3] + i); \
+  F6  = multipliers[6 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 6)] << 3] + i); \
+  F7  = multipliers[7 + (i << 3)] * *(&fftTable[(input)[SFT_SLOT + SFT_NSLOT * ((ib) + 7)] << 3] + i); \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
   int4 a1 = (int4) (F1, F3, F5, F7); \
@@ -646,7 +648,7 @@ unsigned char SFT_SBox[256] = {
   PRAGMA_NOUNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
-      e_FFT_staged_int4(input + (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
+      e_FFT_staged_int4_I(input, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
       __constant const swift_int16_t *As_i = As + (i*SFT_N);   \
    \
       PRAGMA_UNROLL   \
@@ -746,7 +748,7 @@ unsigned char SFT_SBox[256] = {
   PRAGMA_UNROLL   \
   for (int j = 0; j < 1; ++j) {   \
     const uint jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
-    TranslateToBase256_O(sum, (jj << 3), output + (jj << 3), pairs);   \
+    TranslateToBase256_O(sum, (jj << 3), output, (jj << 3), pairs);   \
   }   \
    \
      \
