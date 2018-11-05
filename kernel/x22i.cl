@@ -1445,6 +1445,12 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     uint offset = get_global_offset(1);
     uint thread = gid - offset;
     uint tid = get_local_id(1);
+
+    __global uint* inout = &g_hash [thread<<4];
+    __global uint* in1   = &g_hash1[thread<<4];
+    __global uint* in2   = &g_hash2[thread<<4];
+    __global uint* in3   = &g_hash3[thread<<4];
+
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local swift_int32_t S_sum[3*SFT_N * SFT_NSLOT];
@@ -1452,7 +1458,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local uchar S_carry[8 * SFT_NSLOT];
   swift_int32_t pairs[EIGHTH_N / 2];
 
-  uint in[64];
+  __local uchar S_in[256 * SFT_NSLOT];
 
   const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
@@ -1466,28 +1472,29 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
       S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
     }
+
+    #pragma unroll
+    for (int i = 0; i < 64; i++) {
+      (S_in[SFT_SLOT + SFT_NSLOT * (i)]) = SFT_BYTE(inout[i / 4], (i & 3));
+      (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 1)]) = SFT_BYTE(in1  [(i) / 4], (i & 3));
+      (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 2)]) = SFT_BYTE(in2  [(i) / 4], (i & 3));
+      (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 3)]) = SFT_BYTE(in3  [(i) / 4], (i & 3));
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
   }
 
   {
-    __global uint* inout = &g_hash [thread<<4];
-    __global uint* in1   = &g_hash1[thread<<4];
-    __global uint* in2   = &g_hash2[thread<<4];
-    __global uint* in3   = &g_hash3[thread<<4];
+    e_ComputeSingleSWIFFTX(S_in, S_in, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
 
-    #pragma unroll
-    for (int i = 0; i < 16; i++) {
-      in[i     ] = inout[i];
-      in[i + 16] = in1  [i];
-      in[i + 32] = in2  [i];
-      in[i + 48] = in3  [i];
-    }
-
-    unsigned char* inptr = (unsigned char*)in;
-    e_ComputeSingleSWIFFTX(inptr, inptr, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
-
-        inout[2 * SFT_STRIDE] = in[2 * SFT_STRIDE];
-        inout[2 * SFT_STRIDE + 1] = in[2 * SFT_STRIDE + 1];
+    __global unsigned char* inoutptr = (__global unsigned char*)inout;
+        inoutptr[2 * SFT_STRIDE * 4 + 0] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 0)];
+        inoutptr[2 * SFT_STRIDE * 4 + 1] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 1)];
+        inoutptr[2 * SFT_STRIDE * 4 + 2] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 2)];
+        inoutptr[2 * SFT_STRIDE * 4 + 3] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 3)];
+        inoutptr[2 * SFT_STRIDE * 4 + 4] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 4)];
+        inoutptr[2 * SFT_STRIDE * 4 + 5] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 5)];
+        inoutptr[2 * SFT_STRIDE * 4 + 6] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 6)];
+        inoutptr[2 * SFT_STRIDE * 4 + 7] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 7)];
    }
 }
 
