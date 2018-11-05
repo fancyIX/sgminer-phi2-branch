@@ -1452,7 +1452,6 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global uint* in3   = &g_hash3[thread<<4];
 
   __local unsigned char S_SBox[256];
-  __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local swift_int32_t S_sum[3*SFT_N * SFT_NSLOT];
   __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
   __local uchar S_carry[8 * SFT_NSLOT];
@@ -1469,11 +1468,6 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     }
 
     #pragma unroll
-    for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
-      S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
-    }
-
-    #pragma unroll
     for (int i = 0; i < 64; i++) {
       (S_in[SFT_SLOT + SFT_NSLOT * (i)]) = SFT_BYTE(inout[i / 4], (i & 3));
       (S_in[SFT_SLOT + SFT_NSLOT * (i + 64 * 1)]) = SFT_BYTE(in1  [(i) / 4], (i & 3));
@@ -1484,7 +1478,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   }
 
   {
-    e_ComputeSingleSWIFFTX(S_in, S_in, S_SBox, As, S_fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
+    e_ComputeSingleSWIFFTX(S_in, S_in, S_SBox, As, fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
 
     __global unsigned char* inoutptr = (__global unsigned char*)inout;
         inoutptr[2 * SFT_STRIDE * 4 + 0] = S_in[SFT_SLOT + SFT_NSLOT * (2 * SFT_STRIDE * 4 + 0)];
