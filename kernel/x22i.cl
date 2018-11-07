@@ -117,7 +117,7 @@ ulong ROTL64_2(const uint2 vv, const int r) { return as_ulong((amd_bitalign((vv)
 #include "wolf-luffa.cl"
 #include "wolf-cubehash.cl"
 #include "wolf-shavite.cl"
-#include "simd.cl"
+#include "simd-f.cl"
 #include "wolf-echo.cl"
 #include "hamsi.cl"
 #include "fugue.cl"

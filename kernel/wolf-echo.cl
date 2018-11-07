@@ -105,30 +105,45 @@ void BigShiftRows(uint4 *WV)
 	WV[7] = tmp;
 }
 
+#define BigMixColumnsM(WV, x) do { \
+		const uint4 a = WV[x], b = WV[x + 1], c = WV[x + 2], d = WV[x + 3]; \
+ \
+		const uint4 ab = a ^ b; \
+		const uint4 bc = b ^ c; \
+		const uint4 cd = c ^ d; \
+ \
+		const uint4 t1 = ab & 0x80808080U; \
+		const uint4 t2 = bc & 0x80808080U; \
+		const uint4 t3 = cd & 0x80808080U; \
+ \
+		const uint4 abx = ((t1 >> 7) * 27) ^ ((ab ^ t1) << 1); \
+		const uint4 bcx = ((t2 >> 7) * 27) ^ ((bc ^ t2) << 1); \
+		const uint4 cdx = ((t3 >> 7) * 27) ^ ((cd ^ t3) << 1); \
+ \
+		WV[x] = abx ^ bc ^ d; \
+		WV[x + 1] = bcx ^ a ^ cd; \
+		WV[x + 2] = cdx ^ ab ^ d; \
+		WV[x + 3] = abx ^ bcx ^ cdx ^ ab ^ c; \
+	} while (0);
+
 void BigMixColumns(uint4 *WV)
 {
-	#pragma unroll
-	for(int x = 0; x < 16; x += 4)
-	{
-		const uint4 a = WV[x], b = WV[x + 1], c = WV[x + 2], d = WV[x + 3];
-
-		const uint4 ab = a ^ b;
-		const uint4 bc = b ^ c;
-		const uint4 cd = c ^ d;
-
-		const uint4 t1 = ab & 0x80808080U;
-		const uint4 t2 = bc & 0x80808080U;
-		const uint4 t3 = cd & 0x80808080U;
-
-		const uint4 abx = ((t1 >> 7) * 27) ^ ((ab ^ t1) << 1);
-		const uint4 bcx = ((t2 >> 7) * 27) ^ ((bc ^ t2) << 1);
-		const uint4 cdx = ((t3 >> 7) * 27) ^ ((cd ^ t3) << 1);
-
-		WV[x] = abx ^ bc ^ d;
-		WV[x + 1] = bcx ^ a ^ cd;
-		WV[x + 2] = cdx ^ ab ^ d;
-		WV[x + 3] = abx ^ bcx ^ cdx ^ ab ^ c;
-	}
+	BigMixColumnsM(WV, 0);
+	BigMixColumnsM(WV, 1);
+	BigMixColumnsM(WV, 2);
+	BigMixColumnsM(WV, 3);
+	BigMixColumnsM(WV, 4);
+	BigMixColumnsM(WV, 5);
+	BigMixColumnsM(WV, 6);
+	BigMixColumnsM(WV, 7);
+	BigMixColumnsM(WV, 8);
+	BigMixColumnsM(WV, 9);
+	BigMixColumnsM(WV, 10);
+	BigMixColumnsM(WV, 11);
+	BigMixColumnsM(WV, 12);
+	BigMixColumnsM(WV, 13);
+	BigMixColumnsM(WV, 14);
+	BigMixColumnsM(WV, 15);
 }
 
 #endif
