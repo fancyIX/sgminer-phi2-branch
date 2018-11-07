@@ -971,12 +971,39 @@ __kernel void search9(__global hash_t* hashes)
     __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
     // simd
-    s32 q[256];
-    unsigned char x[128];
+    volatile s32 q[256];
+    __local unsigned char x[128 * WORKSIZE];
+    uint tid = get_local_id(0);
     for(unsigned int i = 0; i < 64; i++)
-  x[i] = hash->h1[i];
+  x[tid + WORKSIZE * i] = hash->h1[i];
     for(unsigned int i = 64; i < 128; i++)
-  x[i] = 0;
+  x[tid + WORKSIZE * i] = 0;
+
+    __private volatile s32 m;
+    __private volatile s32 n;
+    __private volatile s32 t;
+    __private volatile u32 tA0;
+    __private volatile u32 tA1;
+    __private volatile u32 tA2;
+    __private volatile u32 tA3;
+    __private volatile u32 tA4;
+    __private volatile u32 tA5;
+    __private volatile u32 tA6;
+    __private volatile u32 tA7;
+    s32 d1_0, d1_1, d1_2, d1_3, d1_4, d1_5, d1_6, d1_7;
+    s32 d2_0, d2_1, d2_2, d2_3, d2_4, d2_5, d2_6, d2_7;
+    s32 x0;
+    s32 x1;
+    s32 x2;
+    s32 x3;
+    s32 a0;
+    s32 a1;
+    s32 a2;
+    s32 a3;
+    s32 b0;
+    s32 b1;
+    s32 b2;
+    s32 b3;
 
     u32 A0 = C32(0x0BA16B95), A1 = C32(0x72F999AD), A2 = C32(0x9FECC2AE), A3 = C32(0xBA3264FC), A4 = C32(0x5E894929), A5 = C32(0x8E9F30E5), A6 = C32(0x2F1DAA37), A7 = C32(0xF0F2C558);
     u32 B0 = C32(0xAC506643), B1 = C32(0xA90635A5), B2 = C32(0xE25B878B), B3 = C32(0xAAB7878F), B4 = C32(0x88817F7A), B5 = C32(0x0A02892B), B6 = C32(0x559A7550), B7 = C32(0x598F657E);

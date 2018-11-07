@@ -85,6 +85,10 @@ __constant static const s32 alpha_tab[] = {
  *
  * Since alpha_tab[v] <= 256, maximum allowed range is for N = 8388608.
  */
+#define SIMD_LQ(i) (q[(i)])
+#define PRAGMA(X) _Pragma(#X)
+#define PRAGMA_UNROLL PRAGMA(unroll)
+#define PRAGMA_NOUNROLL PRAGMA(nounroll)
 
 #define FFT_LOOP_16_8(rb)   do { \
     s32 m = q[(rb)]; \
@@ -342,7 +346,7 @@ __constant static const s32 alpha_tab[] = {
     q[(rb) + 28 + 3 + 32] = m - t; \
   } while (0)
 
-#define FFT_LOOP_64_2(rb)   do { \
+#define FFT_LOOP_64_2(rb)  do { \
     s32 m = q[(rb)]; \
     s32 n = q[(rb) + 64]; \
     q[(rb)] = m + n; \
@@ -680,7 +684,7 @@ __constant static const s32 alpha_tab[] = {
     q[(rb) + 60 + 3 + 64] = m - t; \
   } while (0)
 
-#define FFT_LOOP_128_1(rb)   do { \
+#define FFT_LOOP_128_1(rb)  do { \
     s32 m = q[(rb)]; \
     s32 n = q[(rb) + 128]; \
     q[(rb)] = m + n; \
@@ -1334,19 +1338,19 @@ __constant static const s32 alpha_tab[] = {
  *   d6:   min=-4335   max= 4335
  *   d7:   min=-4332   max=  322
  */
-#define FFT8(xb, xs, d)   do { \
-    s32 x0 = x[(xb)]; \
-    s32 x1 = x[(xb) + (xs)]; \
-    s32 x2 = x[(xb) + 2 * (xs)]; \
-    s32 x3 = x[(xb) + 3 * (xs)]; \
-    s32 a0 = x0 + x2; \
-    s32 a1 = x0 + (x2 << 4); \
-    s32 a2 = x0 - x2; \
-    s32 a3 = x0 - (x2 << 4); \
-    s32 b0 = x1 + x3; \
-    s32 b1 = REDS1((x1 << 2) + (x3 << 6)); \
-    s32 b2 = (x1 << 4) - (x3 << 4); \
-    s32 b3 = REDS1((x1 << 6) + (x3 << 2)); \
+#define FFT8(xb, xs, d)   \
+    x0 = x[tid + WORKSIZE * (xb)]; \
+    x1 = x[tid + WORKSIZE * ((xb) + (xs))]; \
+    x2 = x[tid + WORKSIZE * ((xb) + 2 * (xs))]; \
+    x3 = x[tid + WORKSIZE * ((xb) + 3 * (xs))]; \
+    a0 = x0 + x2; \
+    a1 = x0 + (x2 << 4); \
+    a2 = x0 - x2; \
+    a3 = x0 - (x2 << 4); \
+    b0 = x1 + x3; \
+    b1 = REDS1((x1 << 2) + (x3 << 6)); \
+    b2 = (x1 << 4) - (x3 << 4); \
+    b3 = REDS1((x1 << 6) + (x3 << 2)); \
     d ## 0 = a0 + b0; \
     d ## 1 = a1 + b1; \
     d ## 2 = a2 + b2; \
@@ -1354,8 +1358,7 @@ __constant static const s32 alpha_tab[] = {
     d ## 4 = a0 - b0; \
     d ## 5 = a1 - b1; \
     d ## 6 = a2 - b2; \
-    d ## 7 = a3 - b3; \
-  } while (0)
+    d ## 7 = a3 - b3;
 
 /*
  * When k=16, we have alpha=2. Multiplication by alpha^i is then reduced
@@ -1363,9 +1366,7 @@ __constant static const s32 alpha_tab[] = {
  *
  * Output: within -591471..591723
  */
-#define FFT16(xb, xs, rb)   do { \
-    s32 d1_0, d1_1, d1_2, d1_3, d1_4, d1_5, d1_6, d1_7; \
-    s32 d2_0, d2_1, d2_2, d2_3, d2_4, d2_5, d2_6, d2_7; \
+#define FFT16(xb, xs, rb)   \
     FFT8(xb, (xs) << 1, d1_); \
     FFT8((xb) + (xs), (xs) << 1, d2_); \
     q[(rb) +  0] = d1_0 + d2_0; \
@@ -1383,39 +1384,35 @@ __constant static const s32 alpha_tab[] = {
     q[(rb) + 12] = d1_4 - (d2_4 << 4); \
     q[(rb) + 13] = d1_5 - (d2_5 << 5); \
     q[(rb) + 14] = d1_6 - (d2_6 << 6); \
-    q[(rb) + 15] = d1_7 - (d2_7 << 7); \
-  } while (0)
+    q[(rb) + 15] = d1_7 - (d2_7 << 7);
 
 /*
  * Output range: |q| <= 1183446
  */
-#define FFT32(xb, xs, rb, id)   do { \
+#define FFT32(xb, xs, rb, id)   \
     FFT16(xb, (xs) << 1, rb); \
     FFT16((xb) + (xs), (xs) << 1, (rb) + 16); \
-    FFT_LOOP_16_8(rb); \
-  } while (0)
+    FFT_LOOP_16_8(rb);
 
 /*
  * Output range: |q| <= 2366892
  */
-#define FFT64(xb, xs, rb)   do { \
+#define FFT64(xb, xs, rb)   \
   FFT32(xb, (xs) << 1, (rb), label_a); \
   FFT32((xb) + (xs), (xs) << 1, (rb) + 32, label_b); \
-  FFT_LOOP_32_4(rb); \
-  } while (0)
+  FFT_LOOP_32_4(rb);
 
 /*
  * Output range: |q| <= 9467568
  */
-#define FFT256(xb, xs, rb, id)   do { \
+#define FFT256(xb, xs, rb, id)   \
     FFT64((xb) + ((xs) * 0), (xs) << 2, (rb + 0)); \
     FFT64((xb) + ((xs) * 2), (xs) << 2, (rb + 64)); \
     FFT_LOOP_64_2(rb); \
     FFT64((xb) + ((xs) * 1), (xs) << 2, (rb + 128)); \
     FFT64((xb) + ((xs) * 3), (xs) << 2, (rb + 192)); \
     FFT_LOOP_64_2((rb) + 128); \
-    FFT_LOOP_128_1(rb); \
-  } while (0)
+    FFT_LOOP_128_1(rb);
 
 /*
  * beta^(255*i) mod 257
@@ -1579,14 +1576,14 @@ __constant static const unsigned short yoff_b_n[] = {
   } while (0)
 
 #define STEP_BIG(w0, w1, w2, w3, w4, w5, w6, w7, fun, r, s, pp8b)   do { \
-    u32 tA0 = ROL32(A0, r); \
-    u32 tA1 = ROL32(A1, r); \
-    u32 tA2 = ROL32(A2, r); \
-    u32 tA3 = ROL32(A3, r); \
-    u32 tA4 = ROL32(A4, r); \
-    u32 tA5 = ROL32(A5, r); \
-    u32 tA6 = ROL32(A6, r); \
-    u32 tA7 = ROL32(A7, r); \
+    tA0 = ROL32(A0, r); \
+    tA1 = ROL32(A1, r); \
+    tA2 = ROL32(A2, r); \
+    tA3 = ROL32(A3, r); \
+    tA4 = ROL32(A4, r); \
+    tA5 = ROL32(A5, r); \
+    tA6 = ROL32(A6, r); \
+    tA7 = ROL32(A7, r); \
     STEP_ELT(0, w0, fun, s, pp8b); \
     STEP_ELT(1, w1, fun, s, pp8b); \
     STEP_ELT(2, w2, fun, s, pp8b); \
