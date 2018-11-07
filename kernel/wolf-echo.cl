@@ -129,21 +129,9 @@ void BigShiftRows(uint4 *WV)
 void BigMixColumns(uint4 *WV)
 {
 	BigMixColumnsM(WV, 0);
-	BigMixColumnsM(WV, 1);
-	BigMixColumnsM(WV, 2);
-	BigMixColumnsM(WV, 3);
 	BigMixColumnsM(WV, 4);
-	BigMixColumnsM(WV, 5);
-	BigMixColumnsM(WV, 6);
-	BigMixColumnsM(WV, 7);
 	BigMixColumnsM(WV, 8);
-	BigMixColumnsM(WV, 9);
-	BigMixColumnsM(WV, 10);
-	BigMixColumnsM(WV, 11);
 	BigMixColumnsM(WV, 12);
-	BigMixColumnsM(WV, 13);
-	BigMixColumnsM(WV, 14);
-	BigMixColumnsM(WV, 15);
 }
 
 #endif
