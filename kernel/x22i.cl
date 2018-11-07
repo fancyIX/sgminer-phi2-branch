@@ -285,102 +285,221 @@ __kernel void search2(__global hash_t* hashes)
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
+  ulong M_0  = 0;
+  ulong M_1  = 0;
+  ulong M_2  = 0;
+  ulong M_3  = 0;
+  ulong M_4  = 0;
+  ulong M_5  = 0;
+  ulong M_6  = 0;
+  ulong M_7  = 0;
+  ulong M_8  = 0;
+  ulong M_9  = 0;
+  ulong M_10 = 0;
+  ulong M_11 = 0;
+  ulong M_12 = 0;
+  ulong M_13 = 0;
+  ulong M_14 = 0;
+  ulong M_15 = 0;
+  ulong G_0 ;
+  ulong G_1 ;
+  ulong G_2 ;
+  ulong G_3 ;
+  ulong G_4 ;
+  ulong G_5 ;
+  ulong G_6 ;
+  ulong G_7 ;
+  ulong G_8 ;
+  ulong G_9 ;
+  ulong G_10;
+  ulong G_11;
+  ulong G_12;
+  ulong G_13;
+  ulong G_14;
+  ulong G_15;
+
+  ulong H[16], H2[16];
+
+  M_0 = hash->h8[0];
+  M_1 = hash->h8[1];
+  M_2 = hash->h8[2];
+  M_3 = hash->h8[3];
+  M_4 = hash->h8[4];
+  M_5 = hash->h8[5];
+  M_6 = hash->h8[6];
+  M_7 = hash->h8[7];
 	
-	ulong M[16] = { 0 }, G[16];
+	M_8 = 0x80UL;
+	M_15 = 0x0100000000000000UL;
+
+  G_0  = M_0 ;
+  G_1  = M_1 ;
+  G_2  = M_2 ;
+  G_3  = M_3 ;
+  G_4  = M_4 ;
+  G_5  = M_5 ;
+  G_6  = M_6 ;
+  G_7  = M_7 ;
+  G_8  = M_8 ;
+  G_9  = M_9 ;
+  G_10 = M_10;
+  G_11 = M_11;
+  G_12 = M_12;
+  G_13 = M_13;
+  G_14 = M_14;
+  G_15 = M_15;
 	
-	#pragma unroll
-	for(int i = 0; i < 8; ++i) M[i] = hash->h8[i];
+	G_15 ^= 0x0002000000000000UL;
 	
-	M[8] = 0x80UL;
-	M[15] = 0x0100000000000000UL;
-	
-	#pragma unroll
-	for(int i = 0; i < 16; ++i) G[i] = M[i];
-	
-	G[15] ^= 0x0002000000000000UL;
-	
-	//#pragma unroll 2
+	#pragma nounroll
 	for(int i = 0; i < 14; ++i)
 	{
-		ulong H[16], H2[16];
+    H[0 ] = G_0  ^ PC64(0  << 4, i);
+    H[1 ] = G_1  ^ PC64(1  << 4, i);
+    H[2 ] = G_2  ^ PC64(2  << 4, i);
+    H[3 ] = G_3  ^ PC64(3  << 4, i);
+    H[4 ] = G_4  ^ PC64(4  << 4, i);
+    H[5 ] = G_5  ^ PC64(5  << 4, i);
+    H[6 ] = G_6  ^ PC64(6  << 4, i);
+    H[7 ] = G_7  ^ PC64(7  << 4, i);
+    H[8 ] = G_8  ^ PC64(8  << 4, i);
+    H[9 ] = G_9  ^ PC64(9  << 4, i);
+    H[10] = G_10 ^ PC64(10 << 4, i);
+    H[11] = G_11 ^ PC64(11 << 4, i);
+    H[12] = G_12 ^ PC64(12 << 4, i);
+    H[13] = G_13 ^ PC64(13 << 4, i);
+    H[14] = G_14 ^ PC64(14 << 4, i);
+    H[15] = G_15 ^ PC64(15 << 4, i);
+
+    H2[0 ] = M_0  ^ QC64(0  << 4, i);
+    H2[1 ] = M_1  ^ QC64(1  << 4, i);
+    H2[2 ] = M_2  ^ QC64(2  << 4, i);
+    H2[3 ] = M_3  ^ QC64(3  << 4, i);
+    H2[4 ] = M_4  ^ QC64(4  << 4, i);
+    H2[5 ] = M_5  ^ QC64(5  << 4, i);
+    H2[6 ] = M_6  ^ QC64(6  << 4, i);
+    H2[7 ] = M_7  ^ QC64(7  << 4, i);
+    H2[8 ] = M_8  ^ QC64(8  << 4, i);
+    H2[9 ] = M_9  ^ QC64(9  << 4, i);
+    H2[10] = M_10 ^ QC64(10 << 4, i);
+    H2[11] = M_11 ^ QC64(11 << 4, i);
+    H2[12] = M_12 ^ QC64(12 << 4, i);
+    H2[13] = M_13 ^ QC64(13 << 4, i);
+    H2[14] = M_14 ^ QC64(14 << 4, i);
+    H2[15] = M_15 ^ QC64(15 << 4, i);
 		
-		#pragma unroll
-		for(int x = 0; x < 16; ++x)
-		{
-			H[x] = G[x] ^ PC64(x << 4, i);
-			H2[x] = M[x] ^ QC64(x << 4, i);
-		}
+		GROESTL_RBTT(G_0, H, 0, 1, 2, 3, 4, 5, 6, 11);
+		GROESTL_RBTT(G_1, H, 1, 2, 3, 4, 5, 6, 7, 12);
+		GROESTL_RBTT(G_2, H, 2, 3, 4, 5, 6, 7, 8, 13);
+		GROESTL_RBTT(G_3, H, 3, 4, 5, 6, 7, 8, 9, 14);
+		GROESTL_RBTT(G_4, H, 4, 5, 6, 7, 8, 9, 10, 15);
+		GROESTL_RBTT(G_5, H, 5, 6, 7, 8, 9, 10, 11, 0);
+		GROESTL_RBTT(G_6, H, 6, 7, 8, 9, 10, 11, 12, 1);
+		GROESTL_RBTT(G_7, H, 7, 8, 9, 10, 11, 12, 13, 2);
+		GROESTL_RBTT(G_8, H, 8, 9, 10, 11, 12, 13, 14, 3);
+		GROESTL_RBTT(G_9, H, 9, 10, 11, 12, 13, 14, 15, 4);
+		GROESTL_RBTT(G_10, H, 10, 11, 12, 13, 14, 15, 0, 5);
+		GROESTL_RBTT(G_11, H, 11, 12, 13, 14, 15, 0, 1, 6);
+		GROESTL_RBTT(G_12, H, 12, 13, 14, 15, 0, 1, 2, 7);
+		GROESTL_RBTT(G_13, H, 13, 14, 15, 0, 1, 2, 3, 8);
+		GROESTL_RBTT(G_14, H, 14, 15, 0, 1, 2, 3, 4, 9);
+		GROESTL_RBTT(G_15, H, 15, 0, 1, 2, 3, 4, 5, 10);
 		
-		GROESTL_RBTT(G[0], H, 0, 1, 2, 3, 4, 5, 6, 11);
-		GROESTL_RBTT(G[1], H, 1, 2, 3, 4, 5, 6, 7, 12);
-		GROESTL_RBTT(G[2], H, 2, 3, 4, 5, 6, 7, 8, 13);
-		GROESTL_RBTT(G[3], H, 3, 4, 5, 6, 7, 8, 9, 14);
-		GROESTL_RBTT(G[4], H, 4, 5, 6, 7, 8, 9, 10, 15);
-		GROESTL_RBTT(G[5], H, 5, 6, 7, 8, 9, 10, 11, 0);
-		GROESTL_RBTT(G[6], H, 6, 7, 8, 9, 10, 11, 12, 1);
-		GROESTL_RBTT(G[7], H, 7, 8, 9, 10, 11, 12, 13, 2);
-		GROESTL_RBTT(G[8], H, 8, 9, 10, 11, 12, 13, 14, 3);
-		GROESTL_RBTT(G[9], H, 9, 10, 11, 12, 13, 14, 15, 4);
-		GROESTL_RBTT(G[10], H, 10, 11, 12, 13, 14, 15, 0, 5);
-		GROESTL_RBTT(G[11], H, 11, 12, 13, 14, 15, 0, 1, 6);
-		GROESTL_RBTT(G[12], H, 12, 13, 14, 15, 0, 1, 2, 7);
-		GROESTL_RBTT(G[13], H, 13, 14, 15, 0, 1, 2, 3, 8);
-		GROESTL_RBTT(G[14], H, 14, 15, 0, 1, 2, 3, 4, 9);
-		GROESTL_RBTT(G[15], H, 15, 0, 1, 2, 3, 4, 5, 10);
-		
-		GROESTL_RBTT(M[0], H2, 1, 3, 5, 11, 0, 2, 4, 6);
-		GROESTL_RBTT(M[1], H2, 2, 4, 6, 12, 1, 3, 5, 7);
-		GROESTL_RBTT(M[2], H2, 3, 5, 7, 13, 2, 4, 6, 8);
-		GROESTL_RBTT(M[3], H2, 4, 6, 8, 14, 3, 5, 7, 9);
-		GROESTL_RBTT(M[4], H2, 5, 7, 9, 15, 4, 6, 8, 10);
-		GROESTL_RBTT(M[5], H2, 6, 8, 10, 0, 5, 7, 9, 11);
-		GROESTL_RBTT(M[6], H2, 7, 9, 11, 1, 6, 8, 10, 12);
-		GROESTL_RBTT(M[7], H2, 8, 10, 12, 2, 7, 9, 11, 13);
-		GROESTL_RBTT(M[8], H2, 9, 11, 13, 3, 8, 10, 12, 14);
-		GROESTL_RBTT(M[9], H2, 10, 12, 14, 4, 9, 11, 13, 15);
-		GROESTL_RBTT(M[10], H2, 11, 13, 15, 5, 10, 12, 14, 0);
-		GROESTL_RBTT(M[11], H2, 12, 14, 0, 6, 11, 13, 15, 1);
-		GROESTL_RBTT(M[12], H2, 13, 15, 1, 7, 12, 14, 0, 2);
-		GROESTL_RBTT(M[13], H2, 14, 0, 2, 8, 13, 15, 1, 3);
-		GROESTL_RBTT(M[14], H2, 15, 1, 3, 9, 14, 0, 2, 4);
-		GROESTL_RBTT(M[15], H2, 0, 2, 4, 10, 15, 1, 3, 5);
+		GROESTL_RBTT(M_0, H2, 1, 3, 5, 11, 0, 2, 4, 6);
+		GROESTL_RBTT(M_1, H2, 2, 4, 6, 12, 1, 3, 5, 7);
+		GROESTL_RBTT(M_2, H2, 3, 5, 7, 13, 2, 4, 6, 8);
+		GROESTL_RBTT(M_3, H2, 4, 6, 8, 14, 3, 5, 7, 9);
+		GROESTL_RBTT(M_4, H2, 5, 7, 9, 15, 4, 6, 8, 10);
+		GROESTL_RBTT(M_5, H2, 6, 8, 10, 0, 5, 7, 9, 11);
+		GROESTL_RBTT(M_6, H2, 7, 9, 11, 1, 6, 8, 10, 12);
+		GROESTL_RBTT(M_7, H2, 8, 10, 12, 2, 7, 9, 11, 13);
+		GROESTL_RBTT(M_8, H2, 9, 11, 13, 3, 8, 10, 12, 14);
+		GROESTL_RBTT(M_9, H2, 10, 12, 14, 4, 9, 11, 13, 15);
+		GROESTL_RBTT(M_10, H2, 11, 13, 15, 5, 10, 12, 14, 0);
+		GROESTL_RBTT(M_11, H2, 12, 14, 0, 6, 11, 13, 15, 1);
+		GROESTL_RBTT(M_12, H2, 13, 15, 1, 7, 12, 14, 0, 2);
+		GROESTL_RBTT(M_13, H2, 14, 0, 2, 8, 13, 15, 1, 3);
+		GROESTL_RBTT(M_14, H2, 15, 1, 3, 9, 14, 0, 2, 4);
+		GROESTL_RBTT(M_15, H2, 0, 2, 4, 10, 15, 1, 3, 5);
 	}
 	
-	#pragma unroll
-	for(int i = 0; i < 16; ++i) G[i] ^= M[i];
-			
-	G[15] ^= 0x0002000000000000UL;
+  G_0  ^= M_0 ;
+  G_1  ^= M_1 ;
+  G_2  ^= M_2 ;
+  G_3  ^= M_3 ;
+  G_4  ^= M_4 ;
+  G_5  ^= M_5 ;
+  G_6  ^= M_6 ;
+  G_7  ^= M_7 ;
+  G_8  ^= M_8 ;
+  G_9  ^= M_9 ;
+  G_10 ^= M_10;
+  G_11 ^= M_11;
+  G_12 ^= M_12;
+  G_13 ^= M_13;
+  G_14 ^= M_14;
+  G_15 ^= M_15;
+
+	G_15 ^= 0x0002000000000000UL;
 	
-	((ulong8 *)M)[0] = ((ulong8 *)G)[1];
+	//((ulong8 *)M)[0] = ((ulong8 *)G)[1];
+  M_0  = G_8 ;
+  M_1  = G_9 ;
+  M_2  = G_10;
+  M_3  = G_11;
+  M_4  = G_12;
+  M_5  = G_13;
+  M_6  = G_14;
+  M_7  = G_15;
 	
-	//#pragma unroll 2
+	#pragma nounroll
 	for(int i = 0; i < 14; ++i)
 	{
-		ulong H[16];
-		
-		#pragma unroll
-		for(int x = 0; x < 16; ++x)
-			H[x] = G[x] ^ PC64(x << 4, i); //G[x] ^ as_uint2(PC64((x << 4), i)); //(uint2)(G[x].s0 ^ ((x << 4) | i), G[x].s1);
+
+    H[0 ] = G_0  ^ PC64(0  << 4, i);
+    H[1 ] = G_1  ^ PC64(1  << 4, i);
+    H[2 ] = G_2  ^ PC64(2  << 4, i);
+    H[3 ] = G_3  ^ PC64(3  << 4, i);
+    H[4 ] = G_4  ^ PC64(4  << 4, i);
+    H[5 ] = G_5  ^ PC64(5  << 4, i);
+    H[6 ] = G_6  ^ PC64(6  << 4, i);
+    H[7 ] = G_7  ^ PC64(7  << 4, i);
+    H[8 ] = G_8  ^ PC64(8  << 4, i);
+    H[9 ] = G_9  ^ PC64(9  << 4, i);
+    H[10] = G_10 ^ PC64(10 << 4, i);
+    H[11] = G_11 ^ PC64(11 << 4, i);
+    H[12] = G_12 ^ PC64(12 << 4, i);
+    H[13] = G_13 ^ PC64(13 << 4, i);
+    H[14] = G_14 ^ PC64(14 << 4, i);
+    H[15] = G_15 ^ PC64(15 << 4, i);
 			
-		GROESTL_RBTT(G[0], H, 0, 1, 2, 3, 4, 5, 6, 11);
-		GROESTL_RBTT(G[1], H, 1, 2, 3, 4, 5, 6, 7, 12);
-		GROESTL_RBTT(G[2], H, 2, 3, 4, 5, 6, 7, 8, 13);
-		GROESTL_RBTT(G[3], H, 3, 4, 5, 6, 7, 8, 9, 14);
-		GROESTL_RBTT(G[4], H, 4, 5, 6, 7, 8, 9, 10, 15);
-		GROESTL_RBTT(G[5], H, 5, 6, 7, 8, 9, 10, 11, 0);
-		GROESTL_RBTT(G[6], H, 6, 7, 8, 9, 10, 11, 12, 1);
-		GROESTL_RBTT(G[7], H, 7, 8, 9, 10, 11, 12, 13, 2);
-		GROESTL_RBTT(G[8], H, 8, 9, 10, 11, 12, 13, 14, 3);
-		GROESTL_RBTT(G[9], H, 9, 10, 11, 12, 13, 14, 15, 4);
-		GROESTL_RBTT(G[10], H, 10, 11, 12, 13, 14, 15, 0, 5);
-		GROESTL_RBTT(G[11], H, 11, 12, 13, 14, 15, 0, 1, 6);
-		GROESTL_RBTT(G[12], H, 12, 13, 14, 15, 0, 1, 2, 7);
-		GROESTL_RBTT(G[13], H, 13, 14, 15, 0, 1, 2, 3, 8);
-		GROESTL_RBTT(G[14], H, 14, 15, 0, 1, 2, 3, 4, 9);
-		GROESTL_RBTT(G[15], H, 15, 0, 1, 2, 3, 4, 5, 10);
+		GROESTL_RBTT(G_0, H, 0, 1, 2, 3, 4, 5, 6, 11);
+		GROESTL_RBTT(G_1, H, 1, 2, 3, 4, 5, 6, 7, 12);
+		GROESTL_RBTT(G_2, H, 2, 3, 4, 5, 6, 7, 8, 13);
+		GROESTL_RBTT(G_3, H, 3, 4, 5, 6, 7, 8, 9, 14);
+		GROESTL_RBTT(G_4, H, 4, 5, 6, 7, 8, 9, 10, 15);
+		GROESTL_RBTT(G_5, H, 5, 6, 7, 8, 9, 10, 11, 0);
+		GROESTL_RBTT(G_6, H, 6, 7, 8, 9, 10, 11, 12, 1);
+		GROESTL_RBTT(G_7, H, 7, 8, 9, 10, 11, 12, 13, 2);
+		GROESTL_RBTT(G_8, H, 8, 9, 10, 11, 12, 13, 14, 3);
+		GROESTL_RBTT(G_9, H, 9, 10, 11, 12, 13, 14, 15, 4);
+		GROESTL_RBTT(G_10, H, 10, 11, 12, 13, 14, 15, 0, 5);
+		GROESTL_RBTT(G_11, H, 11, 12, 13, 14, 15, 0, 1, 6);
+		GROESTL_RBTT(G_12, H, 12, 13, 14, 15, 0, 1, 2, 7);
+		GROESTL_RBTT(G_13, H, 13, 14, 15, 0, 1, 2, 3, 8);
+		GROESTL_RBTT(G_14, H, 14, 15, 0, 1, 2, 3, 4, 9);
+		GROESTL_RBTT(G_15, H, 15, 0, 1, 2, 3, 4, 5, 10);
 	}
 	
-	vstore8((((ulong8 *)M)[0] ^ ((ulong8 *)G)[1]), 0, hash->h8);
+	//vstore8((((ulong8 *)M)[0] ^ ((ulong8 *)G)[1]), 0, hash->h8);
+  hash->h8[0] = M_0 ^ G_8;
+  hash->h8[1] = M_1 ^ G_9;
+  hash->h8[2] = M_2 ^ G_10;
+  hash->h8[3] = M_3 ^ G_11;
+  hash->h8[4] = M_4 ^ G_12;
+  hash->h8[5] = M_5 ^ G_13;
+  hash->h8[6] = M_6 ^ G_14;
+  hash->h8[7] = M_7 ^ G_15;
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
