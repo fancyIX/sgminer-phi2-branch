@@ -117,8 +117,8 @@ ulong ROTL64_2(const uint2 vv, const int r) { return as_ulong((amd_bitalign((vv)
 #include "wolf-luffa.cl"
 #include "wolf-cubehash.cl"
 #include "wolf-shavite.cl"
-#include "simd.cl"
-#include "wolf-echo.cl"
+#include "simd-f.cl"
+#include "echo-f.cl"
 #include "hamsi.cl"
 #include "fugue.cl"
 #include "wolf-shabal.cl"
@@ -285,102 +285,221 @@ __kernel void search2(__global hash_t* hashes)
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
+  ulong M_0  = 0;
+  ulong M_1  = 0;
+  ulong M_2  = 0;
+  ulong M_3  = 0;
+  ulong M_4  = 0;
+  ulong M_5  = 0;
+  ulong M_6  = 0;
+  ulong M_7  = 0;
+  ulong M_8  = 0;
+  ulong M_9  = 0;
+  ulong M_10 = 0;
+  ulong M_11 = 0;
+  ulong M_12 = 0;
+  ulong M_13 = 0;
+  ulong M_14 = 0;
+  ulong M_15 = 0;
+  ulong G_0 ;
+  ulong G_1 ;
+  ulong G_2 ;
+  ulong G_3 ;
+  ulong G_4 ;
+  ulong G_5 ;
+  ulong G_6 ;
+  ulong G_7 ;
+  ulong G_8 ;
+  ulong G_9 ;
+  ulong G_10;
+  ulong G_11;
+  ulong G_12;
+  ulong G_13;
+  ulong G_14;
+  ulong G_15;
+
+  ulong H[16], H2[16];
+
+  M_0 = hash->h8[0];
+  M_1 = hash->h8[1];
+  M_2 = hash->h8[2];
+  M_3 = hash->h8[3];
+  M_4 = hash->h8[4];
+  M_5 = hash->h8[5];
+  M_6 = hash->h8[6];
+  M_7 = hash->h8[7];
 	
-	ulong M[16] = { 0 }, G[16];
+	M_8 = 0x80UL;
+	M_15 = 0x0100000000000000UL;
+
+  G_0  = M_0 ;
+  G_1  = M_1 ;
+  G_2  = M_2 ;
+  G_3  = M_3 ;
+  G_4  = M_4 ;
+  G_5  = M_5 ;
+  G_6  = M_6 ;
+  G_7  = M_7 ;
+  G_8  = M_8 ;
+  G_9  = M_9 ;
+  G_10 = M_10;
+  G_11 = M_11;
+  G_12 = M_12;
+  G_13 = M_13;
+  G_14 = M_14;
+  G_15 = M_15;
 	
-	#pragma unroll
-	for(int i = 0; i < 8; ++i) M[i] = hash->h8[i];
+	G_15 ^= 0x0002000000000000UL;
 	
-	M[8] = 0x80UL;
-	M[15] = 0x0100000000000000UL;
-	
-	#pragma unroll
-	for(int i = 0; i < 16; ++i) G[i] = M[i];
-	
-	G[15] ^= 0x0002000000000000UL;
-	
-	//#pragma unroll 2
+	#pragma nounroll
 	for(int i = 0; i < 14; ++i)
 	{
-		ulong H[16], H2[16];
+    H[0 ] = G_0  ^ PC64(0  << 4, i);
+    H[1 ] = G_1  ^ PC64(1  << 4, i);
+    H[2 ] = G_2  ^ PC64(2  << 4, i);
+    H[3 ] = G_3  ^ PC64(3  << 4, i);
+    H[4 ] = G_4  ^ PC64(4  << 4, i);
+    H[5 ] = G_5  ^ PC64(5  << 4, i);
+    H[6 ] = G_6  ^ PC64(6  << 4, i);
+    H[7 ] = G_7  ^ PC64(7  << 4, i);
+    H[8 ] = G_8  ^ PC64(8  << 4, i);
+    H[9 ] = G_9  ^ PC64(9  << 4, i);
+    H[10] = G_10 ^ PC64(10 << 4, i);
+    H[11] = G_11 ^ PC64(11 << 4, i);
+    H[12] = G_12 ^ PC64(12 << 4, i);
+    H[13] = G_13 ^ PC64(13 << 4, i);
+    H[14] = G_14 ^ PC64(14 << 4, i);
+    H[15] = G_15 ^ PC64(15 << 4, i);
+
+    H2[0 ] = M_0  ^ QC64(0  << 4, i);
+    H2[1 ] = M_1  ^ QC64(1  << 4, i);
+    H2[2 ] = M_2  ^ QC64(2  << 4, i);
+    H2[3 ] = M_3  ^ QC64(3  << 4, i);
+    H2[4 ] = M_4  ^ QC64(4  << 4, i);
+    H2[5 ] = M_5  ^ QC64(5  << 4, i);
+    H2[6 ] = M_6  ^ QC64(6  << 4, i);
+    H2[7 ] = M_7  ^ QC64(7  << 4, i);
+    H2[8 ] = M_8  ^ QC64(8  << 4, i);
+    H2[9 ] = M_9  ^ QC64(9  << 4, i);
+    H2[10] = M_10 ^ QC64(10 << 4, i);
+    H2[11] = M_11 ^ QC64(11 << 4, i);
+    H2[12] = M_12 ^ QC64(12 << 4, i);
+    H2[13] = M_13 ^ QC64(13 << 4, i);
+    H2[14] = M_14 ^ QC64(14 << 4, i);
+    H2[15] = M_15 ^ QC64(15 << 4, i);
 		
-		#pragma unroll
-		for(int x = 0; x < 16; ++x)
-		{
-			H[x] = G[x] ^ PC64(x << 4, i);
-			H2[x] = M[x] ^ QC64(x << 4, i);
-		}
+		GROESTL_RBTT(G_0, H, 0, 1, 2, 3, 4, 5, 6, 11);
+		GROESTL_RBTT(G_1, H, 1, 2, 3, 4, 5, 6, 7, 12);
+		GROESTL_RBTT(G_2, H, 2, 3, 4, 5, 6, 7, 8, 13);
+		GROESTL_RBTT(G_3, H, 3, 4, 5, 6, 7, 8, 9, 14);
+		GROESTL_RBTT(G_4, H, 4, 5, 6, 7, 8, 9, 10, 15);
+		GROESTL_RBTT(G_5, H, 5, 6, 7, 8, 9, 10, 11, 0);
+		GROESTL_RBTT(G_6, H, 6, 7, 8, 9, 10, 11, 12, 1);
+		GROESTL_RBTT(G_7, H, 7, 8, 9, 10, 11, 12, 13, 2);
+		GROESTL_RBTT(G_8, H, 8, 9, 10, 11, 12, 13, 14, 3);
+		GROESTL_RBTT(G_9, H, 9, 10, 11, 12, 13, 14, 15, 4);
+		GROESTL_RBTT(G_10, H, 10, 11, 12, 13, 14, 15, 0, 5);
+		GROESTL_RBTT(G_11, H, 11, 12, 13, 14, 15, 0, 1, 6);
+		GROESTL_RBTT(G_12, H, 12, 13, 14, 15, 0, 1, 2, 7);
+		GROESTL_RBTT(G_13, H, 13, 14, 15, 0, 1, 2, 3, 8);
+		GROESTL_RBTT(G_14, H, 14, 15, 0, 1, 2, 3, 4, 9);
+		GROESTL_RBTT(G_15, H, 15, 0, 1, 2, 3, 4, 5, 10);
 		
-		GROESTL_RBTT(G[0], H, 0, 1, 2, 3, 4, 5, 6, 11);
-		GROESTL_RBTT(G[1], H, 1, 2, 3, 4, 5, 6, 7, 12);
-		GROESTL_RBTT(G[2], H, 2, 3, 4, 5, 6, 7, 8, 13);
-		GROESTL_RBTT(G[3], H, 3, 4, 5, 6, 7, 8, 9, 14);
-		GROESTL_RBTT(G[4], H, 4, 5, 6, 7, 8, 9, 10, 15);
-		GROESTL_RBTT(G[5], H, 5, 6, 7, 8, 9, 10, 11, 0);
-		GROESTL_RBTT(G[6], H, 6, 7, 8, 9, 10, 11, 12, 1);
-		GROESTL_RBTT(G[7], H, 7, 8, 9, 10, 11, 12, 13, 2);
-		GROESTL_RBTT(G[8], H, 8, 9, 10, 11, 12, 13, 14, 3);
-		GROESTL_RBTT(G[9], H, 9, 10, 11, 12, 13, 14, 15, 4);
-		GROESTL_RBTT(G[10], H, 10, 11, 12, 13, 14, 15, 0, 5);
-		GROESTL_RBTT(G[11], H, 11, 12, 13, 14, 15, 0, 1, 6);
-		GROESTL_RBTT(G[12], H, 12, 13, 14, 15, 0, 1, 2, 7);
-		GROESTL_RBTT(G[13], H, 13, 14, 15, 0, 1, 2, 3, 8);
-		GROESTL_RBTT(G[14], H, 14, 15, 0, 1, 2, 3, 4, 9);
-		GROESTL_RBTT(G[15], H, 15, 0, 1, 2, 3, 4, 5, 10);
-		
-		GROESTL_RBTT(M[0], H2, 1, 3, 5, 11, 0, 2, 4, 6);
-		GROESTL_RBTT(M[1], H2, 2, 4, 6, 12, 1, 3, 5, 7);
-		GROESTL_RBTT(M[2], H2, 3, 5, 7, 13, 2, 4, 6, 8);
-		GROESTL_RBTT(M[3], H2, 4, 6, 8, 14, 3, 5, 7, 9);
-		GROESTL_RBTT(M[4], H2, 5, 7, 9, 15, 4, 6, 8, 10);
-		GROESTL_RBTT(M[5], H2, 6, 8, 10, 0, 5, 7, 9, 11);
-		GROESTL_RBTT(M[6], H2, 7, 9, 11, 1, 6, 8, 10, 12);
-		GROESTL_RBTT(M[7], H2, 8, 10, 12, 2, 7, 9, 11, 13);
-		GROESTL_RBTT(M[8], H2, 9, 11, 13, 3, 8, 10, 12, 14);
-		GROESTL_RBTT(M[9], H2, 10, 12, 14, 4, 9, 11, 13, 15);
-		GROESTL_RBTT(M[10], H2, 11, 13, 15, 5, 10, 12, 14, 0);
-		GROESTL_RBTT(M[11], H2, 12, 14, 0, 6, 11, 13, 15, 1);
-		GROESTL_RBTT(M[12], H2, 13, 15, 1, 7, 12, 14, 0, 2);
-		GROESTL_RBTT(M[13], H2, 14, 0, 2, 8, 13, 15, 1, 3);
-		GROESTL_RBTT(M[14], H2, 15, 1, 3, 9, 14, 0, 2, 4);
-		GROESTL_RBTT(M[15], H2, 0, 2, 4, 10, 15, 1, 3, 5);
+		GROESTL_RBTT(M_0, H2, 1, 3, 5, 11, 0, 2, 4, 6);
+		GROESTL_RBTT(M_1, H2, 2, 4, 6, 12, 1, 3, 5, 7);
+		GROESTL_RBTT(M_2, H2, 3, 5, 7, 13, 2, 4, 6, 8);
+		GROESTL_RBTT(M_3, H2, 4, 6, 8, 14, 3, 5, 7, 9);
+		GROESTL_RBTT(M_4, H2, 5, 7, 9, 15, 4, 6, 8, 10);
+		GROESTL_RBTT(M_5, H2, 6, 8, 10, 0, 5, 7, 9, 11);
+		GROESTL_RBTT(M_6, H2, 7, 9, 11, 1, 6, 8, 10, 12);
+		GROESTL_RBTT(M_7, H2, 8, 10, 12, 2, 7, 9, 11, 13);
+		GROESTL_RBTT(M_8, H2, 9, 11, 13, 3, 8, 10, 12, 14);
+		GROESTL_RBTT(M_9, H2, 10, 12, 14, 4, 9, 11, 13, 15);
+		GROESTL_RBTT(M_10, H2, 11, 13, 15, 5, 10, 12, 14, 0);
+		GROESTL_RBTT(M_11, H2, 12, 14, 0, 6, 11, 13, 15, 1);
+		GROESTL_RBTT(M_12, H2, 13, 15, 1, 7, 12, 14, 0, 2);
+		GROESTL_RBTT(M_13, H2, 14, 0, 2, 8, 13, 15, 1, 3);
+		GROESTL_RBTT(M_14, H2, 15, 1, 3, 9, 14, 0, 2, 4);
+		GROESTL_RBTT(M_15, H2, 0, 2, 4, 10, 15, 1, 3, 5);
 	}
 	
-	#pragma unroll
-	for(int i = 0; i < 16; ++i) G[i] ^= M[i];
-			
-	G[15] ^= 0x0002000000000000UL;
+  G_0  ^= M_0 ;
+  G_1  ^= M_1 ;
+  G_2  ^= M_2 ;
+  G_3  ^= M_3 ;
+  G_4  ^= M_4 ;
+  G_5  ^= M_5 ;
+  G_6  ^= M_6 ;
+  G_7  ^= M_7 ;
+  G_8  ^= M_8 ;
+  G_9  ^= M_9 ;
+  G_10 ^= M_10;
+  G_11 ^= M_11;
+  G_12 ^= M_12;
+  G_13 ^= M_13;
+  G_14 ^= M_14;
+  G_15 ^= M_15;
+
+	G_15 ^= 0x0002000000000000UL;
 	
-	((ulong8 *)M)[0] = ((ulong8 *)G)[1];
+	//((ulong8 *)M)[0] = ((ulong8 *)G)[1];
+  M_0  = G_8 ;
+  M_1  = G_9 ;
+  M_2  = G_10;
+  M_3  = G_11;
+  M_4  = G_12;
+  M_5  = G_13;
+  M_6  = G_14;
+  M_7  = G_15;
 	
-	//#pragma unroll 2
+	#pragma nounroll
 	for(int i = 0; i < 14; ++i)
 	{
-		ulong H[16];
-		
-		#pragma unroll
-		for(int x = 0; x < 16; ++x)
-			H[x] = G[x] ^ PC64(x << 4, i); //G[x] ^ as_uint2(PC64((x << 4), i)); //(uint2)(G[x].s0 ^ ((x << 4) | i), G[x].s1);
+
+    H[0 ] = G_0  ^ PC64(0  << 4, i);
+    H[1 ] = G_1  ^ PC64(1  << 4, i);
+    H[2 ] = G_2  ^ PC64(2  << 4, i);
+    H[3 ] = G_3  ^ PC64(3  << 4, i);
+    H[4 ] = G_4  ^ PC64(4  << 4, i);
+    H[5 ] = G_5  ^ PC64(5  << 4, i);
+    H[6 ] = G_6  ^ PC64(6  << 4, i);
+    H[7 ] = G_7  ^ PC64(7  << 4, i);
+    H[8 ] = G_8  ^ PC64(8  << 4, i);
+    H[9 ] = G_9  ^ PC64(9  << 4, i);
+    H[10] = G_10 ^ PC64(10 << 4, i);
+    H[11] = G_11 ^ PC64(11 << 4, i);
+    H[12] = G_12 ^ PC64(12 << 4, i);
+    H[13] = G_13 ^ PC64(13 << 4, i);
+    H[14] = G_14 ^ PC64(14 << 4, i);
+    H[15] = G_15 ^ PC64(15 << 4, i);
 			
-		GROESTL_RBTT(G[0], H, 0, 1, 2, 3, 4, 5, 6, 11);
-		GROESTL_RBTT(G[1], H, 1, 2, 3, 4, 5, 6, 7, 12);
-		GROESTL_RBTT(G[2], H, 2, 3, 4, 5, 6, 7, 8, 13);
-		GROESTL_RBTT(G[3], H, 3, 4, 5, 6, 7, 8, 9, 14);
-		GROESTL_RBTT(G[4], H, 4, 5, 6, 7, 8, 9, 10, 15);
-		GROESTL_RBTT(G[5], H, 5, 6, 7, 8, 9, 10, 11, 0);
-		GROESTL_RBTT(G[6], H, 6, 7, 8, 9, 10, 11, 12, 1);
-		GROESTL_RBTT(G[7], H, 7, 8, 9, 10, 11, 12, 13, 2);
-		GROESTL_RBTT(G[8], H, 8, 9, 10, 11, 12, 13, 14, 3);
-		GROESTL_RBTT(G[9], H, 9, 10, 11, 12, 13, 14, 15, 4);
-		GROESTL_RBTT(G[10], H, 10, 11, 12, 13, 14, 15, 0, 5);
-		GROESTL_RBTT(G[11], H, 11, 12, 13, 14, 15, 0, 1, 6);
-		GROESTL_RBTT(G[12], H, 12, 13, 14, 15, 0, 1, 2, 7);
-		GROESTL_RBTT(G[13], H, 13, 14, 15, 0, 1, 2, 3, 8);
-		GROESTL_RBTT(G[14], H, 14, 15, 0, 1, 2, 3, 4, 9);
-		GROESTL_RBTT(G[15], H, 15, 0, 1, 2, 3, 4, 5, 10);
+		GROESTL_RBTT(G_0, H, 0, 1, 2, 3, 4, 5, 6, 11);
+		GROESTL_RBTT(G_1, H, 1, 2, 3, 4, 5, 6, 7, 12);
+		GROESTL_RBTT(G_2, H, 2, 3, 4, 5, 6, 7, 8, 13);
+		GROESTL_RBTT(G_3, H, 3, 4, 5, 6, 7, 8, 9, 14);
+		GROESTL_RBTT(G_4, H, 4, 5, 6, 7, 8, 9, 10, 15);
+		GROESTL_RBTT(G_5, H, 5, 6, 7, 8, 9, 10, 11, 0);
+		GROESTL_RBTT(G_6, H, 6, 7, 8, 9, 10, 11, 12, 1);
+		GROESTL_RBTT(G_7, H, 7, 8, 9, 10, 11, 12, 13, 2);
+		GROESTL_RBTT(G_8, H, 8, 9, 10, 11, 12, 13, 14, 3);
+		GROESTL_RBTT(G_9, H, 9, 10, 11, 12, 13, 14, 15, 4);
+		GROESTL_RBTT(G_10, H, 10, 11, 12, 13, 14, 15, 0, 5);
+		GROESTL_RBTT(G_11, H, 11, 12, 13, 14, 15, 0, 1, 6);
+		GROESTL_RBTT(G_12, H, 12, 13, 14, 15, 0, 1, 2, 7);
+		GROESTL_RBTT(G_13, H, 13, 14, 15, 0, 1, 2, 3, 8);
+		GROESTL_RBTT(G_14, H, 14, 15, 0, 1, 2, 3, 4, 9);
+		GROESTL_RBTT(G_15, H, 15, 0, 1, 2, 3, 4, 5, 10);
 	}
 	
-	vstore8((((ulong8 *)M)[0] ^ ((ulong8 *)G)[1]), 0, hash->h8);
+	//vstore8((((ulong8 *)M)[0] ^ ((ulong8 *)G)[1]), 0, hash->h8);
+  hash->h8[0] = M_0 ^ G_8;
+  hash->h8[1] = M_1 ^ G_9;
+  hash->h8[2] = M_2 ^ G_10;
+  hash->h8[3] = M_3 ^ G_11;
+  hash->h8[4] = M_4 ^ G_12;
+  hash->h8[5] = M_5 ^ G_13;
+  hash->h8[6] = M_6 ^ G_14;
+  hash->h8[7] = M_7 ^ G_15;
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
@@ -852,12 +971,39 @@ __kernel void search9(__global hash_t* hashes)
     __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
     // simd
-    s32 q[256];
-    unsigned char x[128];
+    volatile s32 q[256];
+    __local unsigned char x[128 * WORKSIZE];
+    uint tid = get_local_id(0);
     for(unsigned int i = 0; i < 64; i++)
-  x[i] = hash->h1[i];
+  x[tid + WORKSIZE * i] = hash->h1[i];
     for(unsigned int i = 64; i < 128; i++)
-  x[i] = 0;
+  x[tid + WORKSIZE * i] = 0;
+
+    __private volatile s32 m;
+    __private volatile s32 n;
+    __private volatile s32 t;
+    __private volatile u32 tA0;
+    __private volatile u32 tA1;
+    __private volatile u32 tA2;
+    __private volatile u32 tA3;
+    __private volatile u32 tA4;
+    __private volatile u32 tA5;
+    __private volatile u32 tA6;
+    __private volatile u32 tA7;
+    s32 d1_0, d1_1, d1_2, d1_3, d1_4, d1_5, d1_6, d1_7;
+    s32 d2_0, d2_1, d2_2, d2_3, d2_4, d2_5, d2_6, d2_7;
+    s32 x0;
+    s32 x1;
+    s32 x2;
+    s32 x3;
+    s32 a0;
+    s32 a1;
+    s32 a2;
+    s32 a3;
+    s32 b0;
+    s32 b1;
+    s32 b2;
+    s32 b3;
 
     u32 A0 = C32(0x0BA16B95), A1 = C32(0x72F999AD), A2 = C32(0x9FECC2AE), A3 = C32(0xBA3264FC), A4 = C32(0x5E894929), A5 = C32(0x8E9F30E5), A6 = C32(0x2F1DAA37), A7 = C32(0xF0F2C558);
     u32 B0 = C32(0xAC506643), B1 = C32(0xA90635A5), B2 = C32(0xE25B878B), B3 = C32(0xAAB7878F), B4 = C32(0x88817F7A), B5 = C32(0x0A02892B), B6 = C32(0x559A7550), B7 = C32(0x598F657E);
@@ -966,7 +1112,7 @@ __kernel void search9(__global hash_t* hashes)
 }
 
 // echo
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__attribute__((reqd_work_group_size(256, 1, 1)))
 __kernel void search10(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
@@ -977,33 +1123,66 @@ __kernel void search10(__global hash_t* hashes)
   for(int i = get_local_id(0), step = get_local_size(0); i < 256; i += step)
     AES0[i] = AES0_C[i];
 
-  uint4 W[16];
+  volatile uint4 W0, W1, W2, W3, W4, W5, W6, W7, W8, W9, W10, W11, W12, W13, W14, W15;
 
+    uint4 a, b, c, d;
+    uint4 ab; 
+    uint4 bc; 
+    uint4 cd; 
+    uint4 t1; 
+    uint4 t2; 
+    uint4 t3; 
+    uint4 abx;
+    uint4 bcx;
+    uint4 cdx;
+    uint4 tmp;
   // Precomp
-  W[0] = (uint4)(0xe7e9f5f5, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[1] = (uint4)(0x14b8a457, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[2] = (uint4)(0xdbfde1dd, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[3] = (uint4)(0x9ac2dea3, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[4] = (uint4)(0x65978b09, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[5] = (uint4)(0xa4213d7e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[6] = (uint4)(0x265f4382, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[7] = (uint4)(0x34514d9e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
-  W[12] = (uint4)(0xb134347e, 0xea6f7e7e, 0xbd7731bd, 0x8a8a1968);
-  W[13] = (uint4)(0x579f9f33, 0xfbfbfbfb, 0xfbfbfbfb, 0xefefd3c7);
-  W[14] = (uint4)(0x2cb6b661, 0x6b23b3b3, 0xcf93a7cf, 0x9d9d3751);
-  W[15] = (uint4)(0x01425eb8, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W0 = (uint4)(0xe7e9f5f5, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W1 = (uint4)(0x14b8a457, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W2 = (uint4)(0xdbfde1dd, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W3 = (uint4)(0x9ac2dea3, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W4 = (uint4)(0x65978b09, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W5 = (uint4)(0xa4213d7e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W6 = (uint4)(0x265f4382, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W7 = (uint4)(0x34514d9e, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
+  W12 = (uint4)(0xb134347e, 0xea6f7e7e, 0xbd7731bd, 0x8a8a1968);
+  W13 = (uint4)(0x579f9f33, 0xfbfbfbfb, 0xfbfbfbfb, 0xefefd3c7);
+  W14 = (uint4)(0x2cb6b661, 0x6b23b3b3, 0xcf93a7cf, 0x9d9d3751);
+  W15 = (uint4)(0x01425eb8, 0xf5e7e9f5, 0xb3b36b23, 0xb3dbe7af);
 
-  ((uint16 *)W)[2] = vload16(0, hash->h4);
+  //((uint16 *)W)[2] = vload16(0, hash->h4);
+  W8.x = hash->h4[0];
+  W8.y = hash->h4[1];
+  W8.z = hash->h4[2];
+  W8.w = hash->h4[3];
+  W9.x = hash->h4[4];
+  W9.y = hash->h4[5];
+  W9.z = hash->h4[6];
+  W9.w = hash->h4[7];
+  W10.x = hash->h4[8];
+  W10.y = hash->h4[9];
+  W10.z = hash->h4[10];
+  W10.w = hash->h4[11];
+  W11.x = hash->h4[12];
+  W11.y = hash->h4[13];
+  W11.z = hash->h4[14];
+  W11.w = hash->h4[15];
 
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  #pragma unroll
-	for(int x = 8; x < 12; ++x) {
-		uint4 tmp;
-		tmp = Echo_AES_Round_Small(AES0, W[x]);
-		tmp.s0 ^= x | 0x200;
-		W[x] = Echo_AES_Round_Small(AES0, tmp);
-	}
+  tmp = Echo_AES_Round_Small(AES0, W8);
+  tmp.s0 ^= 8 | 0x200;
+  W8 = Echo_AES_Round_Small(AES0, tmp);
+  tmp = Echo_AES_Round_Small(AES0, W9);
+  tmp.s0 ^= 9 | 0x200;
+  W9 = Echo_AES_Round_Small(AES0, tmp);
+  tmp = Echo_AES_Round_Small(AES0, W10);
+  tmp.s0 ^= 10 | 0x200;
+  W10 = Echo_AES_Round_Small(AES0, tmp);
+  tmp = Echo_AES_Round_Small(AES0, W11);
+  tmp.s0 ^= 11 | 0x200;
+  W11 = Echo_AES_Round_Small(AES0, tmp);
+
   BigShiftRows(W);
   BigMixColumns(W);
 
@@ -1014,12 +1193,29 @@ __kernel void search10(__global hash_t* hashes)
       BigMixColumns(W);
   }
 
-  #pragma unroll
-  for(int i = 0; i < 4; ++i)
-    vstore4(vload4(i, hash->h4) ^ W[i] ^ W[i + 8] ^ (uint4)(512, 0, 0, 0), i, hash->h4);
+  //#pragma unroll
+  //for(int i = 0; i < 4; ++i)
+  //  vstore4(vload4(i, hash->h4) ^ W[i] ^ W[i + 8] ^ (uint4)(512, 0, 0, 0), i, hash->h4);
+ hash->h4[0 ] = hash->h4[0]  ^ W0.x ^ W8.x  ^ 512;
+ hash->h4[1 ] = hash->h4[1]  ^ W0.y ^ W8.y  ^ 0;
+ hash->h4[2 ] = hash->h4[2]  ^ W0.z ^ W8.z  ^ 0;
+ hash->h4[3 ] = hash->h4[3]  ^ W0.w ^ W8.w  ^ 0;
+ hash->h4[4 ] = hash->h4[4]  ^ W1.x ^ W9.x  ^ 512;
+ hash->h4[5 ] = hash->h4[5]  ^ W1.y ^ W9.y  ^ 0;
+ hash->h4[6 ] = hash->h4[6]  ^ W1.z ^ W9.z  ^ 0;
+ hash->h4[7 ] = hash->h4[7]  ^ W1.w ^ W9.w  ^ 0;
+ hash->h4[8 ] = hash->h4[8]  ^ W2.x ^ W10.x ^ 512;
+ hash->h4[9 ] = hash->h4[9]  ^ W2.y ^ W10.y ^ 0;
+ hash->h4[10] = hash->h4[10] ^ W2.z ^ W10.z ^ 0;
+ hash->h4[11] = hash->h4[11] ^ W2.w ^ W10.w ^ 0;
+ hash->h4[12] = hash->h4[12] ^ W3.x ^ W11.x ^ 512;
+ hash->h4[13] = hash->h4[13] ^ W3.y ^ W11.y ^ 0;
+ hash->h4[14] = hash->h4[14] ^ W3.z ^ W11.z ^ 0;
+ hash->h4[15] = hash->h4[15] ^ W3.w ^ W11.w ^ 0;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
+
 
 // hamsi
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
