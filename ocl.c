@@ -825,9 +825,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       // scrypt/n-scrypt
     }
     else if (algorithm->type == ALGO_LYRA2REV2) {
-      /* The scratch/pad-buffer needs 32kBytes memory per thread. */
-      bufsize = LYRA_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
-      buf1size = 4* 8 * cgpu->thread_concurrency; //matrix
+      bufsize = 8 * 4 * cgpu->thread_concurrency;
+      buf1size = 4 * 8 * 4 * cgpu->thread_concurrency; // state
 
       /* This is the input buffer. For yescrypt this is guaranteed to be
       * 80 bytes only. */

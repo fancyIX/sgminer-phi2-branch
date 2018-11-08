@@ -1216,7 +1216,7 @@ static cl_int queue_lyra2rev2_kernel(struct __clState *clState, struct _dev_blk_
   kernel = &clState->kernel;
   num = 0;
   //  CL_SET_ARG(clState->CLbuffer0);
-  CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(blk->work->blk.ctx_a);
   CL_SET_ARG(blk->work->blk.ctx_b);
   CL_SET_ARG(blk->work->blk.ctx_c);
@@ -1231,23 +1231,28 @@ static cl_int queue_lyra2rev2_kernel(struct __clState *clState, struct _dev_blk_
 
   // keccak - search1
   kernel = clState->extra_kernels;
-  CL_SET_ARG_0(clState->buffer1);
+  CL_SET_ARG_0(clState->padbuffer8);
   // cubehash - search2
   num = 0;
-  CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
-  // lyra - search3
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // lyra - search3,4,5
   num = 0;
-  CL_NEXTKERNEL_SET_ARG_N(0, clState->buffer1);
-  CL_SET_ARG_N(1, clState->padbuffer8);
-  // skein -search4
-  num = 0;
-  CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
-  // cubehash - search5
+  CL_NEXTKERNEL_SET_ARG_N(0, clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->buffer1);
   num = 0;
   CL_NEXTKERNEL_SET_ARG_0(clState->buffer1);
-  // bmw - search6
   num = 0;
-  CL_NEXTKERNEL_SET_ARG(clState->buffer1);
+  CL_NEXTKERNEL_SET_ARG_N(0, clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->buffer1);
+  // skein -search6
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // cubehash - search7
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // bmw - search8
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->outputBuffer);
   CL_SET_ARG(le_target);
 
@@ -1552,7 +1557,7 @@ static algorithm_settings_t algos[] = {
   { "fresh", ALGO_FRESH, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 4 * 16 * 4194304, 0, fresh_regenhash, NULL, NULL, queue_fresh_kernel, gen_hash, NULL },
 
   { "lyra2re", ALGO_LYRA2RE, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 2 * 8 * 4194304, 0, lyra2re_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2re_kernel, gen_hash, NULL },
-  { "lyra2rev2", ALGO_LYRA2REV2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 6, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, lyra2rev2_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2rev2_kernel, gen_hash, append_neoscrypt_compiler_options },
+  { "lyra2rev2", ALGO_LYRA2REV2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 8, -1, 0, lyra2rev2_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2rev2_kernel, gen_hash, append_neoscrypt_compiler_options },
   { "lyra2Z"   , ALGO_LYRA2Z   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, -1, 0, lyra2Z_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2z_kernel, gen_hash, NULL },
   { "lyra2h"   , ALGO_LYRA2H   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, -1, 0, lyra2h_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2h_kernel, gen_hash, NULL },
   { "allium", ALGO_ALLIUM, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 2 * 8 * 4194304, 0, allium_regenhash, blake256_midstate, blake256_prepare_work, queue_allium_kernel, gen_hash, NULL },
