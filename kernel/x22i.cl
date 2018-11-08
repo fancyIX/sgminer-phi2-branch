@@ -1112,7 +1112,7 @@ __kernel void search9(__global hash_t* hashes)
 }
 
 // echo
-__attribute__((reqd_work_group_size(256, 1, 1)))
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search10(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
