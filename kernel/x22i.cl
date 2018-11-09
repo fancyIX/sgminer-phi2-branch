@@ -1529,9 +1529,9 @@ __kernel void search14(__global hash_t* hashes, __global hash_t* hashes1)
 
   h0 = h1 = h2 = h3 = h4 = h5 = h6 = h7 = 0;
 
-  #pragma unroll 10
+  // #pragma unroll 10
   for (unsigned r = 0; r < 10; r ++) {
-    sph_u64 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
+    volatile sph_u64 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
 
     ROUND_KSCHED(LT, h, tmp, plain_RC[r]);
     TRANSFER(h, tmp);
@@ -1569,9 +1569,9 @@ __kernel void search14(__global hash_t* hashes, __global hash_t* hashes1)
   n6 = h6;
   n7 ^= h7;
 
-  #pragma unroll 10
+  // #pragma unroll 10
   for (unsigned r = 0; r < 10; r ++) {
-    sph_u64 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
+    volatile sph_u64 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7;
 
     ROUND_KSCHED(LT, h, tmp, plain_RC[r]);
     TRANSFER(h, tmp);
