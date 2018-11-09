@@ -1514,8 +1514,8 @@ __kernel void search14(__global hash_t* hashes, __global hash_t* hashes1)
   barrier(CLK_LOCAL_MEM_FENCE);
 
   // whirlpool
-  sph_u64 n0, n1, n2, n3, n4, n5, n6, n7;
-  sph_u64 h0, h1, h2, h3, h4, h5, h6, h7;
+  volatile sph_u64 n0, n1, n2, n3, n4, n5, n6, n7;
+  volatile sph_u64 h0, h1, h2, h3, h4, h5, h6, h7;
   sph_u64 state[8];
 
   n0 = (hash->h8[0]);
@@ -1588,8 +1588,14 @@ __kernel void search14(__global hash_t* hashes, __global hash_t* hashes1)
   state[6] ^= n6;
   state[7] ^= n7 ^ 0x2000000000000;
 
-  for (unsigned i = 0; i < 8; i ++)
-    hash1->h8[i] = state[i];
+  hash1->h8[0] = state[0];
+  hash1->h8[1] = state[1];
+  hash1->h8[2] = state[2];
+  hash1->h8[3] = state[3];
+  hash1->h8[4] = state[4];
+  hash1->h8[5] = state[5];
+  hash1->h8[6] = state[6];
+  hash1->h8[7] = state[7];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
