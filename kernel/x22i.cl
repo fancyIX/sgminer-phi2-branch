@@ -1011,6 +1011,7 @@ __kernel void search9(__global hash_t* hashes)
     u32 D0 = C32(0x09254899), D1 = C32(0xD699C7BC), D2 = C32(0x9019B6DC), D3 = C32(0x2B9022E4), D4 = C32(0x8FA14956), D5 = C32(0x21BF9BD3), D6 = C32(0xB94D0943), D7 = C32(0x6FFDDC22);
 
     FFT256(0, 1, 0, ll1);
+    #pragma unroll 256
     for (int i = 0; i < 256; i ++) {
         s32 tq;
 
