@@ -125,7 +125,7 @@ ulong ROTL64_2(const uint2 vv, const int r) { return as_ulong((amd_bitalign((vv)
 #include "whirlpool.cl"
 #include "wolf-sha512.cl"
 #include "haval.cl"
-#include "gost-mod.cl"
+#include "gost-mod-f.cl"
 #include "swifftx.cl"
 #include "tiger.cl"
 #include "sha256f.cl"
@@ -2099,13 +2099,14 @@ __kernel void search21(__global uint* hashes, __global uint* lyraStates)
 
 // streebog
 //gost streebog 64
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__attribute__((reqd_work_group_size(256, 1, 1)))
 __kernel void search22(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-  sph_u64 message[8], out[8];
+  volatile sph_u64 message[8];
+  __local sph_u64 out[8 * GOST_WORKSIZE];
   sph_u64 len = 512;
 
   __local sph_u64 lT[8][256];
@@ -2128,15 +2129,16 @@ __kernel void search22(__global hash_t* hashes)
   message[7] = (hash->h8[7]);
 
   GOST_HASH_512(message, out);
+  barrier(CLK_LOCAL_MEM_FENCE);
 
-  hash->h8[0] = (out[0]);
-  hash->h8[1] = (out[1]);
-  hash->h8[2] = (out[2]);
-  hash->h8[3] = (out[3]);
-  hash->h8[4] = (out[4]);
-  hash->h8[5] = (out[5]);
-  hash->h8[6] = (out[6]);
-  hash->h8[7] = (out[7]);
+  hash->h8[0] = (GOST_OUT(0));
+  hash->h8[1] = (GOST_OUT(1));
+  hash->h8[2] = (GOST_OUT(2));
+  hash->h8[3] = (GOST_OUT(3));
+  hash->h8[4] = (GOST_OUT(4));
+  hash->h8[5] = (GOST_OUT(5));
+  hash->h8[6] = (GOST_OUT(6));
+  hash->h8[7] = (GOST_OUT(7));
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }

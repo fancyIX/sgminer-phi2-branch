@@ -1498,6 +1498,13 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
       localThreads2[0] = 64;
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
+    } else if (gpu->algorithm.type == ALGO_X22I && (i == 21)) {
+      size_t globalThreads2[1];
+      size_t localThreads2[1];
+      globalThreads2[0] = globalThreads[0];
+      localThreads2[0] = 256;
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
+        globalThreads2, localThreads2, 0, NULL, NULL);
     } else if (gpu->algorithm.type == ALGO_X22I && (i == 15)) {
       const size_t off2[] = { 0, *p_global_work_offset };
 	    const size_t gws[] = { 8, globalThreads[0] };
