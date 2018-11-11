@@ -230,14 +230,15 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WholeProgramOptimization>true</WholeProgramOptimization>
+      <AdditionalOptions> /D "HAVE_ADL"  /D "CURL_STATICLIB" /D "_WIN32_WINNT=0x0400" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>false</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(ProjectDir)dist\lib\x64;$(ProjectDir)jansson\Release\x64</AdditionalLibraryDirectories>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\OpenSSL-Win64\lib;C:\OpenSSL-Win64\lib\VC\static;$(ProjectDir)dist\lib\x64;$(ProjectDir)jansson\Release\x64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Ws2_32.lib;libeay32MTd.lib;libeay32MT.lib;libeay32MDd.lib;libeay32MD.lib;ssleay32MTd.lib;ssleay32MT.lib;ssleay32MDd.lib;ssleay32MD.lib;wldap32.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
       <LinkTimeCodeGeneration>
       </LinkTimeCodeGeneration>
