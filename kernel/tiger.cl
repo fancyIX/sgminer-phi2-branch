@@ -10,7 +10,7 @@ __constant static const ulong III[3] = {
 };
 
 
-__constant static const ulong T1[256] = {
+__constant static const ulong TIGER_T1[256] = {
 	SPH_C64(0x02AAB17CF7E90C5E), SPH_C64(0xAC424B03E243A8EC),
 	SPH_C64(0x72CD5BE30DD5FCD3), SPH_C64(0x6D019B93F6F97F3A),
 	SPH_C64(0xCD9978FFD21F9193), SPH_C64(0x7573A1C9708029E2),
@@ -141,7 +141,7 @@ __constant static const ulong T1[256] = {
 	SPH_C64(0xA6300F170BDC4820), SPH_C64(0xEBC18760ED78A77A)
 };
 
-__constant static const ulong T2[256] = {
+__constant static const ulong TIGER_T2[256] = {
 	SPH_C64(0xE6A6BE5A05A12138), SPH_C64(0xB5A122A5B4F87C98),
 	SPH_C64(0x563C6089140B6990), SPH_C64(0x4C46CB2E391F5DD5),
 	SPH_C64(0xD932ADDBC9B79434), SPH_C64(0x08EA70E42015AFF5),
@@ -272,7 +272,7 @@ __constant static const ulong T2[256] = {
 	SPH_C64(0xD62A2EABC0977179), SPH_C64(0x22FAC097AA8D5C0E)
 };
 
-__constant static const ulong T3[256] = {
+__constant static const ulong TIGER_T3[256] = {
 	SPH_C64(0xF49FCC2FF1DAF39B), SPH_C64(0x487FD5C66FF29281),
 	SPH_C64(0xE8A30667FCDCA83F), SPH_C64(0x2C9B4BE3D2FCCE63),
 	SPH_C64(0xDA3FF74B93FBBBC2), SPH_C64(0x2FA165D2FE70BA66),
@@ -403,7 +403,7 @@ __constant static const ulong T3[256] = {
 	SPH_C64(0xD3DC3BEF265B0F70), SPH_C64(0x6D0E60F5C3578A9E)
 };
 
-__constant static const ulong T4[256] = {
+__constant static const ulong TIGER_T4[256] = {
 	SPH_C64(0x5B0E608526323C55), SPH_C64(0x1A46C1A9FA1B59F5),
 	SPH_C64(0xA9E245A17C4C8FFA), SPH_C64(0x65CA5159DB2955D7),
 	SPH_C64(0x05DB0A76CE35AFC2), SPH_C64(0x81EAC77EA9113D45),
@@ -538,7 +538,6 @@ __constant static const ulong T4[256] = {
 #define BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
 
 #define TIGER_ROUND(a, b, c, x, mul)    { \
-	ulong t0, t1; \
 	c ^= x; \
 	t0 = T1[BYTE(c, 0)] ^ T2[BYTE(c, 2)] ^ T3[BYTE(c, 4)] ^ T4[BYTE(c, 6)]; \
 	t1 = T1[BYTE(c, 7)] ^ T2[BYTE(c, 5)] ^ T3[BYTE(c, 3)] ^ T4[BYTE(c, 1)]; \
@@ -581,8 +580,6 @@ __constant static const ulong T4[256] = {
 
 
 #define TIGER_ROUND_BODY(in, r)    { \
-		ulong A, B, C; \
-		ulong X0, X1, X2, X3, X4, X5, X6, X7; \
  \
 		A = (r)[0]; \
 		B = (r)[1]; \

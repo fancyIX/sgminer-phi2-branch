@@ -1751,13 +1751,26 @@ __kernel void search18(__global uint *d_hash)
   uint offset = get_global_offset(0);
 
 		__global ulong* inout = (__global ulong*)(d_hash + 16 * (gid - offset));
-		ulong buf[3], in[8], in2[8];
-#pragma unroll
-		for (int i = 0; i < 8; i++) in[i] = inout[i];
+		volatile ulong buf[3], in2[8];
 #pragma unroll
 		for (int i = 0; i < 3; i++) buf[i] = III[i];
 
-		TIGER_ROUND_BODY(in, buf);
+  int init = get_local_id(0);
+  int step = get_local_size(0);
+  __local ulong T1[256], T2[256], T3[256], T4[256];
+
+  _Pragma("unroll") for(int j=init;j<256;j+=step) {
+      T1[j] = TIGER_T1[j];
+      T2[j] = TIGER_T2[j];
+      T3[j] = TIGER_T3[j];
+      T4[j] = TIGER_T4[j];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  volatile ulong t0, t1;
+  volatile ulong A, B, C;
+	volatile ulong X0, X1, X2, X3, X4, X5, X6, X7;
+
+		TIGER_ROUND_BODY(inout, buf);
 
 		in2[0] = 1;
 #pragma unroll
