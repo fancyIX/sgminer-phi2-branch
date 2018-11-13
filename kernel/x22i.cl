@@ -285,38 +285,38 @@ __kernel void search2(__global hash_t* hashes)
 	}
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
-  ulong M_0  = 0;
-  ulong M_1  = 0;
-  ulong M_2  = 0;
-  ulong M_3  = 0;
-  ulong M_4  = 0;
-  ulong M_5  = 0;
-  ulong M_6  = 0;
-  ulong M_7  = 0;
-  ulong M_8  = 0;
-  ulong M_9  = 0;
-  ulong M_10 = 0;
-  ulong M_11 = 0;
-  ulong M_12 = 0;
-  ulong M_13 = 0;
-  ulong M_14 = 0;
-  ulong M_15 = 0;
-  ulong G_0 ;
-  ulong G_1 ;
-  ulong G_2 ;
-  ulong G_3 ;
-  ulong G_4 ;
-  ulong G_5 ;
-  ulong G_6 ;
-  ulong G_7 ;
-  ulong G_8 ;
-  ulong G_9 ;
-  ulong G_10;
-  ulong G_11;
-  ulong G_12;
-  ulong G_13;
-  ulong G_14;
-  ulong G_15;
+  volatile ulong M_0  = 0;
+  volatile ulong M_1  = 0;
+  volatile ulong M_2  = 0;
+  volatile ulong M_3  = 0;
+  volatile ulong M_4  = 0;
+  volatile ulong M_5  = 0;
+  volatile ulong M_6  = 0;
+  volatile ulong M_7  = 0;
+  volatile ulong M_8  = 0;
+  volatile ulong M_9  = 0;
+  volatile ulong M_10 = 0;
+  volatile ulong M_11 = 0;
+  volatile ulong M_12 = 0;
+  volatile ulong M_13 = 0;
+  volatile ulong M_14 = 0;
+  volatile ulong M_15 = 0;
+  volatile ulong G_0 ;
+  volatile ulong G_1 ;
+  volatile ulong G_2 ;
+  volatile ulong G_3 ;
+  volatile ulong G_4 ;
+  volatile ulong G_5 ;
+  volatile ulong G_6 ;
+  volatile ulong G_7 ;
+  volatile ulong G_8 ;
+  volatile ulong G_9 ;
+  volatile ulong G_10;
+  volatile ulong G_11;
+  volatile ulong G_12;
+  volatile ulong G_13;
+  volatile ulong G_14;
+  volatile ulong G_15;
 
   ulong H[16], H2[16];
 
@@ -711,11 +711,11 @@ __kernel void search5(__global hash_t* hashes)
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
 
-  sph_u64 a00 = 0, a01 = 0, a02 = 0, a03 = 0, a04 = 0;
-  sph_u64 a10 = 0, a11 = 0, a12 = 0, a13 = 0, a14 = 0;
-  sph_u64 a20 = 0, a21 = 0, a22 = 0, a23 = 0, a24 = 0;
-  sph_u64 a30 = 0, a31 = 0, a32 = 0, a33 = 0, a34 = 0;
-  sph_u64 a40 = 0, a41 = 0, a42 = 0, a43 = 0, a44 = 0;
+  volatile sph_u64 a00 = 0, a01 = 0, a02 = 0, a03 = 0, a04 = 0;
+  volatile sph_u64 a10 = 0, a11 = 0, a12 = 0, a13 = 0, a14 = 0;
+  volatile sph_u64 a20 = 0, a21 = 0, a22 = 0, a23 = 0, a24 = 0;
+  volatile sph_u64 a30 = 0, a31 = 0, a32 = 0, a33 = 0, a34 = 0;
+  volatile sph_u64 a40 = 0, a41 = 0, a42 = 0, a43 = 0, a44 = 0;
 
   a10 = SPH_C64(0xFFFFFFFFFFFFFFFF);
   a20 = SPH_C64(0xFFFFFFFFFFFFFFFF);
