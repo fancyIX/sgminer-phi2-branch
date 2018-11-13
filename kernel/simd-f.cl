@@ -28,6 +28,7 @@
  * ===========================(LICENSE END)=============================
  *
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
+ * @author   fancyIX 2018
  */
 
 typedef sph_u32 u32;

@@ -1,7 +1,7 @@
-#ifndef WOLF_ECHO_CL
-#define WOLF_ECHO_CL
+#ifndef FANCYIX_ECHO_CL
+#define FANCYIX_ECHO_CL
 
-// OpenCL Echo implementation functions by Wolf
+// OpenCL Echo implementation functions by Wolf and modified by fancyIX
 
 #ifdef NO_AMD_OPS
 	#define BYTE0(x)	((uchar)(x))
