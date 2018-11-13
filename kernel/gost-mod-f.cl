@@ -27,6 +27,7 @@
  * ===========================(LICENSE END)=============================
  *
  * @author   Ivan <ivansib@users.noreply.github.com> 
+ * @author   fancyIX 2018
  */
 
 #ifdef __cplusplus

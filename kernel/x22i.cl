@@ -1240,12 +1240,12 @@ __kernel void search11(__global hash_t* hashes)
     #define CALL_INPUT_BIG_LOCAL INPUT_BIG
   #endif
 
-  sph_u32 c0 = HAMSI_IV512[0], c1 = HAMSI_IV512[1], c2 = HAMSI_IV512[2], c3 = HAMSI_IV512[3];
-  sph_u32 c4 = HAMSI_IV512[4], c5 = HAMSI_IV512[5], c6 = HAMSI_IV512[6], c7 = HAMSI_IV512[7];
-  sph_u32 c8 = HAMSI_IV512[8], c9 = HAMSI_IV512[9], cA = HAMSI_IV512[10], cB = HAMSI_IV512[11];
-  sph_u32 cC = HAMSI_IV512[12], cD = HAMSI_IV512[13], cE = HAMSI_IV512[14], cF = HAMSI_IV512[15];
-  sph_u32 m0, m1, m2, m3, m4, m5, m6, m7;
-  sph_u32 m8, m9, mA, mB, mC, mD, mE, mF;
+  volatile sph_u32 c0 = HAMSI_IV512[0], c1 = HAMSI_IV512[1], c2 = HAMSI_IV512[2], c3 = HAMSI_IV512[3];
+  volatile sph_u32 c4 = HAMSI_IV512[4], c5 = HAMSI_IV512[5], c6 = HAMSI_IV512[6], c7 = HAMSI_IV512[7];
+  volatile sph_u32 c8 = HAMSI_IV512[8], c9 = HAMSI_IV512[9], cA = HAMSI_IV512[10], cB = HAMSI_IV512[11];
+  volatile sph_u32 cC = HAMSI_IV512[12], cD = HAMSI_IV512[13], cE = HAMSI_IV512[14], cF = HAMSI_IV512[15];
+  volatile sph_u32 m0, m1, m2, m3, m4, m5, m6, m7;
+  volatile sph_u32 m8, m9, mA, mB, mC, mD, mE, mF;
   sph_u32 h[16] = { c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, cA, cB, cC, cD, cE, cF };
 
   #define buf(u) hash->h1[i + u]
@@ -1289,6 +1289,7 @@ __kernel void search11(__global hash_t* hashes)
   PF_BIG;
   T_BIG;
 
+#pragma unroll
   for (unsigned u = 0; u < 16; u ++)
     hash->h4[u] = ENC32E(h[u]);
 
