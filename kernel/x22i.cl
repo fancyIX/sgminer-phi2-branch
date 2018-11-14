@@ -1642,13 +1642,13 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 }
 
 // swifftx hash hash1 hash2 hash3
-__attribute__((reqd_work_group_size(8, 16, 1)))
+__attribute__((reqd_work_group_size(8, 8, 8)))
 __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
 {
-    uint gid = get_global_id(1);
-    uint offset = get_global_offset(1);
+    uint gid = get_global_id(2);
+    uint offset = get_global_offset(2);
     uint thread = gid - offset;
-    uint tid = get_local_id(1);
+    uint tid = get_local_id(2);
 
     __global uint* inout = &g_hash [thread<<4];
     __global uint* in1   = &g_hash1[thread<<4];
@@ -1658,12 +1658,13 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local unsigned char S_SBox[256];
   __local swift_int32_t S_sum[3*SFT_N * SFT_NSLOT];
   __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
-  __local uchar S_carry[8 * SFT_NSLOT];
+  __local uchar S_carry[SFT_NSTRIDE * SFT_NSLOT];
+  __local swift_int32_t S_product[SFT_NROUND * SFT_NSTRIDE * SFT_NSLOT];
   swift_int32_t pairs[EIGHTH_N / 2];
 
   const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
-  if (tid < 256 && SFT_STRIDE == 0) {
+  if (tid < 256 && SFT_STRIDE == 0 && SFT_ROUND == 0) {
     #pragma unroll
     for (int i=0; i<(256/blockSize); i++) {
       S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
@@ -1676,7 +1677,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global unsigned char* in1ptr = (__global unsigned char*)in1;
     __global unsigned char* in2ptr = (__global unsigned char*)in2;
     __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, As, fftTable, multipliers, S_sum, S_intermediate, S_carry, pairs);
+    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, As, fftTable, multipliers, S_sum, S_intermediate, S_carry, S_product, pairs);
    }
 }
 
