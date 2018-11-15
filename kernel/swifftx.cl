@@ -583,7 +583,7 @@ unsigned char SFT_SBox[256] = {
 
 #define e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr,ib,output, fftTable,multipliers,i) { \
  \
-  swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
+  swift_int16_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
  if ((ib) < 64 - 7 && (ib) >= 0) { \
     F0  = multipliers[0 + (i << 3)] * *(&fftTable[SFT_INPUT0(((ib) + 0)) << 3] + i); \
@@ -661,7 +661,7 @@ unsigned char SFT_SBox[256] = {
 
 #define e_FFT_staged_int4_L(intermediate, ib, output, fftTable, multipliers,i ) { \
  \
-  swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
+  swift_int16_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
   F0  = multipliers[0 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 0) << 3] + i); \
   F1  = multipliers[1 + (i << 3)] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 1) << 3] + i); \
