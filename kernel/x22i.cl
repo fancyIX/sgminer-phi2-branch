@@ -1655,6 +1655,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global uchar* in2   = (__global uchar *) &g_hash2[thread<<4];
     __global uchar* in3   = (__global uchar *) &g_hash3[thread<<4];
 
+  __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local uchar S_in[4 * 64 * SFT_NSLOT];
   __local unsigned char S_SBox[256];
   swift_int32_t S_sum[3*SFT_N/ SFT_NSTRIDE];
@@ -1672,12 +1673,16 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
   if (tid < 256 && SFT_STRIDE == 0) {
-    #pragma unroll
+#pragma unroll
     for (int i=0; i<(256/blockSize); i++) {
       S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
     }
+#pragma unroll
+    for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
+      S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
+    }
   }
-  #pragma unroll
+#pragma unroll
     for (int ii = 0; ii < 64 / SFT_NSTRIDE; ii++) {
       const int i = SFT_STRIDE + SFT_NSTRIDE * ii;
       SFT_INPUT(i) = inout[i];
@@ -1688,7 +1693,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
       barrier(CLK_LOCAL_MEM_FENCE);
 
   {
-    e_ComputeSingleSWIFFTX(inout, S_in, S_SBox, As, fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
+    e_ComputeSingleSWIFFTX(inout, S_in, S_SBox, As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
 }
