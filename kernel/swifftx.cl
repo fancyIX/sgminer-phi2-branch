@@ -715,17 +715,17 @@ unsigned char SFT_SBox[256] = {
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
-      __constant const swift_int16_t *As_i = As + (i*SFT_N);   \
+      __local const swift_int16_t *As_i = As + (i*SFT_N);   \
    \
       PRAGMA_UNROLL   \
       for (int j=0; j<SFT_N/ SFT_NSTRIDE; j++) {   \
         const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
-        __constant const swift_int16_t *As_j = As_i + jj;   \
+        __local const swift_int16_t *As_j = As_i + jj;   \
         const swift_int32_t *f = fftOut + j;   \
    \
         PRAGMA_UNROLL   \
         for (int k=0; k<3; ++k) {   \
-          __constant const swift_int16_t *a = As_j + (k << 11);   \
+          __local const swift_int16_t *a = As_j + (k << 11);   \
           sum[k*SFT_N / SFT_NSTRIDE + j] += (*f) * (*a);   \
         }   \
            \
@@ -795,7 +795,7 @@ unsigned char SFT_SBox[256] = {
       PRAGMA_UNROLL   \
       for (int j=0; j<SFT_N/8; ++j) {   \
         const int jj = SFT_STRIDE + (j << 3);   \
-        __constant const swift_int16_t *a = As + (i * SFT_N) + jj;   \
+        __local const swift_int16_t *a = As + (i * SFT_N) + jj;   \
         const swift_int32_t *f = fftOut + j;   \
         sum[j] += (*f) * (*a);   \
       }   \
