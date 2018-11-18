@@ -540,6 +540,7 @@ unsigned char SFT_SBox[256] = {
       barrier(CLK_LOCAL_MEM_FENCE); \
       SFT_PAIRS(SFT_STRIDE + 1) += (temp >> 16); \
     } \
+    barrier(CLK_LOCAL_MEM_FENCE); \
   } \
  \
   if (SFT_STRIDE % 2 == 0) { \
@@ -564,15 +565,13 @@ unsigned char SFT_SBox[256] = {
       barrier(CLK_LOCAL_MEM_FENCE); \
       SFT_PAIRS(SFT_STRIDE + 1) += (temp >> 16); \
     } \
+    barrier(CLK_LOCAL_MEM_FENCE); \
   } \
  \
   if (SFT_STRIDE % 2 == 0) { \
     SFT_OUTPUT(((ob) + SFT_STRIDE)) = SFT_BYTE(SFT_PAIRS(SFT_STRIDE >> 1), 0); \
     SFT_OUTPUT(((ob) + SFT_STRIDE + 1)) = SFT_BYTE(SFT_PAIRS(SFT_STRIDE >> 1), 1); \
   } \
-   \
- if (SFT_STRIDE == 0 ) \
-  SFT_CARRY_STRIDE(jj) = (SFT_PAIRS(EIGHTH_N/2 - 1) >> 16); \
 } while (0);
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
@@ -754,6 +753,7 @@ unsigned char SFT_SBox[256] = {
     PRAGMA_UNROLL   \
     for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
       SFT_TSUM(SFT_STRIDE) = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
+      barrier(CLK_LOCAL_MEM_FENCE);   \
       TranslateToBase256_L(tsum, intermediate, (k*SFT_N) + (jj << 3), pairs);   \
     }   \
     barrier(CLK_LOCAL_MEM_FENCE);   \
@@ -810,6 +810,7 @@ unsigned char SFT_SBox[256] = {
   PRAGMA_UNROLL   \
   for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
     SFT_TSUM(SFT_STRIDE) = sum[jj]; \
+    barrier(CLK_LOCAL_MEM_FENCE);   \
     TranslateToBase256_O(tsum, inoutptr, (jj << 3), pairs);   \
   }   \
    \
