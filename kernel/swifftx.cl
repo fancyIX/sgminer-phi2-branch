@@ -717,7 +717,7 @@ unsigned char SFT_SBox[256] = {
   }   \
    \
    \
-  PRAGMA_NOUNROLL   \
+  PRAGMA_UNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
@@ -795,7 +795,7 @@ unsigned char SFT_SBox[256] = {
     sum[i] = 0;   \
   }   \
    \
-  PRAGMA_NOUNROLL   \
+  PRAGMA_UNROLL   \
   for (int i=0; i<SFT_M_2; ++i) {   \
     swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_L(intermediate, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
