@@ -1662,9 +1662,10 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local swift_int32_t T_sum[8 * SFT_NSLOT];
   __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
   __local uchar S_carry[8 * SFT_NSLOT];
-  swift_int32_t pairs[EIGHTH_N / 2];
+  swift_int32_t pairs[EIGHTH_N / 2 ];
   char S_multipliers[8];
 
+  #pragma unroll
   for (int i = 0; i < 8; i++) {
     S_multipliers[i] = multipliers[i + (SFT_STRIDE << 3)];
   }
@@ -1694,6 +1695,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global unsigned char* in3ptr = (__global unsigned char*)in3;
     e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
    }
+   barrier(CLK_LOCAL_MEM_FENCE);
 }
 
 // haval
