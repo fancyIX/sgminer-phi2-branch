@@ -498,7 +498,7 @@ unsigned char SFT_SBox[256] = {
 
 
 #define SFT_NSTRIDE (8)
-#define SFT_NSLOT (16)
+#define SFT_NSLOT (32)
 #define SFT_LOCAL_LINEAR (get_local_id(1) * SFT_NSTRIDE + get_local_id(0))
 #define SFT_STRIDE (get_local_id(0))
 #define SFT_SLOT (get_local_id(1))
@@ -717,7 +717,7 @@ unsigned char SFT_SBox[256] = {
   }   \
    \
    \
-  PRAGMA_NOUNROLL   \
+  PRAGMA_UNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
@@ -739,7 +739,8 @@ unsigned char SFT_SBox[256] = {
   }   \
      \
    \
-  if (SFT_STRIDE == 0) {   \
+  if (SFT_STRIDE == 7) {   \
+  PRAGMA_UNROLL   \
     for (int i = 0; i < 24; i++) {   \
       SFT_INTERMEDIATE_STRIDE(i) = 0;   \
     }   \
@@ -763,7 +764,8 @@ unsigned char SFT_SBox[256] = {
     }   \
     barrier(CLK_LOCAL_MEM_FENCE);   \
     int carryb = 0;   \
-    if (SFT_STRIDE == 0) {   \
+    if (SFT_STRIDE == 7) {   \
+    PRAGMA_UNROLL   \
       for (int j = 0; j < SFT_NSTRIDE; j++) {   \
         carryb |= SFT_CARRY_STRIDE(j) << j;   \
       }   \
