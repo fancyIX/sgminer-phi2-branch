@@ -228,7 +228,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalOptions> /D "HAVE_ADL"  /D "CURL_STATICLIB" /D "_WIN32_WINNT=0x0400" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
