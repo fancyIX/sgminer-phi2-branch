@@ -598,12 +598,14 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     size_t scratchbuf_size;
     if (cgpu->algorithm.type == ALGO_LYRA2REV2) {
       scratchbuf_size = LYRA_SCRATCHBUF_SIZE;
-    } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_ALLIUM) {
+    } else if (cgpu->algorithm.type == ALGO_ALLIUM) {
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE / 2; // LYRA2Z_SCRATCHBUF_SIZE * 8;
     } else if (cgpu->algorithm.type == ALGO_LYRA2H) {
       scratchbuf_size = LYRA2H_SCRATCHBUF_SIZE;
     } else if (cgpu->algorithm.type == ALGO_X22I) {
       scratchbuf_size = X22I_SCRATCHBUF_SIZE;
+    } else if (cgpu->algorithm.type == ALGO_LYRA2Z) {
+      scratchbuf_size = LYRA2Z_SCRATCHBUF_SIZE;
     } else { // PHI2
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE;
     }
@@ -836,6 +838,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       // scrypt/n-scrypt
     }
     else if (algorithm->type == ALGO_LYRA2Z) {
+      buf2size = 8 * 8 * 3 * 4 * 8 * cgpu->thread_concurrency;
       buf1size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states
       bufsize = 4 * 8 * cgpu->thread_concurrency;
       // scrypt/n-scrypt
@@ -921,7 +924,19 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_ALLIUM || algorithm->type == ALGO_LYRA2H) {
+    else if (algorithm->type == ALGO_LYRA2Z) {
+      clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer1) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
+        return NULL;
+      }
+      clState->buffer2 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf2size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer2) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer2), decrease TC or increase LG", status);
+        return NULL;
+      }
+    }
+    else if (algorithm->type == ALGO_ALLIUM || algorithm->type == ALGO_LYRA2H) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {

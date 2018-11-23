@@ -1296,6 +1296,7 @@ static cl_int queue_lyra2z_kernel(struct __clState *clState, struct _dev_blk_ctx
   //CL_SET_ARG(clState->buffer2);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(clState->buffer2);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);

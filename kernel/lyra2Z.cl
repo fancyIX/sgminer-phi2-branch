@@ -98,9 +98,7 @@ static inline sph_u64 ror64(sph_u64 vw, unsigned a) {
 
 #define memshift 3
 #include "blake256.cl"
-#include "lyra2mdz.cl"
-
-
+#include "lyra2f.cl"
 
 #if SPH_BIG_ENDIAN
   #define DEC64E(x) (x)
@@ -274,80 +272,74 @@ __kernel void search1(__global uint* hashes, __global uchar* sharedDataBuf)
 
 /// lyra2 algo p2 
 
-__attribute__((reqd_work_group_size(4, 5, 1)))
-__kernel void search2(__global uchar* sharedDataBuf)
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void search2(__global lyraState_t* lyra_state, __global ulong4 *lyra_matrix)
 {
-  uint gid = get_global_id(1);
-  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(1))));
-
-  __local ulong roundPad[12 * 5];
-  __local ulong *xchange = roundPad + get_local_id(1) * 4;
-
-  //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
-  __local ulong notepadLDS[192 * 4 * 5];
-  __local ulong *notepad = notepadLDS + LOCAL_LINEAR;
-  const int player = get_local_id(0);
-
-  ulong state[4];
-
-  //-------------------------------------
-  // Load Lyra state
-  state[0] = (ulong)(lyraState->h8[player]);
-  state[1] = (ulong)(lyraState->h8[player+4]);
-  state[2] = (ulong)(lyraState->h8[player+8]);
-  state[3] = (ulong)(lyraState->h8[player+12]);
-  
-  __local ulong *dst = notepad + HYPERMATRIX_COUNT;
-  for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
-    dst -= STATE_BLOCK_COUNT; // but blocks backwards
-    for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
-    round_lyra_4way(state, xchange);
-  }
-  make_hyper_one(state, xchange, notepad);
-  make_next_hyper(1, 0, 2, state, roundPad, notepad);
-  make_next_hyper(2, 1, 3, state, roundPad, notepad);
-  make_next_hyper(3, 0, 4, state, roundPad, notepad);
-  make_next_hyper(4, 3, 5, state, roundPad, notepad);
-  make_next_hyper(5, 2, 6, state, roundPad, notepad);
-  make_next_hyper(6, 1, 7, state, roundPad, notepad);
-
-  uint modify;
-  uint prev = 7;
-  uint iterator = 0;
-  for (uint j = 0; j < LYRA_ROUNDS / 2; j++) {
-    for (uint i = 0; i<LYRA_ROUNDS; i++) {
-      local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)];
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator + 3) & 7;
+    uint gid = get_global_id(0) - get_global_offset(0);
+    __global lyraState_t *input = lyra_state + gid;
+    __global ulong4 *Matrix = (__global ulong4 *) (lyra_matrix);
+    ulong4 state[4];
+    for (int i = 0; i < 4; i ++) {
+        state[i] = input->h32[i];
     }
-    for (uint i = 0; i<LYRA_ROUNDS; i++) {
-      local uint *shorter = (local uint*)roundPad;
-      if(get_local_id(0) == 0) {
-          shorter[get_local_id(1)] = (uint)(state[0] % 8);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE); // nop
-      modify = shorter[get_local_id(1)];
-      hyper_xor(prev, modify, iterator, state, roundPad, notepad);
-      prev = iterator;
-      iterator = (iterator - 1) & 7;
+
+#pragma unroll
+    for (int i = 0; i < 8; i++) {
+        #pragma unroll
+        for (int j = 0; j<3; j++) {
+            DMatrix((7 - i), j, 0) = state[j];
+        }
+        roundLyra((ulong2 *) state);
     }
-  }
+    ulong4 temp[3];
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+        #pragma unroll
+        for (int j = 0; j < 3; j++) {
+            temp[j] = DMatrix(i, j, 0);
+            state[j] ^= temp[j];
+        }
+        roundLyra((ulong2 *) state);
+        #pragma unroll
+        for (int j = 0; j < 3; j++) {
+            temp[j] ^= state[j];
+            DMatrix((7 - i), j, 1) = temp[j];
+        }
+    }
 
-  notepad += HYPERMATRIX_COUNT * modify;
-  for(int loop = 0; loop < 3; loop++) state[loop] ^= notepad[loop * REG_ROW_COUNT];
+    reduceDuplexRowSetup(1, 0, 2, state, Matrix);
+    reduceDuplexRowSetup(2, 1, 3, state, Matrix);
+    reduceDuplexRowSetup(3, 0, 4, state, Matrix);
+    reduceDuplexRowSetup(4, 3, 5, state, Matrix);
+    reduceDuplexRowSetup(5, 2, 6, state, Matrix);
+    reduceDuplexRowSetup(6, 1, 7, state, Matrix);
 
-  //-------------------------------------
-  // save lyra state    
-  lyraState->h8[player] = state[0];
-  lyraState->h8[player+4] = state[1];
-  lyraState->h8[player+8] = state[2];
-  lyraState->h8[player+12] = state[3];
+    int rowa;
+    int prev = 7;
+    int iterator = 0;
+    #pragma unroll
+    for (int j = 0; j < 8 / 2; j++) {
+        #pragma unroll
+        for (int i = 0; i < 8; i++) {
+            rowa = ((uint2 *)state)[0].x & 7;
+            reduceDuplexRow(prev, rowa, iterator, state, Matrix);
+            prev = iterator;
+            iterator = (iterator + 3) & 7;
+        }
+        #pragma unroll
+        for (int i = 0; i < 8; i++) {
+            rowa = ((uint2 *)state)[0].x & 7;
+            reduceDuplexRow(prev, rowa, iterator, state, Matrix);
+            prev = iterator;
+            iterator = (iterator - 1) & 7;
+        }
+    }
+
+    absorbblock(rowa, state, Matrix);
+
+    for (int i = 0; i < 4; i ++) {
+        input->h32[i] = state[i];
+    }
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
