@@ -511,7 +511,7 @@ unsigned char SFT_SBox[256] = {
 #define SFT_CARRY_STRIDE(i) (S_carry[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 #define SFT_INTERMEDIATE(i) (S_intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
 #define SFT_INTERMEDIATE_STRIDE(i) (S_intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
-#define SFT_TSUM(i) (T_sum[SFT_SLOT + SFT_NSLOT * (i)])
+#define SFT_TSUM(i, j) (T_sum[SFT_SLOT + SFT_NSLOT * ((i) + (j) * SFT_NSTRIDE)])
 #define SFT_PAIRS(i) (pairs[SFT_SLOT + SFT_NSLOT * (i)])
 
 #define SFT_BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
@@ -530,7 +530,7 @@ unsigned char SFT_SBox[256] = {
 #define TranslateToBase256_L(tsum,intermediate,ib,pairs) do { \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
-    pairs[i >> 1] = SFT_TSUM(i) + SFT_TSUM(i + 1) + (SFT_TSUM(i + 1) << 8); \
+    pairs[i >> 1] = SFT_TSUM(i, SFT_STRIDE) + SFT_TSUM((i + 1), SFT_STRIDE) + (SFT_TSUM((i + 1), SFT_STRIDE) << 8); \
   } \
  \
   PRAGMA_UNROLL \
@@ -550,14 +550,14 @@ unsigned char SFT_SBox[256] = {
     SFT_INTERMEDIATE_STRIDE(ib + i + 1) = SFT_BYTE(pairs[i >> 1], 1); \
   } \
  \
-  SFT_CARRY_STRIDE(jj) = (pairs[EIGHTH_N/2 - 1] >> 16); \
+  SFT_CARRY_STRIDE(SFT_STRIDE) = (pairs[EIGHTH_N/2 - 1] >> 16); \
 } while (0);
 
 #define TranslateToBase256_O(tsum,inoutptr,ob,pairs) do { \
  \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
-    pairs[i >> 1] = SFT_TSUM(i) + SFT_TSUM(i + 1) + (SFT_TSUM(i + 1) << 8); \
+    pairs[i >> 1] = SFT_TSUM(i, SFT_STRIDE) + SFT_TSUM((i + 1), SFT_STRIDE) + (SFT_TSUM((i + 1), SFT_STRIDE) << 8); \
   } \
  \
   PRAGMA_UNROLL \
@@ -576,8 +576,6 @@ unsigned char SFT_SBox[256] = {
     SFT_OUTPUT(((ob) + i)) = SFT_BYTE(pairs[i >> 1], 0); \
     SFT_OUTPUT(((ob) + i + 1)) = SFT_BYTE(pairs[i >> 1], 1); \
   } \
-   \
-  SFT_CARRY_STRIDE(jj) = (pairs[EIGHTH_N/2 - 1] >> 16); \
 } while (0);
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
@@ -758,10 +756,10 @@ unsigned char SFT_SBox[256] = {
    \
     PRAGMA_UNROLL   \
     for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
-      SFT_TSUM(SFT_STRIDE) = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
+      SFT_TSUM(SFT_STRIDE, jj) = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
+    } \
       barrier(CLK_LOCAL_MEM_FENCE);   \
-      if (SFT_STRIDE == jj) TranslateToBase256_L(tsum, intermediate, (k*SFT_N) + (jj << 3), pairs);   \
-    }   \
+    TranslateToBase256_L(tsum, intermediate, (k*SFT_N) + (SFT_STRIDE << 3), pairs);   \
     barrier(CLK_LOCAL_MEM_FENCE);   \
     int carryb = 0;   \
     if (SFT_STRIDE == 7) {   \
@@ -776,7 +774,6 @@ unsigned char SFT_SBox[256] = {
      \
    \
   PRAGMA_UNROLL   \
-   \
   for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {   \
     SFT_INTERMEDIATE(i) = SBox[SFT_INTERMEDIATE(i)];   \
   }   \
@@ -784,6 +781,7 @@ unsigned char SFT_SBox[256] = {
     SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 0) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 0)];   \
     SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 1) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 1)];   \
     SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 2) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + 2)];   \
+    PRAGMA_UNROLL   \
     for (int i = (3 * SFT_N) + 3; i < (3 * SFT_N) + 8; ++i) {   \
       SFT_INTERMEDIATE_STRIDE(i) = 0x7d;   \
     }   \
@@ -815,10 +813,10 @@ unsigned char SFT_SBox[256] = {
    \
   PRAGMA_UNROLL   \
   for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
-    SFT_TSUM(SFT_STRIDE) = sum[jj]; \
+    SFT_TSUM(SFT_STRIDE, jj) = sum[jj]; \
+  } \
     barrier(CLK_LOCAL_MEM_FENCE);   \
-    if (SFT_STRIDE == jj) TranslateToBase256_O(tsum, inoutptr, (jj << 3), pairs);   \
-  }   \
+    TranslateToBase256_O(tsum, inoutptr, (SFT_STRIDE << 3), pairs);   \
    \
      \
 } while (0);
