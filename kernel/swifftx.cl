@@ -530,7 +530,9 @@ unsigned char SFT_SBox[256] = {
 #define TranslateToBase256_L(tsum,intermediate,ib,pairs) do { \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
-    pairs[i >> 1] = SFT_TSUM(i, SFT_STRIDE) + SFT_TSUM((i + 1), SFT_STRIDE) + (SFT_TSUM((i + 1), SFT_STRIDE) << 8); \
+    int sum1 = SFT_TSUM(i, SFT_STRIDE); \
+    int sum2 = SFT_TSUM((i + 1), SFT_STRIDE); \
+    pairs[i >> 1] = sum1 + sum2 + (sum2 << 8); \
   } \
  \
   PRAGMA_UNROLL \
@@ -557,7 +559,9 @@ unsigned char SFT_SBox[256] = {
  \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
-    pairs[i >> 1] = SFT_TSUM(i, SFT_STRIDE) + SFT_TSUM((i + 1), SFT_STRIDE) + (SFT_TSUM((i + 1), SFT_STRIDE) << 8); \
+    int sum1 = SFT_TSUM(i, SFT_STRIDE); \
+    int sum2 = SFT_TSUM((i + 1), SFT_STRIDE); \
+    pairs[i >> 1] = sum1 + sum2 + (sum2 << 8); \
   } \
  \
   PRAGMA_UNROLL \
