@@ -185,8 +185,8 @@ __kernel void search(__global unsigned char* block, __global hash_t* hashes)
   sph_u64 V8 = CB0, V9 = CB1, VA = CB2, VB = CB3;
   sph_u64 VC = 0x452821E638D011F7UL, VD = 0xBE5466CF34E90EECUL, VE = CB6, VF = CB7;
 
-  sph_u64 M0, M1, M2, M3, M4, M5, M6, M7;
-  sph_u64 M8, M9, MA, MB, MC, MD, ME, MF;
+  volatile sph_u64 M0, M1, M2, M3, M4, M5, M6, M7;
+  volatile sph_u64 M8, M9, MA, MB, MC, MD, ME, MF;
 
   M0 = DEC64BE(block + 0);
   M1 = DEC64BE(block + 8);
