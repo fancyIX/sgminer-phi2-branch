@@ -531,22 +531,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shr:4 bank_mask:0xa\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -570,22 +570,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shr:4 bank_mask:0xa\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -609,22 +609,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shr:4 bank_mask:0xa\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -648,22 +648,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shr:4 bank_mask:0xa\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -687,22 +687,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shl:4 bank_mask:0x5\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -726,22 +726,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shl:4 bank_mask:0x5\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -765,22 +765,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shl:4 bank_mask:0x5\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
@@ -804,22 +804,22 @@ unsigned char SFT_SBox[256] = {
 	{  \
 		__asm ( \
 	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[src0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] row_shl:4 bank_mask:0x5\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
 		  : [dst0] "=&v" (s[0]), \
         [dst1] "=&v" (s[1]), \
