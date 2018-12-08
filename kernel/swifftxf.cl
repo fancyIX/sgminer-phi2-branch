@@ -509,8 +509,8 @@ unsigned char SFT_SBox[256] = {
 //#define SFT_SUM(i) (S_sum[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
 //#define SFT_SUM_STRIDE(i) (S_sum[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 #define SFT_CARRY_STRIDE(i) (S_carry[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
-#define SFT_INTERMEDIATE(i) (S_intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
-#define SFT_INTERMEDIATE_STRIDE(i) (S_intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
+//#define SFT_INTERMEDIATE(i) (S_intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
+//#define SFT_INTERMEDIATE_STRIDE(i) (S_intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 #define SFT_TSUM(i, j) (T_sum[SFT_SLOT + SFT_NSLOT * ((i) + (j) * SFT_NSTRIDE)])
 #define SFT_PAIRS(i) (pairs[SFT_SLOT + SFT_NSLOT * (i)])
 
@@ -526,6 +526,36 @@ unsigned char SFT_SBox[256] = {
 #define PRAGMA(X) _Pragma(#X)
 #define PRAGMA_UNROLL PRAGMA(unroll)
 #define PRAGMA_NOUNROLL PRAGMA(nounroll)
+
+#define SHARE_CARRY(carryt, carry) \
+		__asm volatile ( \
+	    "s_nop 1\n" \
+      "v_mov_b32_dpp  %[dst0], %[src] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
+		  	  "s_nop 1\n" \
+		  : [dst0] "=&v" ((carryt)[0]), \
+        [dst1] "=&v" ((carryt)[1]), \
+        [dst2] "=&v" ((carryt)[2]), \
+        [dst3] "=&v" ((carryt)[3]), \
+        [dst4] "=&v" ((carryt)[4]), \
+        [dst5] "=&v" ((carryt)[5]), \
+        [dst6] "=&v" ((carryt)[6]), \
+        [dst7] "=&v" ((carryt)[7]) \
+		  : [src] "v" (carry));
 
 #define TranslateToBase256_L(tsum,intermediate,ib,pairs) do { \
   PRAGMA_UNROLL \
@@ -548,11 +578,11 @@ unsigned char SFT_SBox[256] = {
  \
   PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
-    SFT_INTERMEDIATE_STRIDE(ib + i) = SFT_BYTE(pairs[i >> 1], 0); \
-    SFT_INTERMEDIATE_STRIDE(ib + i + 1) = SFT_BYTE(pairs[i >> 1], 1); \
+    intermediate[ib + i] = SFT_BYTE(pairs[i >> 1], 0); \
+    intermediate[ib + i + 1] = SFT_BYTE(pairs[i >> 1], 1); \
   } \
  \
-  SFT_CARRY_STRIDE(SFT_STRIDE) = (pairs[EIGHTH_N/2 - 1] >> 16); \
+  S_carry = (pairs[EIGHTH_N/2 - 1] >> 16); \
 } while (0);
 
 #define TranslateToBase256_O(tsum,inoutptr,ob,pairs) do { \
@@ -665,15 +695,27 @@ unsigned char SFT_SBox[256] = {
 #define e_FFT_staged_int4_L(intermediate, ib, output, fftTable, multipliers,i ) { \
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
- \
-  F0  = multipliers[0] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 0) << 3] + i); \
-  F1  = multipliers[1] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 1) << 3] + i); \
-  F2  = multipliers[2] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 2) << 3] + i); \
-  F3  = multipliers[3] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 3) << 3] + i); \
-  F4  = multipliers[4] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 4) << 3] + i); \
-  F5  = multipliers[5] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 5) << 3] + i); \
-  F6  = multipliers[6] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 6) << 3] + i); \
-  F7  = multipliers[7] * *(&fftTable[SFT_INTERMEDIATE_STRIDE(ib + 7) << 3] + i); \
+  if (ib != 24) { \
+    uint intermediatet[8]; \
+    SHARE_CARRY(intermediatet, (intermediate[ib])); \
+    F0  = multipliers[0] * *(&fftTable[intermediatet[0] << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[intermediatet[1] << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[intermediatet[2] << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[intermediatet[3] << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[intermediatet[4] << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[intermediatet[5] << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[intermediatet[6] << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[intermediatet[7] << 3] + i); \
+  } else { \
+    F0  = multipliers[0] * *(&fftTable[intermediate[ib + 0] << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[intermediate[ib + 1] << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[intermediate[ib + 2] << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[intermediate[ib + 3] << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[intermediate[ib + 4] << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[intermediate[ib + 5] << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[intermediate[ib + 6] << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[intermediate[ib + 7] << 3] + i); \
+  } \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
   int4 a1 = (int4) (F1, F3, F5, F7); \
@@ -743,10 +785,8 @@ unsigned char SFT_SBox[256] = {
    \
   PRAGMA_UNROLL   \
     for (int i = 0; i < 24 / SFT_NSTRIDE; i++) {   \
-      SFT_INTERMEDIATE_STRIDE(SFT_STRIDE + i * SFT_NSTRIDE) = 0;   \
+      intermediate[i] = 0;   \
     }   \
-     \
-  barrier(CLK_LOCAL_MEM_FENCE);   \
    \
   PRAGMA_UNROLL   \
   for (int k=0; k<3; ++k) {   \
@@ -761,40 +801,39 @@ unsigned char SFT_SBox[256] = {
       SFT_TSUM(SFT_STRIDE, jj) = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
     } \
       barrier(CLK_LOCAL_MEM_FENCE);   \
-    TranslateToBase256_L(tsum, intermediate, (k*SFT_N) + (SFT_STRIDE << 3), pairs);   \
-    barrier(CLK_LOCAL_MEM_FENCE);   \
-    int carryb = 0;   \
-    if (SFT_STRIDE == 7) {   \
+    TranslateToBase256_L(tsum, intermediate, (k*SFT_N / SFT_NSTRIDE), pairs);   \
+    uint carryb = 0;   \
+    uint carryt[8]; \
+    SHARE_CARRY(carryt, carry); \
     PRAGMA_UNROLL   \
       for (int j = 0; j < SFT_NSTRIDE; j++) {   \
-        carryb |= SFT_CARRY_STRIDE(j) << j;   \
+        carryb |= carryt[j] << j;   \
       }   \
-      SFT_INTERMEDIATE_STRIDE(3*SFT_N+k) = carryb;   \
-    }   \
-    barrier(CLK_LOCAL_MEM_FENCE);   \
+      intermediate[3*8+k] = carryb;   \
   }   \
      \
    \
   PRAGMA_UNROLL   \
   for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {   \
-    SFT_INTERMEDIATE(i) = SBox[SFT_INTERMEDIATE(i)];   \
+    intermediate[i] = SBox[intermediate[i]];   \
   }   \
-  if (SFT_STRIDE < 3) { \
-    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + SFT_STRIDE) = SBox[SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + SFT_STRIDE)];   \
-  } else { \
-    SFT_INTERMEDIATE_STRIDE((3 * SFT_N) + SFT_STRIDE) = 0x7d;   \
-  } \
-  barrier(CLK_LOCAL_MEM_FENCE);   \
+    intermediate[24 + 0] = SBox[intermediate[24 + 0]];   \
+    intermediate[24 + 1] = SBox[intermediate[24 + 1]];   \
+    intermediate[24 + 2] = SBox[intermediate[24 + 2]];   \
+  PRAGMA_UNROLL   \
+  for (int i = (3 * 8) + 3; i < (3 * 8) + 8; i++) {   \
+    intermediate[i] = 0x7d;   \
+  }   \
      \
   PRAGMA_UNROLL   \
   for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {   \
     sum[i] = 0;   \
   }   \
    \
-  PRAGMA_UNROLL   \
+  PRAGMA_NOUNROLL   \
   for (int i=0; i<SFT_M_2; ++i) {   \
     swift_int32_t fftOut[8];   \
-      e_FFT_staged_int4_L(intermediate, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
+      e_FFT_staged_int4_L(intermediate, (i), fftOut, fftTable, multipliers, SFT_STRIDE);   \
       PRAGMA_UNROLL   \
       for (int j=0; j<SFT_N/8; ++j) {   \
         const int jj = SFT_STRIDE + (j << 3);   \
