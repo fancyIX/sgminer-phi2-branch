@@ -150,7 +150,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global uint* in3   = &g_hash3[thread<<4];
 
   swift_int32_t S_sum[3*SFT_N/ SFT_NSTRIDE];
-  swift_int32_t T_sum[8];
+  __local swift_int32_t T_sum[8 * SFT_NSTRIDE * SFT_NSLOT];
   __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
   __local uchar S_carry[8 * SFT_NSLOT];
   swift_int32_t pairs[EIGHTH_N / 2 ];
@@ -166,7 +166,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global unsigned char* in1ptr = (__global unsigned char*)in1;
     __global unsigned char* in2ptr = (__global unsigned char*)in2;
     __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, SFT_SBox, As, fftTable, S_multipliers, S_sum, S_intermediate, S_carry, T_sum);
+    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, SFT_SBox, As, fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs,T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
 }

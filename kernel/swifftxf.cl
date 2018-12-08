@@ -511,7 +511,7 @@ unsigned char SFT_SBox[256] = {
 #define SFT_CARRY_STRIDE(i) (S_carry[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
 #define SFT_INTERMEDIATE(i) (S_intermediate[SFT_LOCAL_LINEAR + SFT_NSLOT * SFT_NSTRIDE * (i)])
 #define SFT_INTERMEDIATE_STRIDE(i) (S_intermediate[((i) % SFT_NSTRIDE) + SFT_BLOCK + SFT_NSLOT * SFT_NSTRIDE * (((i) - ((i) % SFT_NSTRIDE)) / SFT_NSTRIDE)])
-//#define SFT_TSUM(i, j) (T_sum[SFT_SLOT + SFT_NSLOT * ((i) + (j) * SFT_NSTRIDE)])
+#define SFT_TSUM(i, j) (T_sum[SFT_SLOT + SFT_NSLOT * ((i) + (j) * SFT_NSTRIDE)])
 #define SFT_PAIRS(i) (pairs[SFT_SLOT + SFT_NSLOT * (i)])
 
 #define SFT_BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
@@ -527,343 +527,13 @@ unsigned char SFT_SBox[256] = {
 #define PRAGMA_UNROLL PRAGMA(unroll)
 #define PRAGMA_NOUNROLL PRAGMA(nounroll)
 
-#define SFT_TSUM_0(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_1(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_2(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_3(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_4(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_5(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_6(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define SFT_TSUM_7(s, tsum) \
-	{  \
-		__asm ( \
-	    "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
-		  "s_nop 1\n" \
-		  : [dst0] "=&v" (s[0]), \
-        [dst1] "=&v" (s[1]), \
-        [dst2] "=&v" (s[2]), \
-        [dst3] "=&v" (s[3]), \
-        [dst4] "=&v" (s[4]), \
-        [dst5] "=&v" (s[5]), \
-        [dst6] "=&v" (s[6]), \
-        [dst7] "=&v" (s[7]) \
-		  : [src0] "v" (tsum[0]), \
-        [src1] "v" (tsum[1]), \
-        [src2] "v" (tsum[2]), \
-        [src3] "v" (tsum[3]), \
-        [src4] "v" (tsum[4]), \
-        [src5] "v" (tsum[5]), \
-        [src6] "v" (tsum[6]), \
-        [src7] "v" (tsum[7])); \
-	}
-
-#define TranslateToBase256_L(tsum,intermediate,ib) do { \
-  swift_int32_t pairs[EIGHTH_N / 2 ]; \
-  swift_int32_t s[8]; \
-  int sum1; \
-  int sum2; \
-  SFT_TSUM_0(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_1(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[0 >> 1] = sum1 + sum2 + (sum2 << 8); \
-  SFT_TSUM_2(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_3(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[2 >> 1] = sum1 + sum2 + (sum2 << 8); \
-  SFT_TSUM_4(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_5(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[4 >> 1] = sum1 + sum2 + (sum2 << 8); \
-  SFT_TSUM_6(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_7(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[6 >> 1] = sum1 + sum2 + (sum2 << 8); \
+#define TranslateToBase256_L(tsum,intermediate,ib,pairs) do { \
+  PRAGMA_UNROLL \
+  for (int i = 0; i < EIGHTH_N; i += 2) { \
+    int sum1 = SFT_TSUM(i, SFT_STRIDE); \
+    int sum2 = SFT_TSUM((i + 1), SFT_STRIDE); \
+    pairs[i >> 1] = sum1 + sum2 + (sum2 << 8); \
+  } \
  \
   PRAGMA_UNROLL \
   for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) { \
@@ -885,31 +555,14 @@ unsigned char SFT_SBox[256] = {
   SFT_CARRY_STRIDE(SFT_STRIDE) = (pairs[EIGHTH_N/2 - 1] >> 16); \
 } while (0);
 
-#define TranslateToBase256_O(tsum,inoutptr,ob) do { \
- swift_int32_t pairs[EIGHTH_N / 2 ]; \
-  swift_int32_t s[8]; \
-  int sum1; \
-  int sum2; \
-  SFT_TSUM_0(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_1(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[0 >> 1] = sum1 + sum2 + (sum2 << 8); \
-  SFT_TSUM_2(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_3(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[2 >> 1] = sum1 + sum2 + (sum2 << 8); \
-  SFT_TSUM_4(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_5(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[4 >> 1] = sum1 + sum2 + (sum2 << 8); \
-  SFT_TSUM_6(s, tsum); \
-  sum1 = s[SFT_STRIDE]; \
-  SFT_TSUM_7(s, tsum); \
-  sum2 = s[SFT_STRIDE]; \
-  pairs[6 >> 1] = sum1 + sum2 + (sum2 << 8); \
+#define TranslateToBase256_O(tsum,inoutptr,ob,pairs) do { \
+ \
+  PRAGMA_UNROLL \
+  for (int i = 0; i < EIGHTH_N; i += 2) { \
+    int sum1 = SFT_TSUM(i, SFT_STRIDE); \
+    int sum2 = SFT_TSUM((i + 1), SFT_STRIDE); \
+    pairs[i >> 1] = sum1 + sum2 + (sum2 << 8); \
+  } \
  \
   PRAGMA_UNROLL \
   for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) { \
@@ -1058,7 +711,7 @@ unsigned char SFT_SBox[256] = {
 //__shared__ swift_int32_t __FIELD_SIZE_22__;
 #define __FIELD_SIZE_22__ (FIELD_SIZE << 22)
 
-#define e_ComputeSingleSWIFFTX(inoutptr,in1ptr,in2ptr,in3ptr,SBox,As,fftTable,multipliers,sum,intermediate,carry,tsum) do {    \
+#define e_ComputeSingleSWIFFTX(inoutptr,in1ptr,in2ptr,in3ptr,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
       \
   PRAGMA_UNROLL    \
   for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {   \
@@ -1105,9 +758,10 @@ unsigned char SFT_SBox[256] = {
    \
     PRAGMA_UNROLL   \
     for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
-      (tsum)[jj] = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
+      SFT_TSUM(SFT_STRIDE, jj) = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
     } \
-    TranslateToBase256_L(tsum, intermediate, (k*SFT_N) + (SFT_STRIDE << 3));   \
+      barrier(CLK_LOCAL_MEM_FENCE);   \
+    TranslateToBase256_L(tsum, intermediate, (k*SFT_N) + (SFT_STRIDE << 3), pairs);   \
     barrier(CLK_LOCAL_MEM_FENCE);   \
     int carryb = 0;   \
     if (SFT_STRIDE == 7) {   \
@@ -1157,9 +811,10 @@ unsigned char SFT_SBox[256] = {
    \
   PRAGMA_UNROLL   \
   for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
-    (tsum)[jj] = sum[jj]; \
+    SFT_TSUM(SFT_STRIDE, jj) = sum[jj]; \
   } \
-    TranslateToBase256_O(tsum, inoutptr, (SFT_STRIDE << 3));   \
+    barrier(CLK_LOCAL_MEM_FENCE);   \
+    TranslateToBase256_O(tsum, inoutptr, (SFT_STRIDE << 3), pairs);   \
    \
      \
 } while (0);
