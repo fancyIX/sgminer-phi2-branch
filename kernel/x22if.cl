@@ -136,7 +136,7 @@ typedef union {
 } hashly_t;
 
 // swifftx hash hash1 hash2 hash3
-__attribute__((reqd_work_group_size(8, 16, 1)))
+__attribute__((reqd_work_group_size(8, 32, 1)))
 __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
 {
     uint gid = get_global_id(1);
@@ -149,10 +149,13 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     __global uint* in2   = &g_hash2[thread<<4];
     __global uint* in3   = &g_hash3[thread<<4];
 
+  __local unsigned char S_SBox[256];
+  __local swift_int16_t S_fftTable[256 * EIGHTH_N];
+  __local swift_int16_t S_As[3 * SFT_M * SFT_N];
   swift_int32_t S_sum[3*SFT_N/ SFT_NSTRIDE];
   __local swift_int32_t T_sum[8 * SFT_NSTRIDE * SFT_NSLOT];
-  uint S_intermediate[(8*3 + 8)];
-  uint S_carry;
+  ushort S_intermediate[(8*3 + 8)];
+  ushort S_carry;
   swift_int32_t pairs[EIGHTH_N / 2 ];
   char S_multipliers[8];
 
@@ -161,12 +164,29 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     S_multipliers[i] = multipliers[i + (SFT_STRIDE << 3)];
   }
 
+const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
+
+  if (tid < 256 && SFT_STRIDE == 0) {
+    #pragma unroll
+    for (int i=0; i<(256/blockSize); i++) {
+      S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
+    }
+    #pragma unroll
+    for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
+      S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
+    }
+    #pragma unroll
+    for (int i=0; i<(3 * SFT_M * SFT_N)/blockSize; i++) {
+      S_As[tid + i*blockSize] = As[tid + i*blockSize];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+  }
   {
     __global unsigned char* inoutptr = (__global unsigned char*)inout;
     __global unsigned char* in1ptr = (__global unsigned char*)in1;
     __global unsigned char* in2ptr = (__global unsigned char*)in2;
     __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, SFT_SBox, As, fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs,T_sum);
+    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs,T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
 }

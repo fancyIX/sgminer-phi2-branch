@@ -498,7 +498,7 @@ unsigned char SFT_SBox[256] = {
 
 
 #define SFT_NSTRIDE (8)
-#define SFT_NSLOT (16)
+#define SFT_NSLOT (32)
 #define SFT_LOCAL_LINEAR (get_local_id(1) * SFT_NSTRIDE + get_local_id(0))
 #define SFT_STRIDE (get_local_id(0))
 #define SFT_SLOT (get_local_id(1))
@@ -528,7 +528,7 @@ unsigned char SFT_SBox[256] = {
 #define PRAGMA_NOUNROLL PRAGMA(nounroll)
 
 #define SHARE_CARRY(carryt, carry) \
-		__asm volatile ( \
+		__asm ( \
 	    "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[src] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[src] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
@@ -557,18 +557,327 @@ unsigned char SFT_SBox[256] = {
         [dst7] "=&v" ((carryt)[7]) \
 		  : [src] "v" (carry));
 
+#define SHARE_INTERMEDIATE_0(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_1(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_2(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_3(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_4(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_5(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_6(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
+#define SHARE_INTERMEDIATE_7(intermediatet, intermediate) \
+	{  \
+		__asm ( \
+	    "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
+		  "s_nop 1\n" \
+		  : [dst0] "=&v" (intermediatet[0]), \
+        [dst1] "=&v" (intermediatet[1]), \
+        [dst2] "=&v" (intermediatet[2]), \
+        [dst3] "=&v" (intermediatet[3]), \
+        [dst4] "=&v" (intermediatet[4]), \
+        [dst5] "=&v" (intermediatet[5]), \
+        [dst6] "=&v" (intermediatet[6]), \
+        [dst7] "=&v" (intermediatet[7]) \
+		  : [src0] "v" ((intermediate)[0]), \
+        [src1] "v" ((intermediate)[1]), \
+        [src2] "v" ((intermediate)[2]), \
+        [src3] "v" ((intermediate)[3]), \
+        [src4] "v" ((intermediate)[4]), \
+        [src5] "v" ((intermediate)[5]), \
+        [src6] "v" ((intermediate)[6]), \
+        [src7] "v" ((intermediate)[7])); \
+	}
+
 #define TranslateToBase256_L(tsum,intermediate,ib,pairs) do { \
-  PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
     int sum1 = SFT_TSUM(i, SFT_STRIDE); \
     int sum2 = SFT_TSUM((i + 1), SFT_STRIDE); \
     pairs[i >> 1] = sum1 + sum2 + (sum2 << 8); \
   } \
  \
-  PRAGMA_UNROLL \
   for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) { \
  \
-    PRAGMA_UNROLL \
     for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) { \
       swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9); \
       pairs[j] = temp & 0xffff; \
@@ -576,7 +885,6 @@ unsigned char SFT_SBox[256] = {
     } \
   } \
  \
-  PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
     intermediate[ib + i] = SFT_BYTE(pairs[i >> 1], 0); \
     intermediate[ib + i + 1] = SFT_BYTE(pairs[i >> 1], 1); \
@@ -587,17 +895,14 @@ unsigned char SFT_SBox[256] = {
 
 #define TranslateToBase256_O(tsum,inoutptr,ob,pairs) do { \
  \
-  PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
     int sum1 = SFT_TSUM(i, SFT_STRIDE); \
     int sum2 = SFT_TSUM((i + 1), SFT_STRIDE); \
     pairs[i >> 1] = sum1 + sum2 + (sum2 << 8); \
   } \
  \
-  PRAGMA_UNROLL \
   for (int i = (EIGHTH_N / 2) - 1; i > 0; --i) { \
  \
-    PRAGMA_UNROLL \
     for (int j = i - 1; j < (EIGHTH_N / 2) - 1; ++j) { \
       swift_int32_t temp = pairs[j] + pairs[j + 1] + (pairs[j + 1] << 9); \
       pairs[j] = temp & 0xffff; \
@@ -605,7 +910,6 @@ unsigned char SFT_SBox[256] = {
     } \
   } \
  \
-  PRAGMA_UNROLL \
   for (int i = 0; i < EIGHTH_N; i += 2) { \
     SFT_OUTPUT(((ob) + i)) = SFT_BYTE(pairs[i >> 1], 0); \
     SFT_OUTPUT(((ob) + i + 1)) = SFT_BYTE(pairs[i >> 1], 1); \
@@ -697,7 +1001,14 @@ unsigned char SFT_SBox[256] = {
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
   if (ib != 24) { \
     uint intermediatet[8]; \
-    SHARE_CARRY(intermediatet, (intermediate[ib])); \
+    if (ib % 8 == 0) SHARE_INTERMEDIATE_0(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 1) SHARE_INTERMEDIATE_1(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 2) SHARE_INTERMEDIATE_2(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 3) SHARE_INTERMEDIATE_3(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 4) SHARE_INTERMEDIATE_4(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 5) SHARE_INTERMEDIATE_5(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 6) SHARE_INTERMEDIATE_6(intermediatet, (intermediate + 8 * (ib / 8))); \
+    if (ib % 8 == 7) SHARE_INTERMEDIATE_7(intermediatet, (intermediate + 8 * (ib / 8))); \
     F0  = multipliers[0] * *(&fftTable[intermediatet[0] << 3] + i); \
     F1  = multipliers[1] * *(&fftTable[intermediatet[1] << 3] + i); \
     F2  = multipliers[2] * *(&fftTable[intermediatet[2] << 3] + i); \
@@ -755,27 +1066,23 @@ unsigned char SFT_SBox[256] = {
 
 #define e_ComputeSingleSWIFFTX(inoutptr,in1ptr,in2ptr,in3ptr,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
       \
-  PRAGMA_UNROLL    \
   for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {   \
     sum[i] = 0;   \
   }   \
    \
    \
-  PRAGMA_NOUNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
-      __constant const swift_int16_t *As_i = As + (i*SFT_N);   \
+      __local const swift_int16_t *As_i = As + (i*SFT_N);   \
    \
-      PRAGMA_UNROLL   \
       for (int j=0; j<SFT_N/ SFT_NSTRIDE; j++) {   \
         const int jj = SFT_STRIDE + (j * SFT_NSTRIDE);   \
-        __constant const swift_int16_t *As_j = As_i + jj;   \
+        __local const swift_int16_t *As_j = As_i + jj;   \
         const swift_int32_t *f = fftOut + j;   \
    \
-        PRAGMA_UNROLL   \
         for (int k=0; k<3; ++k) {   \
-          __constant const swift_int16_t *a = As_j + (k << 11);   \
+          __local const swift_int16_t *a = As_j + (k << 11);   \
           sum[k*SFT_N / SFT_NSTRIDE + j] += (*f) * (*a);   \
         }   \
            \
@@ -783,20 +1090,16 @@ unsigned char SFT_SBox[256] = {
   }   \
      \
    \
-  PRAGMA_UNROLL   \
     for (int i = 0; i < 24 / SFT_NSTRIDE; i++) {   \
       intermediate[i] = 0;   \
     }   \
    \
-  PRAGMA_UNROLL   \
   for (int k=0; k<3; ++k) {   \
    \
-    PRAGMA_UNROLL   \
     for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {   \
       sum[k*SFT_N / SFT_NSTRIDE + j] = (__FIELD_SIZE_22__ + sum[k*SFT_N / SFT_NSTRIDE + j]) % FIELD_SIZE;   \
     }   \
    \
-    PRAGMA_UNROLL   \
     for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
       SFT_TSUM(SFT_STRIDE, jj) = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
     } \
@@ -805,7 +1108,6 @@ unsigned char SFT_SBox[256] = {
     uint carryb = 0;   \
     uint carryt[8]; \
     SHARE_CARRY(carryt, carry); \
-    PRAGMA_UNROLL   \
       for (int j = 0; j < SFT_NSTRIDE; j++) {   \
         carryb |= carryt[j] << j;   \
       }   \
@@ -813,42 +1115,35 @@ unsigned char SFT_SBox[256] = {
   }   \
      \
    \
-  PRAGMA_UNROLL   \
   for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {   \
     intermediate[i] = SBox[intermediate[i]];   \
   }   \
     intermediate[24 + 0] = SBox[intermediate[24 + 0]];   \
     intermediate[24 + 1] = SBox[intermediate[24 + 1]];   \
     intermediate[24 + 2] = SBox[intermediate[24 + 2]];   \
-  PRAGMA_UNROLL   \
   for (int i = (3 * 8) + 3; i < (3 * 8) + 8; i++) {   \
     intermediate[i] = 0x7d;   \
   }   \
      \
-  PRAGMA_UNROLL   \
   for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {   \
     sum[i] = 0;   \
   }   \
    \
-  PRAGMA_NOUNROLL   \
   for (int i=0; i<SFT_M_2; ++i) {   \
     swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_L(intermediate, (i), fftOut, fftTable, multipliers, SFT_STRIDE);   \
-      PRAGMA_UNROLL   \
       for (int j=0; j<SFT_N/8; ++j) {   \
         const int jj = SFT_STRIDE + (j << 3);   \
-        __constant const swift_int16_t *a = As + (i * SFT_N) + jj;   \
+        __local const swift_int16_t *a = As + (i * SFT_N) + jj;   \
         const swift_int32_t *f = fftOut + j;   \
         sum[j] += (*f) * (*a);   \
       }   \
   }   \
      \
-  PRAGMA_UNROLL   \
   for (int j=0; j<SFT_N / SFT_NSTRIDE; ++j) {   \
     sum[j] = (__FIELD_SIZE_22__ + sum[j]) % FIELD_SIZE;   \
   }   \
    \
-  PRAGMA_UNROLL   \
   for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
     SFT_TSUM(SFT_STRIDE, jj) = sum[jj]; \
   } \
