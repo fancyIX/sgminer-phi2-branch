@@ -594,19 +594,19 @@ unsigned char SFT_SBox[256] = {
         buffer.h8[j] = inoutptr[j]; \
       } \
     } \
-  if ((ib) == 64 - 7) { \
+  if ((ib) == 64) { \
     PRAGMA_UNROLL \
       for (int j = 0; j < 8; j++) { \
         buffer.h8[j] = in1ptr[j]; \
       } \
   } \
-  if ((ib) == 64 * 2 - 7) { \
+  if ((ib) == 64 * 2) { \
     PRAGMA_UNROLL \
       for (int j = 0; j < 8; j++) { \
         buffer.h8[j] = in2ptr[j]; \
       } \
   } \
-  if ((ib) == 64 * 3 - 7) { \
+  if ((ib) == 64 * 3) { \
     PRAGMA_UNROLL \
       for (int j = 0; j < 8; j++) { \
         buffer.h8[j] = in3ptr[j]; \
