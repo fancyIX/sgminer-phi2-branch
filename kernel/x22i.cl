@@ -1664,6 +1664,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local uchar S_carry[8 * SFT_NSLOT];
   swift_int32_t pairs[EIGHTH_N / 2 ];
   char S_multipliers[8];
+  hash_t buffer;
 
 #pragma unroll
   for (int i = 0; i < 8; i++) {
@@ -1689,11 +1690,11 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   }
 
   {
-    __global unsigned char* inoutptr = (__global unsigned char*)inout;
-    __global unsigned char* in1ptr = (__global unsigned char*)in1;
-    __global unsigned char* in2ptr = (__global unsigned char*)in2;
-    __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
+    __global ulong* inoutptr = (__global ulong*)inout;
+    __global ulong* in1ptr = (__global ulong*)in1;
+    __global ulong* in2ptr = (__global ulong*)in2;
+    __global ulong* in3ptr = (__global ulong*)in3;
+    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum, buffer);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
 }
