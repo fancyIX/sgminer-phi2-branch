@@ -1040,38 +1040,14 @@ unsigned char SFT_SBox[256] = {
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
     uint2 inputt; \
-    if (ib == 0) SHARE_INTERMEDIATE_0(inputt, (input[0])); \
-    if (ib == 1) SHARE_INTERMEDIATE_1(inputt, (input[0])); \
-    if (ib == 2) SHARE_INTERMEDIATE_2(inputt, (input[0])); \
-    if (ib == 3) SHARE_INTERMEDIATE_3(inputt, (input[0])); \
-    if (ib == 4) SHARE_INTERMEDIATE_4(inputt, (input[0])); \
-    if (ib == 5) SHARE_INTERMEDIATE_5(inputt, (input[0])); \
-    if (ib == 6) SHARE_INTERMEDIATE_6(inputt, (input[0])); \
-    if (ib == 7) SHARE_INTERMEDIATE_7(inputt, (input[0])); \
-    if (ib == 8) SHARE_INTERMEDIATE_0(inputt, (input[1])); \
-    if (ib == 9) SHARE_INTERMEDIATE_1(inputt, (input[1])); \
-    if (ib == 10) SHARE_INTERMEDIATE_2(inputt, (input[1])); \
-    if (ib == 11) SHARE_INTERMEDIATE_3(inputt, (input[1])); \
-    if (ib == 12) SHARE_INTERMEDIATE_4(inputt, (input[1])); \
-    if (ib == 13) SHARE_INTERMEDIATE_5(inputt, (input[1])); \
-    if (ib == 14) SHARE_INTERMEDIATE_6(inputt, (input[1])); \
-    if (ib == 15) SHARE_INTERMEDIATE_7(inputt, (input[1])); \
-    if (ib == 16) SHARE_INTERMEDIATE_0(inputt, (input[2])); \
-    if (ib == 17) SHARE_INTERMEDIATE_1(inputt, (input[2])); \
-    if (ib == 18) SHARE_INTERMEDIATE_2(inputt, (input[2])); \
-    if (ib == 19) SHARE_INTERMEDIATE_3(inputt, (input[2])); \
-    if (ib == 20) SHARE_INTERMEDIATE_4(inputt, (input[2])); \
-    if (ib == 21) SHARE_INTERMEDIATE_5(inputt, (input[2])); \
-    if (ib == 22) SHARE_INTERMEDIATE_6(inputt, (input[2])); \
-    if (ib == 23) SHARE_INTERMEDIATE_7(inputt, (input[2])); \
-    if (ib == 24) SHARE_INTERMEDIATE_0(inputt, (input[3])); \
-    if (ib == 25) SHARE_INTERMEDIATE_1(inputt, (input[3])); \
-    if (ib == 26) SHARE_INTERMEDIATE_2(inputt, (input[3])); \
-    if (ib == 27) SHARE_INTERMEDIATE_3(inputt, (input[3])); \
-    if (ib == 28) SHARE_INTERMEDIATE_4(inputt, (input[3])); \
-    if (ib == 29) SHARE_INTERMEDIATE_5(inputt, (input[3])); \
-    if (ib == 30) SHARE_INTERMEDIATE_6(inputt, (input[3])); \
-    if (ib == 31) SHARE_INTERMEDIATE_7(inputt, (input[3])); \
+    if (ib % 8 == 0) SHARE_INTERMEDIATE_0(inputt, (input[ib / 8])); \
+    if (ib % 8 == 1) SHARE_INTERMEDIATE_1(inputt, (input[ib / 8])); \
+    if (ib % 8 == 2) SHARE_INTERMEDIATE_2(inputt, (input[ib / 8])); \
+    if (ib % 8 == 3) SHARE_INTERMEDIATE_3(inputt, (input[ib / 8])); \
+    if (ib % 8 == 4) SHARE_INTERMEDIATE_4(inputt, (input[ib / 8])); \
+    if (ib % 8 == 5) SHARE_INTERMEDIATE_5(inputt, (input[ib / 8])); \
+    if (ib % 8 == 6) SHARE_INTERMEDIATE_6(inputt, (input[ib / 8])); \
+    if (ib % 8 == 7) SHARE_INTERMEDIATE_7(inputt, (input[ib / 8])); \
     F0  = multipliers[0] * *(&fftTable[as_uchar8(inputt).s0 << 3] + i); \
     F1  = multipliers[1] * *(&fftTable[as_uchar8(inputt).s1 << 3] + i); \
     F2  = multipliers[2] * *(&fftTable[as_uchar8(inputt).s2 << 3] + i); \
@@ -1190,7 +1166,7 @@ unsigned char SFT_SBox[256] = {
   }   \
    \
    \
-   PRAGMA_NOUNROLL   \
+   PRAGMA_UNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
       e_FFT_staged_int4_I(input, (i), fftOut, fftTable, multipliers, SFT_STRIDE);   \
