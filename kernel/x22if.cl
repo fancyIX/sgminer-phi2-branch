@@ -144,21 +144,21 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     uint thread = gid - offset;
     uint tid = get_local_id(1);
 
-    __global uint* inout = &g_hash [thread<<4];
-    __global uint* in1   = &g_hash1[thread<<4];
-    __global uint* in2   = &g_hash2[thread<<4];
-    __global uint* in3   = &g_hash3[thread<<4];
+    __global uchar8* inout = (__global uchar8*) &g_hash [thread<<4];
+    __global uchar8* in1   = (__global uchar8*) &g_hash1[thread<<4];
+    __global uchar8* in2   = (__global uchar8*) &g_hash2[thread<<4];
+    __global uchar8* in3   = (__global uchar8*) &g_hash3[thread<<4];
 
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local swift_int16_t S_As[3 * SFT_M * SFT_N];
   swift_int32_t S_sum[3*SFT_N/ SFT_NSTRIDE];
   swift_int32_t T_sum[8];
-  ushort S_intermediate[(8*3 + 8)];
+  uchar8 S_intermediate[4];
   ushort S_carry;
   swift_int32_t pairs[EIGHTH_N / 2 ];
   char S_multipliers[8];
-  ushort S_input[8 * 4];
+  uchar8 S_input[4];
 
 #pragma unroll
   for (int i = 0; i < 8; i++) {
@@ -184,16 +184,10 @@ const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
   }
   {
     __global unsigned char* inoutptr = (__global unsigned char*)inout;
-    __global unsigned char* in1ptr = (__global unsigned char*)in1;
-    __global unsigned char* in2ptr = (__global unsigned char*)in2;
-    __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    #pragma unroll
-    for (int i = 0; i < 8; i++) {
-      S_input[i] = inoutptr[i + 8 * SFT_STRIDE];
-      S_input[i + 8] = in1ptr[i + 8 * SFT_STRIDE];
-      S_input[i + 16] = in2ptr[i + 8 * SFT_STRIDE];
-      S_input[i + 24] = in3ptr[i + 8 * SFT_STRIDE];
-    }
+      S_input[0] = inout[SFT_STRIDE];
+      S_input[1] = in1[SFT_STRIDE];
+      S_input[2] = in2[SFT_STRIDE];
+      S_input[3] = in3[SFT_STRIDE];
     e_ComputeSingleSWIFFTX(inoutptr, S_input, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs,T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);

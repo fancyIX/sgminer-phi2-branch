@@ -804,37 +804,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_1(intermediatet, intermediate) \
@@ -843,37 +822,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_2(intermediatet, intermediate) \
@@ -882,37 +840,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_3(intermediatet, intermediate) \
@@ -921,37 +858,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shr:4 bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shr:4 bank_mask:0xa\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_4(intermediatet, intermediate) \
@@ -960,37 +876,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_5(intermediatet, intermediate) \
@@ -999,37 +894,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_6(intermediatet, intermediate) \
@@ -1038,37 +912,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define SHARE_INTERMEDIATE_7(intermediatet, intermediate) \
@@ -1077,37 +930,16 @@ unsigned char SFT_SBox[256] = {
 	    "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dst0], %[src0] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
       "v_mov_b32_dpp  %[dst1], %[src1] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst2], %[src2] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst3], %[src3] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst4], %[src4] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst5], %[src5] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst6], %[src6] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
-      "v_mov_b32_dpp  %[dst7], %[src7] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "s_nop 1\n" \
       "v_mov_b32_dpp  %[dst0], %[dst0] row_shl:4 bank_mask:0x5\n" \
       "v_mov_b32_dpp  %[dst1], %[dst1] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst2], %[dst2] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst3], %[dst3] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
-      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
 		  "s_nop 1\n" \
-		  : [dst0] "=&v" (intermediatet[0]), \
-        [dst1] "=&v" (intermediatet[1]), \
-        [dst2] "=&v" (intermediatet[2]), \
-        [dst3] "=&v" (intermediatet[3]), \
-        [dst4] "=&v" (intermediatet[4]), \
-        [dst5] "=&v" (intermediatet[5]), \
-        [dst6] "=&v" (intermediatet[6]), \
-        [dst7] "=&v" (intermediatet[7]) \
-		  : [src0] "v" ((intermediate)[0]), \
-        [src1] "v" ((intermediate)[1]), \
-        [src2] "v" ((intermediate)[2]), \
-        [src3] "v" ((intermediate)[3]), \
-        [src4] "v" ((intermediate)[4]), \
-        [src5] "v" ((intermediate)[5]), \
-        [src6] "v" ((intermediate)[6]), \
-        [src7] "v" ((intermediate)[7])); \
+		  : [dst0] "=&v" ((intermediatet).x), \
+        [dst1] "=&v" ((intermediatet).y) \
+		  : [src0] "v" (as_uint((intermediate).s0123)), \
+        [src1] "v" (as_uint((intermediate).s4567)), \
+        [dst0] "0" ((intermediatet).x), \
+        [dst1] "1" ((intermediatet).y)); \
 	}
 
 #define TranslateToBase256_L(tsum,intermediate,ib,pairs) do { \
@@ -1146,11 +978,14 @@ unsigned char SFT_SBox[256] = {
     } \
   } \
  \
- PRAGMA_UNROLL   \
-  for (int i = 0; i < EIGHTH_N; i += 2) { \
-    intermediate[ib + i] = SFT_BYTE(pairs[i >> 1], 0); \
-    intermediate[ib + i + 1] = SFT_BYTE(pairs[i >> 1], 1); \
-  } \
+ intermediate[ib].s0 = SFT_BYTE(pairs[0 >> 1], 0); \
+ intermediate[ib].s1 = SFT_BYTE(pairs[0 >> 1], 1); \
+ intermediate[ib].s2 = SFT_BYTE(pairs[2 >> 1], 0); \
+ intermediate[ib].s3 = SFT_BYTE(pairs[2 >> 1], 1); \
+ intermediate[ib].s4 = SFT_BYTE(pairs[4 >> 1], 0); \
+ intermediate[ib].s5 = SFT_BYTE(pairs[4 >> 1], 1); \
+ intermediate[ib].s6 = SFT_BYTE(pairs[6 >> 1], 0); \
+ intermediate[ib].s7 = SFT_BYTE(pairs[6 >> 1], 1); \
  \
   S_carry = (pairs[EIGHTH_N/2 - 1] >> 16); \
 } while (0);
@@ -1204,79 +1039,47 @@ unsigned char SFT_SBox[256] = {
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
-    ushort inputt[8]; \
-    if (ib == 0) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (0 / 8))); \
-    if (ib == 1) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (1 / 8))); \
-    if (ib == 2) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (2 / 8))); \
-    if (ib == 3) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (3 / 8))); \
-    if (ib == 4) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (4 / 8))); \
-    if (ib == 5) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (5 / 8))); \
-    if (ib == 6) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (6 / 8))); \
-    if (ib == 7) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (7 / 8))); \
-    if (ib == 8) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (8 / 8))); \
-    if (ib == 9) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (9 / 8))); \
-    if (ib == 10) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (10 / 8))); \
-    if (ib == 11) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (11 / 8))); \
-    if (ib == 12) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (12 / 8))); \
-    if (ib == 13) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (13 / 8))); \
-    if (ib == 14) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (14 / 8))); \
-    if (ib == 15) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (15 / 8))); \
-    if (ib == 16) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (16 / 8))); \
-    if (ib == 17) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (17 / 8))); \
-    if (ib == 18) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (18 / 8))); \
-    if (ib == 19) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (19 / 8))); \
-    if (ib == 20) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (20 / 8))); \
-    if (ib == 21) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (21 / 8))); \
-    if (ib == 22) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (22 / 8))); \
-    if (ib == 23) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (23 / 8))); \
-    if (ib == 24) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (24 / 8))); \
-    if (ib == 25) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (25 / 8))); \
-    if (ib == 26) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (26 / 8))); \
-    if (ib == 27) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (27 / 8))); \
-    if (ib == 28) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (28 / 8))); \
-    if (ib == 29) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (29 / 8))); \
-    if (ib == 30) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (30 / 8))); \
-    if (ib == 31) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (31 / 8))); \
-    if (ib == 32) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (32 / 8))); \
-    if (ib == 33) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (33 / 8))); \
-    if (ib == 34) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (34 / 8))); \
-    if (ib == 35) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (35 / 8))); \
-    if (ib == 36) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (36 / 8))); \
-    if (ib == 37) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (37 / 8))); \
-    if (ib == 38) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (38 / 8))); \
-    if (ib == 39) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (39 / 8))); \
-    if (ib == 40) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (40 / 8))); \
-    if (ib == 41) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (41 / 8))); \
-    if (ib == 42) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (42 / 8))); \
-    if (ib == 43) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (43 / 8))); \
-    if (ib == 44) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (44 / 8))); \
-    if (ib == 45) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (45 / 8))); \
-    if (ib == 46) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (46 / 8))); \
-    if (ib == 47) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (47 / 8))); \
-    if (ib == 48) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (48 / 8))); \
-    if (ib == 49) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (49 / 8))); \
-    if (ib == 50) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (50 / 8))); \
-    if (ib == 51) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (51 / 8))); \
-    if (ib == 52) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (52 / 8))); \
-    if (ib == 53) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (53 / 8))); \
-    if (ib == 54) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (54 / 8))); \
-    if (ib == 55) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (55 / 8))); \
-    if (ib == 56) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (56 / 8))); \
-    if (ib == 57) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (57 / 8))); \
-    if (ib == 58) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (58 / 8))); \
-    if (ib == 59) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (59 / 8))); \
-    if (ib == 60) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (60 / 8))); \
-    if (ib == 61) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (61 / 8))); \
-    if (ib == 62) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (62 / 8))); \
-    if (ib == 63) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (63 / 8))); \
-    F0  = multipliers[0] * *(&fftTable[inputt[0] << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[inputt[1] << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[inputt[2] << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[inputt[3] << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[inputt[4] << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[inputt[5] << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[inputt[6] << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[inputt[7] << 3] + i); \
+    uint2 inputt; \
+    if (ib == 0) SHARE_INTERMEDIATE_0(inputt, (input[0])); \
+    if (ib == 1) SHARE_INTERMEDIATE_1(inputt, (input[0])); \
+    if (ib == 2) SHARE_INTERMEDIATE_2(inputt, (input[0])); \
+    if (ib == 3) SHARE_INTERMEDIATE_3(inputt, (input[0])); \
+    if (ib == 4) SHARE_INTERMEDIATE_4(inputt, (input[0])); \
+    if (ib == 5) SHARE_INTERMEDIATE_5(inputt, (input[0])); \
+    if (ib == 6) SHARE_INTERMEDIATE_6(inputt, (input[0])); \
+    if (ib == 7) SHARE_INTERMEDIATE_7(inputt, (input[0])); \
+    if (ib == 8) SHARE_INTERMEDIATE_0(inputt, (input[1])); \
+    if (ib == 9) SHARE_INTERMEDIATE_1(inputt, (input[1])); \
+    if (ib == 10) SHARE_INTERMEDIATE_2(inputt, (input[1])); \
+    if (ib == 11) SHARE_INTERMEDIATE_3(inputt, (input[1])); \
+    if (ib == 12) SHARE_INTERMEDIATE_4(inputt, (input[1])); \
+    if (ib == 13) SHARE_INTERMEDIATE_5(inputt, (input[1])); \
+    if (ib == 14) SHARE_INTERMEDIATE_6(inputt, (input[1])); \
+    if (ib == 15) SHARE_INTERMEDIATE_7(inputt, (input[1])); \
+    if (ib == 16) SHARE_INTERMEDIATE_0(inputt, (input[2])); \
+    if (ib == 17) SHARE_INTERMEDIATE_1(inputt, (input[2])); \
+    if (ib == 18) SHARE_INTERMEDIATE_2(inputt, (input[2])); \
+    if (ib == 19) SHARE_INTERMEDIATE_3(inputt, (input[2])); \
+    if (ib == 20) SHARE_INTERMEDIATE_4(inputt, (input[2])); \
+    if (ib == 21) SHARE_INTERMEDIATE_5(inputt, (input[2])); \
+    if (ib == 22) SHARE_INTERMEDIATE_6(inputt, (input[2])); \
+    if (ib == 23) SHARE_INTERMEDIATE_7(inputt, (input[2])); \
+    if (ib == 24) SHARE_INTERMEDIATE_0(inputt, (input[3])); \
+    if (ib == 25) SHARE_INTERMEDIATE_1(inputt, (input[3])); \
+    if (ib == 26) SHARE_INTERMEDIATE_2(inputt, (input[3])); \
+    if (ib == 27) SHARE_INTERMEDIATE_3(inputt, (input[3])); \
+    if (ib == 28) SHARE_INTERMEDIATE_4(inputt, (input[3])); \
+    if (ib == 29) SHARE_INTERMEDIATE_5(inputt, (input[3])); \
+    if (ib == 30) SHARE_INTERMEDIATE_6(inputt, (input[3])); \
+    if (ib == 31) SHARE_INTERMEDIATE_7(inputt, (input[3])); \
+    F0  = multipliers[0] * *(&fftTable[as_uchar8(inputt).s0 << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[as_uchar8(inputt).s1 << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[as_uchar8(inputt).s2 << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[as_uchar8(inputt).s3 << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[as_uchar8(inputt).s4 << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[as_uchar8(inputt).s5 << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[as_uchar8(inputt).s6 << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[as_uchar8(inputt).s7 << 3] + i); \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
   int4 a1 = (int4) (F1, F3, F5, F7); \
@@ -1315,32 +1118,32 @@ unsigned char SFT_SBox[256] = {
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
   if (ib != 24) { \
-    ushort intermediatet[8]; \
-    if (ib % 8 == 0) SHARE_INTERMEDIATE_0(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 1) SHARE_INTERMEDIATE_1(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 2) SHARE_INTERMEDIATE_2(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 3) SHARE_INTERMEDIATE_3(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 4) SHARE_INTERMEDIATE_4(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 5) SHARE_INTERMEDIATE_5(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 6) SHARE_INTERMEDIATE_6(intermediatet, (intermediate + 8 * (ib / 8))); \
-    if (ib % 8 == 7) SHARE_INTERMEDIATE_7(intermediatet, (intermediate + 8 * (ib / 8))); \
-    F0  = multipliers[0] * *(&fftTable[intermediatet[0] << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[intermediatet[1] << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[intermediatet[2] << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[intermediatet[3] << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[intermediatet[4] << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[intermediatet[5] << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[intermediatet[6] << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[intermediatet[7] << 3] + i); \
+    uint2 intermediatet; \
+    if (ib % 8 == 0) SHARE_INTERMEDIATE_0(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 1) SHARE_INTERMEDIATE_1(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 2) SHARE_INTERMEDIATE_2(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 3) SHARE_INTERMEDIATE_3(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 4) SHARE_INTERMEDIATE_4(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 5) SHARE_INTERMEDIATE_5(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 6) SHARE_INTERMEDIATE_6(intermediatet, (intermediate[ib / 8])); \
+    if (ib % 8 == 7) SHARE_INTERMEDIATE_7(intermediatet, (intermediate[ib / 8])); \
+    F0  = multipliers[0] * *(&fftTable[as_uchar8(intermediatet).s0 << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[as_uchar8(intermediatet).s1 << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[as_uchar8(intermediatet).s2 << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[as_uchar8(intermediatet).s3 << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[as_uchar8(intermediatet).s4 << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[as_uchar8(intermediatet).s5 << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[as_uchar8(intermediatet).s6 << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[as_uchar8(intermediatet).s7 << 3] + i); \
   } else { \
-    F0  = multipliers[0] * *(&fftTable[intermediate[ib + 0] << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[intermediate[ib + 1] << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[intermediate[ib + 2] << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[intermediate[ib + 3] << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[intermediate[ib + 4] << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[intermediate[ib + 5] << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[intermediate[ib + 6] << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[intermediate[ib + 7] << 3] + i); \
+    F0  = multipliers[0] * *(&fftTable[intermediate[3].s0 << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[intermediate[3].s1 << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[intermediate[3].s2 << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[intermediate[3].s3 << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[intermediate[3].s4 << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[intermediate[3].s5 << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[intermediate[3].s6 << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[intermediate[3].s7 << 3] + i); \
   } \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
@@ -1409,10 +1212,9 @@ unsigned char SFT_SBox[256] = {
   }   \
      \
    \
-   PRAGMA_UNROLL   \
-    for (int i = 0; i < 24 / SFT_NSTRIDE; i++) {   \
-      intermediate[i] = 0;   \
-    }   \
+   intermediate[0].s0 = 0; \
+   intermediate[0].s1 = 0; \
+   intermediate[0].s2 = 0; \
    \
    PRAGMA_UNROLL   \
   for (int k=0; k<3; ++k) {   \
@@ -1426,7 +1228,7 @@ unsigned char SFT_SBox[256] = {
     for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
       (tsum)[jj] = sum[k * SFT_N / SFT_NSTRIDE + jj]; \
     } \
-    TranslateToBase256_L(tsum, intermediate, (k*SFT_N / SFT_NSTRIDE), pairs);   \
+    TranslateToBase256_L(tsum, intermediate, (k*SFT_N / SFT_NSTRIDE / 8), pairs);   \
     uint carryb = 0;   \
     uint carryt[8]; \
     SHARE_CARRY(carryt, carry); \
@@ -1434,21 +1236,31 @@ unsigned char SFT_SBox[256] = {
       for (int j = 0; j < SFT_NSTRIDE; j++) {   \
         carryb |= carryt[j] << j;   \
       }   \
-      intermediate[3*8+k] = carryb;   \
+      if (k == 0) intermediate[3].s0 = carryb;   \
+      if (k == 1) intermediate[3].s1 = carryb;   \
+      if (k == 2) intermediate[3].s2 = carryb;   \
   }   \
      \
    \
    PRAGMA_UNROLL   \
-  for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE; i++) {   \
-    intermediate[i] = SBox[intermediate[i]];   \
+  for (int i = 0; i < (3 * SFT_N) / SFT_NSTRIDE / 8; i++) {   \
+    intermediate[i].s0 = SBox[intermediate[i].s0];   \
+    intermediate[i].s1 = SBox[intermediate[i].s1];   \
+    intermediate[i].s2 = SBox[intermediate[i].s2];   \
+    intermediate[i].s3 = SBox[intermediate[i].s3];   \
+    intermediate[i].s4 = SBox[intermediate[i].s4];   \
+    intermediate[i].s5 = SBox[intermediate[i].s5];   \
+    intermediate[i].s6 = SBox[intermediate[i].s6];   \
+    intermediate[i].s7 = SBox[intermediate[i].s7];   \
   }   \
-    intermediate[24 + 0] = SBox[intermediate[24 + 0]];   \
-    intermediate[24 + 1] = SBox[intermediate[24 + 1]];   \
-    intermediate[24 + 2] = SBox[intermediate[24 + 2]];   \
-    PRAGMA_UNROLL   \
-  for (int i = (3 * 8) + 3; i < (3 * 8) + 8; i++) {   \
-    intermediate[i] = 0x7d;   \
-  }   \
+    intermediate[3].s0 = SBox[intermediate[3].s0];   \
+    intermediate[3].s1 = SBox[intermediate[3].s1];   \
+    intermediate[3].s2 = SBox[intermediate[3].s2];   \
+    intermediate[3].s3 = 0x7d;   \
+    intermediate[3].s4 = 0x7d;   \
+    intermediate[3].s5 = 0x7d;   \
+    intermediate[3].s6 = 0x7d;   \
+    intermediate[3].s7 = 0x7d;   \
      \
      PRAGMA_UNROLL   \
   for (int i = 0; i < SFT_N / SFT_NSTRIDE; i++) {   \
