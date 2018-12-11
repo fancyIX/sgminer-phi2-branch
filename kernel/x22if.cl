@@ -158,6 +158,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   ushort S_carry;
   swift_int32_t pairs[EIGHTH_N / 2 ];
   char S_multipliers[8];
+  ushort S_input[8 * 4];
 
 #pragma unroll
   for (int i = 0; i < 8; i++) {
@@ -186,7 +187,14 @@ const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
     __global unsigned char* in1ptr = (__global unsigned char*)in1;
     __global unsigned char* in2ptr = (__global unsigned char*)in2;
     __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs,T_sum);
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+      S_input[i] = inoutptr[i + 8 * SFT_STRIDE];
+      S_input[i + 8] = in1ptr[i + 8 * SFT_STRIDE];
+      S_input[i + 16] = in2ptr[i + 8 * SFT_STRIDE];
+      S_input[i + 24] = in3ptr[i + 8 * SFT_STRIDE];
+    }
+    e_ComputeSingleSWIFFTX(inoutptr, S_input, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs,T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
 }

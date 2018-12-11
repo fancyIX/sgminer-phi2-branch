@@ -1200,50 +1200,83 @@ unsigned char SFT_SBox[256] = {
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
 
-#define e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr,ib,output, fftTable,multipliers,i) { \
+#define e_FFT_staged_int4_I(input,ib,output, fftTable,multipliers,i) { \
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
- if ((ib) < 64 - 7 && (ib) >= 0) { \
-    F0  = multipliers[0] * *(&fftTable[SFT_INPUT0(((ib) + 0)) << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[SFT_INPUT0(((ib) + 1)) << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[SFT_INPUT0(((ib) + 2)) << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[SFT_INPUT0(((ib) + 3)) << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[SFT_INPUT0(((ib) + 4)) << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[SFT_INPUT0(((ib) + 5)) << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[SFT_INPUT0(((ib) + 6)) << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[SFT_INPUT0(((ib) + 7)) << 3] + i); \
- } \
- if ((ib) < 64 * 2 - 7 && (ib) >= 64 - 7) { \
-    F0  = multipliers[0] * *(&fftTable[SFT_INPUT1(((ib) + 0) - 64) << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[SFT_INPUT1(((ib) + 1) - 64) << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[SFT_INPUT1(((ib) + 2) - 64) << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[SFT_INPUT1(((ib) + 3) - 64) << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[SFT_INPUT1(((ib) + 4) - 64) << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[SFT_INPUT1(((ib) + 5) - 64) << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[SFT_INPUT1(((ib) + 6) - 64) << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[SFT_INPUT1(((ib) + 7) - 64) << 3] + i); \
- } \
- if ((ib) < 64 * 3 - 7 && (ib) >= 64 * 2 - 7) { \
-    F0  = multipliers[0] * *(&fftTable[SFT_INPUT2(((ib) + 0) - 64 * 2) << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[SFT_INPUT2(((ib) + 1) - 64 * 2) << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[SFT_INPUT2(((ib) + 2) - 64 * 2) << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[SFT_INPUT2(((ib) + 3) - 64 * 2) << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[SFT_INPUT2(((ib) + 4) - 64 * 2) << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[SFT_INPUT2(((ib) + 5) - 64 * 2) << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[SFT_INPUT2(((ib) + 6) - 64 * 2) << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[SFT_INPUT2(((ib) + 7) - 64 * 2) << 3] + i); \
- } \
- if ((ib) < 64 * 4 - 7 && (ib) >= 64 * 3 - 7) { \
-    F0  = multipliers[0] * *(&fftTable[SFT_INPUT3(((ib) + 0) - 64 * 3) << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[SFT_INPUT3(((ib) + 1) - 64 * 3) << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[SFT_INPUT3(((ib) + 2) - 64 * 3) << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[SFT_INPUT3(((ib) + 3) - 64 * 3) << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[SFT_INPUT3(((ib) + 4) - 64 * 3) << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[SFT_INPUT3(((ib) + 5) - 64 * 3) << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[SFT_INPUT3(((ib) + 6) - 64 * 3) << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[SFT_INPUT3(((ib) + 7) - 64 * 3) << 3] + i); \
- } \
+    ushort inputt[8]; \
+    if (ib == 0) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (0 / 8))); \
+    if (ib == 1) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (1 / 8))); \
+    if (ib == 2) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (2 / 8))); \
+    if (ib == 3) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (3 / 8))); \
+    if (ib == 4) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (4 / 8))); \
+    if (ib == 5) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (5 / 8))); \
+    if (ib == 6) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (6 / 8))); \
+    if (ib == 7) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (7 / 8))); \
+    if (ib == 8) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (8 / 8))); \
+    if (ib == 9) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (9 / 8))); \
+    if (ib == 10) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (10 / 8))); \
+    if (ib == 11) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (11 / 8))); \
+    if (ib == 12) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (12 / 8))); \
+    if (ib == 13) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (13 / 8))); \
+    if (ib == 14) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (14 / 8))); \
+    if (ib == 15) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (15 / 8))); \
+    if (ib == 16) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (16 / 8))); \
+    if (ib == 17) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (17 / 8))); \
+    if (ib == 18) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (18 / 8))); \
+    if (ib == 19) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (19 / 8))); \
+    if (ib == 20) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (20 / 8))); \
+    if (ib == 21) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (21 / 8))); \
+    if (ib == 22) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (22 / 8))); \
+    if (ib == 23) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (23 / 8))); \
+    if (ib == 24) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (24 / 8))); \
+    if (ib == 25) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (25 / 8))); \
+    if (ib == 26) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (26 / 8))); \
+    if (ib == 27) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (27 / 8))); \
+    if (ib == 28) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (28 / 8))); \
+    if (ib == 29) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (29 / 8))); \
+    if (ib == 30) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (30 / 8))); \
+    if (ib == 31) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (31 / 8))); \
+    if (ib == 32) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (32 / 8))); \
+    if (ib == 33) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (33 / 8))); \
+    if (ib == 34) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (34 / 8))); \
+    if (ib == 35) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (35 / 8))); \
+    if (ib == 36) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (36 / 8))); \
+    if (ib == 37) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (37 / 8))); \
+    if (ib == 38) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (38 / 8))); \
+    if (ib == 39) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (39 / 8))); \
+    if (ib == 40) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (40 / 8))); \
+    if (ib == 41) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (41 / 8))); \
+    if (ib == 42) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (42 / 8))); \
+    if (ib == 43) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (43 / 8))); \
+    if (ib == 44) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (44 / 8))); \
+    if (ib == 45) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (45 / 8))); \
+    if (ib == 46) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (46 / 8))); \
+    if (ib == 47) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (47 / 8))); \
+    if (ib == 48) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (48 / 8))); \
+    if (ib == 49) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (49 / 8))); \
+    if (ib == 50) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (50 / 8))); \
+    if (ib == 51) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (51 / 8))); \
+    if (ib == 52) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (52 / 8))); \
+    if (ib == 53) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (53 / 8))); \
+    if (ib == 54) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (54 / 8))); \
+    if (ib == 55) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (55 / 8))); \
+    if (ib == 56) SHARE_INTERMEDIATE_0(inputt, (input + 8 * (56 / 8))); \
+    if (ib == 57) SHARE_INTERMEDIATE_1(inputt, (input + 8 * (57 / 8))); \
+    if (ib == 58) SHARE_INTERMEDIATE_2(inputt, (input + 8 * (58 / 8))); \
+    if (ib == 59) SHARE_INTERMEDIATE_3(inputt, (input + 8 * (59 / 8))); \
+    if (ib == 60) SHARE_INTERMEDIATE_4(inputt, (input + 8 * (60 / 8))); \
+    if (ib == 61) SHARE_INTERMEDIATE_5(inputt, (input + 8 * (61 / 8))); \
+    if (ib == 62) SHARE_INTERMEDIATE_6(inputt, (input + 8 * (62 / 8))); \
+    if (ib == 63) SHARE_INTERMEDIATE_7(inputt, (input + 8 * (63 / 8))); \
+    F0  = multipliers[0] * *(&fftTable[inputt[0] << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[inputt[1] << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[inputt[2] << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[inputt[3] << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[inputt[4] << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[inputt[5] << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[inputt[6] << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[inputt[7] << 3] + i); \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
   int4 a1 = (int4) (F1, F3, F5, F7); \
@@ -1282,7 +1315,7 @@ unsigned char SFT_SBox[256] = {
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
   if (ib != 24) { \
-    uint intermediatet[8]; \
+    ushort intermediatet[8]; \
     if (ib % 8 == 0) SHARE_INTERMEDIATE_0(intermediatet, (intermediate + 8 * (ib / 8))); \
     if (ib % 8 == 1) SHARE_INTERMEDIATE_1(intermediatet, (intermediate + 8 * (ib / 8))); \
     if (ib % 8 == 2) SHARE_INTERMEDIATE_2(intermediatet, (intermediate + 8 * (ib / 8))); \
@@ -1346,7 +1379,7 @@ unsigned char SFT_SBox[256] = {
 //__shared__ swift_int32_t __FIELD_SIZE_22__;
 #define __FIELD_SIZE_22__ (FIELD_SIZE << 22)
 
-#define e_ComputeSingleSWIFFTX(inoutptr,in1ptr,in2ptr,in3ptr,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
+#define e_ComputeSingleSWIFFTX(inoutptr,input,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
       \
       PRAGMA_UNROLL   \
   for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {   \
@@ -1357,7 +1390,7 @@ unsigned char SFT_SBox[256] = {
    PRAGMA_NOUNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
-      e_FFT_staged_int4_I(inoutptr,in1ptr,in2ptr,in3ptr, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
+      e_FFT_staged_int4_I(input, (i), fftOut, fftTable, multipliers, SFT_STRIDE);   \
       __local const swift_int16_t *As_i = As + (i*SFT_N);   \
    \
    PRAGMA_UNROLL   \
