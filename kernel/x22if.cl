@@ -167,18 +167,19 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 
 const int blockSize = min(256, SFT_NSLOT); //blockDim.x;
 
-  if (tid < 256 && SFT_STRIDE == 0) {
+  if (tid < 256) {
     #pragma unroll
-    for (int i=0; i<(256/blockSize); i++) {
-      S_SBox[tid + i*blockSize] = SFT_SBox[tid + i*blockSize];
+    for (int i=0; i<(256/blockSize/8) && (tid % 8 == 0); i++) {
+      ((__local ulong *)S_SBox)[SFT_STRIDE + SFT_NSTRIDE * (tid / 8 + blockSize * (i))] = ((__constant ulong *)SFT_SBox)[SFT_STRIDE + SFT_NSTRIDE * (tid / 8 + blockSize * (i))];
+    }
+#define SFT_IDX(i) (SFT_STRIDE + SFT_NSTRIDE * (tid + blockSize * (i)))
+    #pragma unroll
+    for (int i=0; i<(256 * EIGHTH_N)/blockSize/8/4; i++) {
+      ((__local ulong *)S_fftTable)[SFT_IDX(i)] = ((__constant ulong *)fftTable)[SFT_IDX(i)];
     }
     #pragma unroll
-    for (int i=0; i<(256 * EIGHTH_N)/blockSize; i++) {
-      S_fftTable[tid + i*blockSize] = fftTable[tid + i*blockSize];
-    }
-    #pragma unroll
-    for (int i=0; i<(3 * SFT_M * SFT_N)/blockSize; i++) {
-      S_As[tid + i*blockSize] = As[tid + i*blockSize];
+    for (int i=0; i<(3 * SFT_M * SFT_N)/blockSize/8/4; i++) {
+      ((__local ulong *)S_As)[SFT_IDX(i)] = ((__constant ulong *)As)[SFT_IDX(i)];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
   }
