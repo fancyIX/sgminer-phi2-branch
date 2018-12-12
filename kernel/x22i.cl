@@ -1659,7 +1659,7 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local swift_int16_t S_As[3 * SFT_M * SFT_N];
-  swift_int32_t S_sum[3*SFT_N/ SFT_NSTRIDE];
+  int8 S_sum[3*SFT_N/ SFT_NSTRIDE / 8];
   __local swift_int32_t T_sum[8 * SFT_NSLOT];
   __local unsigned char S_intermediate[(SFT_N*3 + 8) * SFT_NSLOT];
   __local uchar S_carry[8 * SFT_NSLOT];
