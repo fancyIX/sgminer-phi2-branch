@@ -1039,23 +1039,14 @@ unsigned char SFT_SBox[256] = {
  \
   swift_int32_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
-    uint2 inputt; \
-    if (ib % 8 == 0) SHARE_INTERMEDIATE_0(inputt, (input[ib / 8])); \
-    if (ib % 8 == 1) SHARE_INTERMEDIATE_1(inputt, (input[ib / 8])); \
-    if (ib % 8 == 2) SHARE_INTERMEDIATE_2(inputt, (input[ib / 8])); \
-    if (ib % 8 == 3) SHARE_INTERMEDIATE_3(inputt, (input[ib / 8])); \
-    if (ib % 8 == 4) SHARE_INTERMEDIATE_4(inputt, (input[ib / 8])); \
-    if (ib % 8 == 5) SHARE_INTERMEDIATE_5(inputt, (input[ib / 8])); \
-    if (ib % 8 == 6) SHARE_INTERMEDIATE_6(inputt, (input[ib / 8])); \
-    if (ib % 8 == 7) SHARE_INTERMEDIATE_7(inputt, (input[ib / 8])); \
-    F0  = multipliers[0] * *(&fftTable[as_uchar8(inputt).s0 << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[as_uchar8(inputt).s1 << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[as_uchar8(inputt).s2 << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[as_uchar8(inputt).s3 << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[as_uchar8(inputt).s4 << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[as_uchar8(inputt).s5 << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[as_uchar8(inputt).s6 << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[as_uchar8(inputt).s7 << 3] + i); \
+    F0  = multipliers[0] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s0 << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s1 << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s2 << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s3 << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s4 << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s5 << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s6 << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[as_uchar8(input[ib % 8 + 8 * (ib / 8)]).s7 << 3] + i); \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
   int4 a1 = (int4) (F1, F3, F5, F7); \
