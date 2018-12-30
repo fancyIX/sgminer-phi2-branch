@@ -514,7 +514,7 @@ unsigned char SFT_SBox[256] = {
 #define SFT_TSUM(i) (T_sum[SFT_SLOT + SFT_NSLOT * (i)])
 #define SFT_IN(i) (S_in[SFT_SLOT + SFT_NSLOT * (i)])
 
-#define SFT_BYTE(x, n)     ((unsigned)((x) >> (8 * (n))) & 0xFF)
+#define SFT_BYTE(x, n)     ((uint)amd_bfe((uint)(x), (8 * n), 8U))
 
 // #define SFT_INPUT(i) (((i) < 64) ? ((inoutptr)[(i)]) : ( ((i) < 64 * 2) ? ((in1ptr)[(i - 64)]) : ( ((i) < 64 * 3) ? (((in2ptr)[(i -  64 * 2)])) : ((in3ptr)[(i -  64 * 3)]) ) ))
 #define SFT_INPUT0(i) ((inoutptr)[(i)])
