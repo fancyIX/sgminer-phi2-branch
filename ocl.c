@@ -38,6 +38,7 @@
 #include "algorithm/pluck.h"
 #include "algorithm/yescrypt.h"
 #include "algorithm/lyra2rev2.h"
+#include "algorithm/lyra2rev3.h"
 #include "algorithm/lyra2Z.h"
 #include "algorithm/lyra2h.h"
 #include "algorithm/phi2.h"
@@ -590,13 +591,13 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   }
 
   // Lyra2re v2 TC
-  else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_X22I || cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2H || cgpu->algorithm.type == ALGO_PHI2 || cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
+  else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_LYRA2REV3 || cgpu->algorithm.type == ALGO_X22I || cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2H || cgpu->algorithm.type == ALGO_PHI2 || cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
 
     size_t scratchbuf_size;
-    if (cgpu->algorithm.type == ALGO_LYRA2REV2) {
+    if (cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_LYRA2REV3) {
       scratchbuf_size = LYRA_SCRATCHBUF_SIZE;
     } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_ALLIUM) {
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE / 2; // LYRA2Z_SCRATCHBUF_SIZE * 8;
@@ -824,7 +825,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       applog(LOG_DEBUG, "yescrypt buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
       // scrypt/n-scrypt
     }
-    else if (algorithm->type == ALGO_LYRA2REV2) {
+    else if (algorithm->type == ALGO_LYRA2REV2 || algorithm->type == ALGO_LYRA2REV3) {
       bufsize = 8 * 4 * cgpu->thread_concurrency;
       buf1size = 4 * 8 * 4 * cgpu->thread_concurrency; // state
 
@@ -832,7 +833,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       * 80 bytes only. */
       readbufsize = 80;
 
-      applog(LOG_DEBUG, "lyra2REv2 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)buf1size);
+      applog(LOG_DEBUG, "lyra2REv2/3 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)buf1size);
       // scrypt/n-scrypt
     }
     else if (algorithm->type == ALGO_LYRA2Z) {
@@ -913,7 +914,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_LYRA2REV2) {
+    else if (algorithm->type == ALGO_LYRA2REV2 || algorithm->type == ALGO_LYRA2REV3) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {

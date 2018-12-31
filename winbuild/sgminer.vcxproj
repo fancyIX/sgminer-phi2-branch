@@ -273,6 +273,7 @@
     <ClCompile Include="..\algorithm\lyra2.c" />
     <ClCompile Include="..\algorithm\lyra2re.c" />
     <ClCompile Include="..\algorithm\lyra2rev2.c" />
+    <ClCompile Include="..\algorithm\lyra2rev3.c" />
     <ClCompile Include="..\algorithm\lyra2Z.c" />
     <ClCompile Include="..\algorithm\lyra2h.c" />
     <ClCompile Include="..\algorithm\allium.c" />
@@ -365,6 +366,7 @@
     <ClInclude Include="..\algorithm\lyra2.h" />
     <ClInclude Include="..\algorithm\lyra2re.h" />
     <ClInclude Include="..\algorithm\lyra2rev2.h" />
+    <ClInclude Include="..\algorithm\lyra2rev3.h" />
     <ClInclude Include="..\algorithm\lyra2Z.h" />
     <ClInclude Include="..\algorithm\lyra2h.h" />
     <ClInclude Include="..\algorithm\allium.h" />
