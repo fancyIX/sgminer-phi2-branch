@@ -237,14 +237,14 @@ int LYRA2_3(void *K, int64_t kLen, const void *pwd, int32_t pwdlen, const void *
 	const int64_t BLOCK_LEN = (nCols == 4) ? BLOCK_LEN_BLAKE2_SAFE_INT64 : BLOCK_LEN_BLAKE2_SAFE_BYTES;
 
 	size_t sz = (size_t)ROW_LEN_BYTES * nRows;
-	uint64_t *wholeMatrix = malloc(sz);
+	uint64_t *wholeMatrix = (uint64_t *)malloc(sz);
 	if (wholeMatrix == NULL) {
 		return -1;
 	}
 	memset(wholeMatrix, 0, sz);
 
 	//Allocates pointers to each row of the matrix
-	uint64_t **memMatrix = malloc(sizeof(uint64_t*) * nRows);
+	uint64_t **memMatrix = (uint64_t **)malloc(sizeof(uint64_t*)* nRows);
 	if (memMatrix == NULL) {
 		return -1;
 	}
@@ -377,7 +377,7 @@ int LYRA2_3(void *K, int64_t kLen, const void *pwd, int32_t pwdlen, const void *
 	absorbBlock(state, memMatrix[rowa]);
 
 	//Squeezes the key
-	squeeze(state, K, (unsigned int) kLen);
+	squeeze(state, (unsigned char *) K, (unsigned int) kLen);
 
 	//========================= Freeing the memory =============================//
 	free(memMatrix);
