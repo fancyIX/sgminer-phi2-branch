@@ -584,18 +584,18 @@ unsigned char SFT_SBox[256] = {
 
 #define ADD_SUB4(A, B) { int4 temp = (B); B = ((A) - (B)); A = ((A) + (temp)); }
 
-#define e_FFT_staged_int4_I(in,ib,output, fftTable,multipliers,i) { \
+#define e_FFT_staged_int4_I(input,ib,output, fftTable,multipliers,i) { \
  \
   swift_int16_t F0,F1,F2,F3,F4,F5,F6,F7; \
  \
-    F0  = multipliers[0] * *(&fftTable[SFT_IN(((ib) + 0)) << 3] + i); \
-    F1  = multipliers[1] * *(&fftTable[SFT_IN(((ib) + 1)) << 3] + i); \
-    F2  = multipliers[2] * *(&fftTable[SFT_IN(((ib) + 2)) << 3] + i); \
-    F3  = multipliers[3] * *(&fftTable[SFT_IN(((ib) + 3)) << 3] + i); \
-    F4  = multipliers[4] * *(&fftTable[SFT_IN(((ib) + 4)) << 3] + i); \
-    F5  = multipliers[5] * *(&fftTable[SFT_IN(((ib) + 5)) << 3] + i); \
-    F6  = multipliers[6] * *(&fftTable[SFT_IN(((ib) + 6)) << 3] + i); \
-    F7  = multipliers[7] * *(&fftTable[SFT_IN(((ib) + 7)) << 3] + i); \
+    F0  = multipliers[0] * *(&fftTable[as_uchar8(input[ib]).s0 << 3] + i); \
+    F1  = multipliers[1] * *(&fftTable[as_uchar8(input[ib]).s1 << 3] + i); \
+    F2  = multipliers[2] * *(&fftTable[as_uchar8(input[ib]).s2 << 3] + i); \
+    F3  = multipliers[3] * *(&fftTable[as_uchar8(input[ib]).s3 << 3] + i); \
+    F4  = multipliers[4] * *(&fftTable[as_uchar8(input[ib]).s4 << 3] + i); \
+    F5  = multipliers[5] * *(&fftTable[as_uchar8(input[ib]).s5 << 3] + i); \
+    F6  = multipliers[6] * *(&fftTable[as_uchar8(input[ib]).s6 << 3] + i); \
+    F7  = multipliers[7] * *(&fftTable[as_uchar8(input[ib]).s7 << 3] + i); \
  \
   int4 a0 = (int4) (F0, F2, F4, F6); \
   int4 a1 = (int4) (F1, F3, F5, F7); \
@@ -679,15 +679,7 @@ unsigned char SFT_SBox[256] = {
 //__shared__ swift_int32_t __FIELD_SIZE_22__;
 #define __FIELD_SIZE_22__ (FIELD_SIZE << 22)
 
-#define e_ComputeSingleSWIFFTX(inoutptr,in1ptr,in2ptr,in3ptr,in,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
-  PRAGMA_UNROLL    \
-  for (int i = 0; i < 64 / SFT_NSTRIDE; i++) { \
-      int ii = i * SFT_NSTRIDE + SFT_STRIDE; \
-      SFT_IN(ii      ) = inoutptr[ii]; \
-      SFT_IN(ii + 64 ) = in1ptr  [ii]; \
-      SFT_IN(ii + 128) = in2ptr  [ii]; \
-      SFT_IN(ii + 192) = in3ptr  [ii]; \
-  } \
+#define e_ComputeSingleSWIFFTX(inoutptr,input,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
       \
   PRAGMA_UNROLL    \
   for (int i = 0; i < 3*SFT_N / SFT_NSTRIDE; i++) {   \
@@ -698,7 +690,7 @@ unsigned char SFT_SBox[256] = {
   PRAGMA_NOUNROLL   \
   for (int i=0; i<SFT_M; ++i) {   \
       swift_int32_t fftOut[8];   \
-      e_FFT_staged_int4_I(in, (i << 3), fftOut, fftTable, multipliers, SFT_STRIDE);   \
+      e_FFT_staged_int4_I(input, (i), fftOut, fftTable, multipliers, SFT_STRIDE);   \
       __local const swift_int16_t *As_i = As + (i*SFT_N);   \
    \
       PRAGMA_UNROLL   \

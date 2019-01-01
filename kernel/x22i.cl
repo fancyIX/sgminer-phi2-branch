@@ -1650,12 +1650,12 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
     uint thread = gid - offset;
     uint tid = get_local_id(1);
 
-    __global uint* inout = &g_hash [thread<<4];
-    __global uint* in1   = &g_hash1[thread<<4];
-    __global uint* in2   = &g_hash2[thread<<4];
-    __global uint* in3   = &g_hash3[thread<<4];
+    __global uchar8* inout = (__global uchar8*) &g_hash [thread<<4];
+    __global uchar8* in1   = (__global uchar8*) &g_hash1[thread<<4];
+    __global uchar8* in2   = (__global uchar8*) &g_hash2[thread<<4];
+    __global uchar8* in3   = (__global uchar8*) &g_hash3[thread<<4];
 
-  __local uchar S_in[256 * SFT_NSLOT];
+  uchar8 S_input[4 * 8];
   __local unsigned char S_SBox[256];
   __local swift_int16_t S_fftTable[256 * EIGHTH_N];
   __local swift_int16_t S_As[3 * SFT_M * SFT_N];
@@ -1692,10 +1692,14 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 
   {
     __global unsigned char* inoutptr = (__global unsigned char*)inout;
-    __global unsigned char* in1ptr = (__global unsigned char*)in1;
-    __global unsigned char* in2ptr = (__global unsigned char*)in2;
-    __global unsigned char* in3ptr = (__global unsigned char*)in3;
-    e_ComputeSingleSWIFFTX(inoutptr, in1ptr, in2ptr, in3ptr, S_in, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+      S_input[0 * 8 + i] = inout[i];
+      S_input[1 * 8 + i] = in1[i];
+      S_input[2 * 8 + i] = in2[i];
+      S_input[3 * 8 + i] = in3[i];
+    }
+    e_ComputeSingleSWIFFTX(inoutptr, S_input, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
 }
