@@ -6224,6 +6224,15 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     memcpy(work->data, pool->header_bin, 144);
     memcpy(work->data + pool->merkle_offset, merkle_root, 32);
   }
+  else if (pool->algorithm.type == ALGO_LYRA2ZZ) {
+    data32 = (uint32_t *)merkle_sha;
+    swap32 = (uint32_t *)merkle_root;
+    flip32(swap32, data32);
+
+    /* Copy the data template from header_bin */
+    memcpy(work->data, pool->header_bin, 128);
+    memcpy(work->data + pool->merkle_offset, merkle_root, 32);
+  }
   else {
     data32 = (uint32_t *)merkle_sha;
     swap32 = (uint32_t *)merkle_root;
