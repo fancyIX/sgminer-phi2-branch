@@ -90,7 +90,12 @@ __constant static const sph_u32  c_u256[16] = {
 	v[b] = SPH_ROTR32(v[b], 7); \
 }
 
-
+__constant static const sph_u32  c_Padding_112[16] = {
+	0, 0, 0, 0,
+	0, 0, 0, 0,
+	0, 0, 0, 0,
+	0x80000000, 1, 0, 0x380 
+};
 
 
 

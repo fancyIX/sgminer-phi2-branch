@@ -1501,6 +1501,7 @@ static char *json_array_string(json_t *val, unsigned int entry)
 }
 
 static char *workpadding = "000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000";
+static char *workpadding_l2zz = "00000080000000000000000080020000";
 static char *blank_merkel = "0000000000000000000000000000000000000000000000000000000000000000";
 
 static bool parse_notify(struct pool *pool, json_t *val)
@@ -1514,11 +1515,11 @@ static bool parse_notify(struct pool *pool, json_t *val)
   int merkles, i = 0;
   json_t *arr;
 
-  bool has_roots = json_array_size(val) == 10 && pool->algorithm.type == ALGO_PHI2;
+  bool has_roots = json_array_size(val) == 10 && (pool->algorithm.type == ALGO_PHI2 || pool->algorithm.type == ALGO_LYRA2ZZ);
 
   job_id = json_array_string(val, i++);
   prev_hash = json_array_string(val, i++);
-  if (has_roots)
+  if (has_roots && pool->algorithm.type == ALGO_PHI2)
     roots = json_array_string(val, i++);
   coinbase1 = json_array_string(val, i++);
   coinbase2 = json_array_string(val, i++);
@@ -1532,6 +1533,8 @@ static bool parse_notify(struct pool *pool, json_t *val)
   nbit = json_array_string(val, i++);
   ntime = json_array_string(val, i++);
   clean = json_is_true(json_array_get(val, i));
+  if (has_roots && pool->algorithm.type == ALGO_LYRA2ZZ)
+    roots = json_array_string(val, 9);
 
   if (!job_id || !prev_hash || !coinbase1 || !coinbase2 || !bbversion || !nbit || !ntime) {
     /* Annoying but we must not leak memory */
@@ -1616,10 +1619,10 @@ static bool parse_notify(struct pool *pool, json_t *val)
     pool->swork.nbit,
     "00000000", /* nonce */
     roots ? roots : "",
-    workpadding);
+    pool->algorithm.type == ALGO_LYRA2ZZ ? workpadding_l2zz : workpadding);
   // header_bin size is a padded multiple of 64-bytes
-  if (unlikely(!hex2bin(pool->header_bin, header, roots ? 192 : 128))) {
-    applog(LOG_WARNING, "%s: Failed to convert header to header_bin, got %s", __func__, header);
+  if (unlikely(!hex2bin(pool->header_bin, header, (roots && pool->algorithm.type == ALGO_LYRA2ZZ) ? 128 : (roots ? 192 : 128)))) {
+    applog(LOG_WARNING, "%s: Failed to convert header to header_bin, got %d, %s, %s", __func__, pool->algorithm.type == ALGO_LYRA2ZZ, roots, header);
     pool_failed(pool);
     // TODO: memory leaks? goto out, clean up there?
     return false;

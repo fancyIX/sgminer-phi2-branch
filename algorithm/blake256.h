@@ -8,4 +8,7 @@ extern void blake256_prepare_work(dev_blk_ctx *blk, uint32_t *state, uint32_t *p
 extern void blake256_midstate(struct work *work);
 extern void blake256_regenhash(struct work *work);
 
+extern void blake256_prepare_work_112(dev_blk_ctx *blk, uint32_t *state, uint32_t *pdata);
+extern void blake256_midstate_112(struct work *work);
+
 #endif /* BLAKE256_H */

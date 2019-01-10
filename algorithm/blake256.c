@@ -84,6 +84,49 @@ void blake256_prepare_work(dev_blk_ctx *blk, uint32_t *state, uint32_t *pdata)
 	blk->cty_c = pdata[18];
 }
 
+void blake256_midstate_112(struct work *work)
+{
+	sph_blake256_context     ctx_blake;
+	uint32_t data[16];
+
+	be32enc_vect(data, (const uint32_t *)work->data, 16);
+
+	sph_blake256_init(&ctx_blake);
+	sph_blake256(&ctx_blake, (unsigned char *)data, 64);
+
+	memcpy(work->midstate, ctx_blake.H, 32);
+	endian_flip32(work->midstate, work->midstate);
+
+	char *strdata, *strmidstate;
+	strdata = bin2hex(work->data, 112);
+	strmidstate = bin2hex(work->midstate, 32);
+	applog(LOG_DEBUG, "data %s midstate %s", strdata, strmidstate);
+}
+
+void blake256_prepare_work_112(dev_blk_ctx *blk, uint32_t *state, uint32_t *pdata)
+{
+	blk->ctx_a = state[0];
+	blk->ctx_b = state[1];
+	blk->ctx_c = state[2];
+	blk->ctx_d = state[3];
+	blk->ctx_e = state[4];
+	blk->ctx_f = state[5];
+	blk->ctx_g = state[6];
+	blk->ctx_h = state[7];
+
+	blk->cty_a = pdata[16];
+	blk->cty_b = pdata[17];
+	blk->cty_c = pdata[18];
+	blk->cty_d = pdata[20];
+	blk->cty_e = pdata[21];
+	blk->cty_f = pdata[22];
+	blk->cty_g = pdata[23];
+	blk->cty_h = pdata[24];
+	blk->cty_i = pdata[25];
+	blk->cty_j = pdata[26];
+	blk->cty_k = pdata[27];
+}
+
 static const uint32_t diff1targ = 0x0000ffff;
 
 /* Used externally as confirmation of correct OCL code */

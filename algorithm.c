@@ -37,6 +37,7 @@
 #include "algorithm/lyra2rev2.h"
 #include "algorithm/lyra2rev3.h"
 #include "algorithm/lyra2Z.h"
+#include "algorithm/lyra2Zz.h"
 #include "algorithm/pluck.h"
 #include "algorithm/yescrypt.h"
 #include "algorithm/credits.h"
@@ -83,6 +84,7 @@ const char *algorithm_type_str[] = {
   "Lyra2REV2",
   "Lyra2REV3",
   "Lyra2Z",
+  "Lyra2Zz",
   "Lyra2h",
   "Pluck",
   "Yescrypt",
@@ -1370,6 +1372,63 @@ static cl_int queue_lyra2z_kernel(struct __clState *clState, struct _dev_blk_ctx
 	return status;
 }
 
+static cl_int queue_lyra2zz_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+	cl_kernel *kernel;
+	unsigned int num;
+	cl_int status = 0;
+	cl_ulong le_target;
+
+	//  le_target = *(cl_uint *)(blk->work->device_target + 28);
+	le_target = *(cl_ulong *)(blk->work->device_target + 24);
+	flip112(clState->cldata, blk->work->data);
+	status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 112, clState->cldata, 0, NULL, NULL);
+
+	// blake 112 - search
+	kernel = &clState->kernel;
+	num = 0;
+	//  CL_SET_ARG(clState->CLbuffer0);
+	CL_SET_ARG(clState->padbuffer8);
+	CL_SET_ARG(blk->work->blk.ctx_a);
+	CL_SET_ARG(blk->work->blk.ctx_b);
+	CL_SET_ARG(blk->work->blk.ctx_c);
+	CL_SET_ARG(blk->work->blk.ctx_d);
+	CL_SET_ARG(blk->work->blk.ctx_e);
+	CL_SET_ARG(blk->work->blk.ctx_f);
+	CL_SET_ARG(blk->work->blk.ctx_g);
+	CL_SET_ARG(blk->work->blk.ctx_h);
+	CL_SET_ARG(blk->work->blk.cty_a);
+	CL_SET_ARG(blk->work->blk.cty_b);
+	CL_SET_ARG(blk->work->blk.cty_c);
+  CL_SET_ARG(blk->work->blk.cty_d);
+  CL_SET_ARG(blk->work->blk.cty_e);
+  CL_SET_ARG(blk->work->blk.cty_f);
+  CL_SET_ARG(blk->work->blk.cty_g);
+  CL_SET_ARG(blk->work->blk.cty_h);
+  CL_SET_ARG(blk->work->blk.cty_i);
+  CL_SET_ARG(blk->work->blk.cty_j);
+  CL_SET_ARG(blk->work->blk.cty_k);
+
+	kernel = clState->extra_kernels;
+  // lyra2_cuda_hash_64 - search1 2 3
+  num = 0;
+  CL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->buffer1);
+  //CL_SET_ARG(clState->buffer2);
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->buffer1);
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->buffer1);
+	num = 0;
+	//output
+	CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+	CL_SET_ARG(clState->outputBuffer);
+	CL_SET_ARG(le_target);
+	
+	return status;
+}
+
 static cl_int queue_lyra2h_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
 	cl_kernel *kernel;
@@ -1622,6 +1681,7 @@ static algorithm_settings_t algos[] = {
   { "lyra2rev2", ALGO_LYRA2REV2, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 8, -1, 0, lyra2rev2_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2rev2_kernel, gen_hash, append_neoscrypt_compiler_options },
   { "lyra2rev3", ALGO_LYRA2REV3, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 8, -1, 0, lyra2rev3_regenhash, blake256_midstate, blake256_prepare_work, queue_lyra2rev3_kernel, gen_hash, append_neoscrypt_compiler_options },
   { "lyra2Z"   , ALGO_LYRA2Z   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, -1, 0, lyra2Z_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2z_kernel, gen_hash, NULL },
+  { "lyra2Zz"   , ALGO_LYRA2ZZ   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, -1, 0, lyra2Zz_regenhash,  blake256_midstate_112, blake256_prepare_work_112, queue_lyra2zz_kernel, gen_hash, NULL },
   { "lyra2h"   , ALGO_LYRA2H   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, -1, 0, lyra2h_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2h_kernel, gen_hash, NULL },
   { "allium", ALGO_ALLIUM, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 2 * 8 * 4194304, 0, allium_regenhash, blake256_midstate, blake256_prepare_work, queue_allium_kernel, gen_hash, NULL },
 
