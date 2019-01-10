@@ -1532,7 +1532,7 @@ static bool parse_notify(struct pool *pool, json_t *val)
   bbversion = json_array_string(val, i++);
   nbit = json_array_string(val, i++);
   ntime = json_array_string(val, i++);
-  clean = json_is_true(json_array_get(val, i++));
+  clean = json_is_true(json_array_get(val, i));
   if (has_roots && pool->algorithm.type == ALGO_LYRA2ZZ)
     roots = json_array_string(val, 9);
 
