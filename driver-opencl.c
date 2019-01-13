@@ -1428,6 +1428,8 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernel, 1, p_global_work_offset,
     globalThreads, localThreads, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
+    if (work->pool->algorithm.type == ALGO_ETHASH)
+        cg_runlock(&gpu->eth_dag.lock);
     applog(LOG_ERR, "Error %d: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)", status);
     return -1;
   }
@@ -1545,6 +1547,8 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_FALSE, 0,
     buffersize, thrdata->res, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
+    if (work->pool->algorithm.type == ALGO_ETHASH)
+      cg_runlock(&gpu->eth_dag.lock);
     applog(LOG_ERR, "Error: clEnqueueReadBuffer failed error %d. (clEnqueueReadBuffer)", status);
     return -1;
   }
@@ -1556,6 +1560,8 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 
   /* This finish flushes the readbuffer set with CL_FALSE in clEnqueueReadBuffer */
   clFinish(clState->commandQueue);
+  if (work->pool->algorithm.type == ALGO_ETHASH)
+    cg_runlock(&gpu->eth_dag.lock);
 
   /* found entry is used as a counter to say how many nonces exist */
   if (thrdata->res[found]) {
@@ -1605,6 +1611,11 @@ static void opencl_thread_shutdown(struct thr_info *thr)
     if (clState->padbuffer8)
       clReleaseMemObject(clState->padbuffer8);
     clReleaseKernel(clState->kernel);
+  if (clState->GenerateDAG) {
+    clReleaseKernel(clState->GenerateDAG);
+  }
+  if (thr->cgpu->eth_dag.dag_buffer)
+    clReleaseKernel(thr->cgpu->eth_dag.dag_buffer);
     for (i = 0; i < clState->n_extra_kernels; i++)
       clReleaseKernel(clState->extra_kernels[i]);
     clReleaseProgram(clState->program);

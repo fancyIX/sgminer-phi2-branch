@@ -784,6 +784,15 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     }
   }
 
+  if (algorithm->type == ALGO_ETHASH) {
+    clState->GenerateDAG = clCreateKernel(clState->program, "GenerateDAG", &status);
+
+    if (status != CL_SUCCESS) {
+      applog(LOG_ERR, "Error %d while creating DAG generation kernel.", status);
+      return NULL;
+    }
+  }
+
   size_t bufsize;
   size_t buf1size;
   size_t buf3size;
@@ -795,6 +804,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   else if (algorithm->type == ALGO_DECRED) readbufsize = 192;
   else if (algorithm->type == ALGO_LBRY) readbufsize = 112;
   else if (algorithm->type == ALGO_PASCAL) readbufsize = 196;
+  else if (algorithm->type == ALGO_ETHASH) readbufsize = 32;
 
   if (algorithm->rw_buffer_size < 0) {
     // calc buffer size for neoscrypt
@@ -1005,6 +1015,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     applog(LOG_ERR, "Error %d: clCreateBuffer (CLbuffer0)", status);
     return NULL;
   }
+
+  clState->devid = cgpu->device_id;
 
   applog(LOG_DEBUG, "Using output buffer sized %lu", BUFFERSIZE);
   clState->outputBuffer = clCreateBuffer(clState->context, CL_MEM_WRITE_ONLY, BUFFERSIZE, NULL, &status);

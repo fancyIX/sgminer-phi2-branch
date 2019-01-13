@@ -92,6 +92,7 @@ sgminer_SOURCES += algorithm/phi.c algorithm/phi.h
 sgminer_SOURCES += algorithm/phi2.c algorithm/phi2.h
 sgminer_SOURCES += algorithm/allium.c algorithm/allium.h
 sgminer_SOURCES += algorithm/x22i.c algorithm/x22i.h
+sgminer_SOURCES += algorithm/ethash.c algorithm/ethgencache.c algorithm/ethash.h algorithm/eth-sha3.c algorithm/eth-sha3.h
 
 bin_SCRIPTS	= $(top_srcdir)/kernel/*.cl
 

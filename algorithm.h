@@ -46,6 +46,7 @@ typedef enum {
   ALGO_SIA,
   ALGO_DECRED,
   ALGO_VANILLA,
+  ALGO_ETHASH,
   ALGO_LBRY,
   ALGO_PHI,
   ALGO_PHI2,
