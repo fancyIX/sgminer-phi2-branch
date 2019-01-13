@@ -39,6 +39,7 @@
 # include <mmsystem.h>
 #endif
 
+#include "algorithm/ethash.h"
 #include "miner.h"
 #include "elist.h"
 #include "compat.h"
@@ -47,6 +48,7 @@
 
 #define DEFAULT_SOCKWAIT 60
 extern double opt_diff_mult;
+extern void suffix_string_double(double val, char *buf, size_t bufsiz, int sigdigits);
 
 bool successful_connect = false;
 static void keep_sockalive(SOCKETTYPE fd)
@@ -666,6 +668,17 @@ bool hex2bin(unsigned char *p, const char *hexstr, size_t len)
   if (likely(len == 0 && *hexstr == 0))
     ret = true;
   return ret;
+}
+
+bool eth_hex2bin(unsigned char *p, const char *hexstr, size_t len)
+{
+  if (hexstr == NULL)
+    return false;
+  if (hexstr[0] == '0' && hexstr[1] == 'x')
+    hexstr += 2;
+  memset(p, 0, len);
+  len = MIN(len, (strlen(hexstr) + 1) / 2);
+  return hex2bin(p, hexstr, len);
 }
 
 bool fulltest(const unsigned char *hash, const unsigned char *target)
@@ -1674,6 +1687,91 @@ out:
   return ret;
 }
 
+static bool parse_notify_ethash(struct pool *pool, json_t *val)
+{
+  char *job_id;
+  bool clean;
+  uint8_t EthWork[32], SeedHash[32], Target[32], NetDiff[32];
+  char *EthWorkStr, *SeedHashStr, *TgtStr, *NetDiffStr = NULL;
+  int ret = true;
+
+  job_id = json_array_string(val, 0);
+  EthWorkStr = json_array_string(val, 1);
+  SeedHashStr = json_array_string(val, 2);
+  TgtStr = json_array_string(val, 3);
+  clean = json_is_true(json_array_get(val, 4));
+  
+  if(json_array_size(val) == 6) {
+    applog(LOG_DEBUG, "Pool supports network target.");
+    NetDiffStr = json_array_string(val, 5);
+  }
+
+  if (job_id == NULL || SeedHashStr == NULL || EthWorkStr == NULL || TgtStr == NULL) {
+    applog(LOG_DEBUG, "parse_notify_ethash: Missing an array value.");
+    ret = false;
+    goto out;
+  }
+  
+  ret &= eth_hex2bin(EthWork, EthWorkStr, 32);
+  
+  ret &= eth_hex2bin(SeedHash, SeedHashStr, 32);
+  
+  ret &= eth_hex2bin(Target, TgtStr, 32);
+  
+  if (!ret || (NetDiffStr != NULL && !eth_hex2bin(NetDiff, NetDiffStr, 32))) {
+    ret = false;
+    goto out;
+  }
+  
+  cg_wlock(&pool->data_lock);
+  
+  free(pool->swork.job_id);
+  pool->swork.job_id = strdup(job_id);
+  pool->swork.clean = clean;
+ 
+  if (memcmp(pool->eth_cache.seed_hash, SeedHash, 32)) {
+    pool->eth_cache.current_epoch = EthCalcEpochNumber(SeedHash);
+    memcpy(pool->eth_cache.seed_hash, SeedHash, 32);
+    eth_gen_cache(pool);
+  }
+  memcpy(pool->EthWork, EthWork, 32);
+  
+  swab256(pool->Target, Target);
+  pool->swork.diff = le256todiff(pool->Target, pool->algorithm.diff_multiplier2);
+  suffix_string_double(pool->swork.diff, pool->diff, sizeof(pool->diff), 0);
+  
+  pool->diff1 = 0;
+  if (NetDiffStr != NULL) {
+    swab256(pool->NetDiff, NetDiff);
+    pool->diff1 = le256todiff(pool->NetDiff, pool->algorithm.diff_multiplier2);
+  }
+  pool->getwork_requested++;
+  //pool->eth_cache.disabled = false;
+  
+  cg_wunlock(&pool->data_lock);
+
+  if (opt_protocol) {
+    applog(LOG_DEBUG, "job_id: %s", job_id);
+    applog(LOG_DEBUG, "EthWork: %s", EthWorkStr);
+    applog(LOG_DEBUG, "SeedHash: %s", SeedHashStr);
+    applog(LOG_DEBUG, "Target: %s", TgtStr);
+    applog(LOG_DEBUG, "clean: %s", clean ? "yes" : "no");
+  }
+
+  /* A notify message is the closest stratum gets to a getwork */
+  total_getworks++;
+  if (pool == current_pool())
+    opt_work_update = true;
+out:
+  /* Annoying but we must not leak memory */
+  free(job_id);
+  free(SeedHashStr);
+  free(EthWorkStr);
+  free(TgtStr);
+  free(NetDiffStr);
+  return ret;
+}
+
 static bool parse_diff(struct pool *pool, json_t *val)
 {
   double old_diff, diff;
@@ -1713,8 +1811,42 @@ static bool parse_diff(struct pool *pool, json_t *val)
   return true;
 }
 
+static bool parse_extranonce_ethash(struct pool *pool, json_t *val)
+{
+  char *n1str;
+
+  if (!(n1str = json_array_string(val, 0))) {
+    applog(LOG_NOTICE, "extranonce failed");
+    return false;
+  }
+  applog(LOG_NOTICE, "extranonce: %s", n1str);
+
+  cg_wlock(&pool->data_lock);
+  free(pool->nonce1);
+  pool->nonce1 = n1str;
+  pool->n1_len = strlen(n1str) / 2; //size in bytes of nonce1 in the header
+
+  free(pool->nonce1bin);
+  if (unlikely(!(pool->nonce1bin = (unsigned char *)calloc(pool->n1_len, 1)))) {
+    quithere(1, "%s: Failed to calloc pool->nonce1bin", __func__);
+  }
+
+  hex2bin(pool->nonce1bin, pool->nonce1, pool->n1_len);
+  pool->n2size = 4 - pool->n1_len; //size in bytes of nonce2 in the header
+  pool->nonce2 = 0; //reset nonce 2 to 0
+  cg_wunlock(&pool->data_lock);
+
+  applog(LOG_NOTICE, "%s extranonce set to %s", get_pool_name(pool), n1str);
+
+  return true;
+}
+
 static bool parse_extranonce(struct pool *pool, json_t *val)
 {
+  if (pool->algorithm.type == ALGO_ETHASH) {
+    return parse_extranonce_ethash(pool, val);
+  }
+
   char *nonce1;
   int n2size;
 
@@ -1847,10 +1979,14 @@ bool parse_method(struct pool *pool, char *s)
     goto done;
   }
 
-  err_val = json_object_get(val, "error");
   params = json_object_get(val, "params");
+  
+  // Ethash Stratum sends no error
+  if(pool->algorithm.type != ALGO_ETHASH)
+  {
+    err_val = json_object_get(val, "error");
 
-  if (err_val && !json_is_null(err_val)) {
+    if (err_val && !json_is_null(err_val)) {
     char *ss;
 
     if (err_val) {
@@ -1864,6 +2000,7 @@ bool parse_method(struct pool *pool, char *s)
 
     free(ss);
     goto done;
+    }
   }
 
   buf = (char *)json_string_value(method);
@@ -1872,13 +2009,14 @@ bool parse_method(struct pool *pool, char *s)
   }
 
   if (!strncasecmp(buf, "mining.notify", 13)) {
-    if (parse_notify(pool, params)) {
-      pool->stratum_notify = ret = true;
+    if (pool->algorithm.type == ALGO_ETHASH) {
+      ret = parse_notify_ethash(pool, params);
     }
     else {
-      pool->stratum_notify = ret = false;
+      ret = parse_notify(pool, params);
     }
-
+    
+    pool->stratum_notify = ret;
     goto done;
   }
 
@@ -2541,6 +2679,26 @@ resend:
     free(ss);
 
     goto out;
+  }
+
+  if(pool->algorithm.type == ALGO_ETHASH)
+  {
+    if(!pool->stratum_url) pool->stratum_url = pool->sockaddr_url;
+    
+    cg_wlock(&pool->data_lock);
+    pool->stratum_active = true;
+    pool->next_diff = 0;
+    pool->swork.diff = 1;
+    
+    pool->sessionid = NULL;
+    free(pool->nonce1);
+    pool->nonce1 = NULL;
+    pool->n1_len = 0;
+    pool->n2size = 4;
+    cg_wunlock(&pool->data_lock);
+    
+    json_decref(val);
+    return true;
   }
 
   sessionid = get_sessionid(res_val);

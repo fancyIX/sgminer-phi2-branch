@@ -769,7 +769,7 @@ struct api_data *print_data(struct api_data *root, char *buf, bool isjson, bool 
         sprintf(buf, "%"PRIu32, *((uint32_t *)(root->data)));
         break;
       case API_HEX32:
-        snprintf(buf, sizeof(buf), "0x%08x", *((uint32_t *)(root->data)));
+        snprintf(buf, strlen(buf) + 1, "0x%08x", *((uint32_t *)(root->data)));
         break;
       case API_UINT64:
         sprintf(buf, "%"PRIu64, *((uint64_t *)(root->data)));

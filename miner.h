@@ -522,6 +522,50 @@ struct sgminer_pool_stats {
   uint64_t net_bytes_received;
 };
 
+typedef struct _gpu_sysfs_info {
+  pthread_mutex_t rw_lock;
+  uint8_t *pptable;
+  uint8_t *default_pptable;
+  size_t pptable_size;
+  uint32_t min_fanspeed;
+  uint32_t max_fanspeed;
+  uint32_t overheat_temp;
+  uint32_t target_temp;
+  uint32_t ctr;
+  uint32_t last_ctr;
+  float target_fanpercent;
+  float last_temp;
+  int sclk_entry_size;
+  int sclk_ind;
+  int engineclock;
+  int memclock;
+  int fd_temp;
+  int fd_fan;
+  int fd_pptable;
+  int fd_mclk;
+  int fd_sclk;
+  int fd_pwm;
+  uint8_t pcie_index[3];
+} gpu_sysfs_info;
+
+struct _eth_dag_t;
+typedef struct _eth_cache_t {
+  uint8_t seed_hash[32];
+  uint8_t *dag_cache;
+  struct _eth_dag_t **dags;
+  uint32_t current_epoch;
+  uint32_t nDevs;
+  bool disabled;
+} eth_cache_t;
+
+typedef struct _eth_dag_t {
+  cglock_t lock;
+  cl_mem dag_buffer;
+  struct pool *pool;
+  uint32_t current_epoch;
+  uint32_t max_epoch;
+} eth_dag_t;
+
 struct cgpu_info {
   int sgminer_id;
   struct device_drv *drv;
@@ -607,6 +651,7 @@ struct cgpu_info {
   int dev_throttle_count;
 
   struct sgminer_stats sgminer_stats;
+  eth_dag_t eth_dag;
 
   bool shutdown;
 
@@ -905,6 +950,7 @@ extern void api_initlock(void *lock, enum cglock_typ typ, const char *file, cons
 #define cglock_init(_lock) _cglock_init(_lock, __FILE__, __func__, __LINE__)
 #define cg_rlock(_lock) _cg_rlock(_lock, __FILE__, __func__, __LINE__)
 #define cg_ilock(_lock) _cg_ilock(_lock, __FILE__, __func__, __LINE__)
+#define cg_iunlock(_lock) _cg_iunlock(_lock, __FILE__, __func__, __LINE__)
 #define cg_ulock(_lock) _cg_ulock(_lock, __FILE__, __func__, __LINE__)
 #define cg_wlock(_lock) _cg_wlock(_lock, __FILE__, __func__, __LINE__)
 #define cg_dwlock(_lock) _cg_dwlock(_lock, __FILE__, __func__, __LINE__)
@@ -1049,6 +1095,12 @@ static inline void _cg_ilock(cglock_t *lock, const char *file, const char *func,
   _mutex_lock(&lock->mutex, file, func, line);
 }
 
+/* Unlock intermediate lock - behaves like a mutex. */
+static inline void _cg_iunlock(cglock_t *lock, const char *file, const char *func, const int line)
+{
+  _mutex_unlock_noyield(&lock->mutex, file, func, line);
+}
+
 /* Upgrade intermediate variant to a write lock */
 static inline void _cg_ulock(cglock_t *lock, const char *file, const char *func, const int line)
 {
@@ -1177,6 +1229,7 @@ extern char *get_proxy(char *url, struct pool *pool);
 extern void __bin2hex(char *s, const unsigned char *p, size_t len);
 extern char *bin2hex(const unsigned char *p, size_t len);
 extern bool hex2bin(unsigned char *p, const char *hexstr, size_t len);
+extern bool eth_hex2bin(unsigned char *p, const char *hexstr, size_t len);
 
 typedef bool (*sha256_func)(struct thr_info*, const unsigned char *pmidstate,
   unsigned char *pdata,
@@ -1277,7 +1330,7 @@ extern int total_getworks, total_stale, total_discarded;
 extern double total_diff_accepted, total_diff_rejected, total_diff_stale;
 extern unsigned int local_work;
 extern unsigned int total_go, total_ro;
-extern const int opt_cutofftemp;
+extern int opt_cutofftemp;
 extern int opt_log_interval;
 extern unsigned long long global_hashrate;
 extern char current_hash[68];
@@ -1366,6 +1419,10 @@ struct pool {
   int quota_gcd;
   int quota_used;
   int works;
+  eth_cache_t eth_cache;
+  uint8_t Target[32];
+  uint8_t EthWork[32];
+  uint8_t NetDiff[32];
 
   double diff_accepted;
   double diff_rejected;
@@ -1509,10 +1566,15 @@ struct work {
   unsigned char midstate[32];
   unsigned char target[32];
   unsigned char hash[32];
+  unsigned char mixhash[32];
 
   unsigned char device_target[32];
   double    device_diff;
   double    share_diff;
+  double    network_diff;
+
+  uint32_t eth_epoch;
+  uint64_t Nonce;
 
   int   rolls;
   int   drv_rolllimit; /* How much the driver can roll ntime */
