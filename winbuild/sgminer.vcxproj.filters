@@ -263,6 +263,15 @@
     <ClCompile Include="..\algorithm\blakecoin.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
+    <ClCompile Include="..\algorithm\ethash.c">
+      <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\ethgencache.c">
+      <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\eth-sha3.c">
+      <Filter>Source Files\algorithm</Filter>
+    </ClCompile>
     <ClCompile Include="..\algorithm\sia.c">
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
@@ -530,6 +539,12 @@
       <Filter>Header Files\algorithm</Filter>
     </ClInclude>
     <ClInclude Include="..\algorithm\blakecoin.h">
+      <Filter>Header Files\algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\ethash.h">
+      <Filter>Header Files\algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\eth-sha3.h">
       <Filter>Header Files\algorithm</Filter>
     </ClInclude>
     <ClInclude Include="..\algorithm\sia.h">

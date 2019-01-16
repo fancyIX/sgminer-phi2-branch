@@ -1687,6 +1687,8 @@ out:
   return ret;
 }
 
+extern double le256todiff(const void *le256, double diff_multiplier);
+
 static bool parse_notify_ethash(struct pool *pool, json_t *val)
 {
   char *job_id;

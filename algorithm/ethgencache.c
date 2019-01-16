@@ -41,6 +41,6 @@ static void EthGenerateCache(uint8_t *cache_nodes_in, const uint8_t *seedhash, u
 
 void eth_gen_cache(struct pool *pool) {
   size_t cache_size = EthGetCacheSize(pool->eth_cache.current_epoch);
-  pool->eth_cache.dag_cache = realloc(pool->eth_cache.dag_cache, cache_size);
+  pool->eth_cache.dag_cache = (uint8_t *) realloc(pool->eth_cache.dag_cache, cache_size);
   EthGenerateCache(pool->eth_cache.dag_cache, pool->eth_cache.seed_hash, cache_size);
 }

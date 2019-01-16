@@ -1615,7 +1615,7 @@ static void opencl_thread_shutdown(struct thr_info *thr)
     clReleaseKernel(clState->GenerateDAG);
   }
   if (thr->cgpu->eth_dag.dag_buffer)
-    clReleaseKernel(thr->cgpu->eth_dag.dag_buffer);
+	  clReleaseMemObject(thr->cgpu->eth_dag.dag_buffer);
     for (i = 0; i < clState->n_extra_kernels; i++)
       clReleaseKernel(clState->extra_kernels[i]);
     clReleaseProgram(clState->program);
