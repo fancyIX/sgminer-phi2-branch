@@ -246,13 +246,12 @@ typedef union {
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 #endif
 __kernel void search(
-	__global volatile uint* restrict g_output,
-	__constant hash32_t const* g_header,
-	__global hash128_t const* g_dag,
-	uint DAG_SIZE,
+	__global uint* g_output,
+	__global uint* g_header,
+	__global uint* g_dag,
+	ulong DAG_SIZE,
 	ulong start_nonce,
-	ulong target,
-	uint isolate
+	ulong target
 	)
 {
 	__local compute_hash_share share[HASHES_PER_LOOP];
@@ -263,7 +262,7 @@ __kernel void search(
 
 	// sha3_512(header .. nonce)
 	ulong state[25];
-	copy(state, g_header->ulongs, 4);
+	copy(state, ((__global hash32_t*) g_header)->ulongs, 4);
 	state[4] = start_nonce + gid;
 
 	for (uint i = 6; i != 25; ++i)
@@ -273,7 +272,7 @@ __kernel void search(
 	state[5] = 0x0000000000000001;
 	state[8] = 0x8000000000000000;
 
-	keccak_f1600_no_absorb((uint2*)state, 8, isolate);
+	keccak_f1600_no_absorb((uint2*)state, 8, DAG_SIZE);
 	
 	// Threads work together in this phase in groups of 8.
 	uint const thread_id = gid & 7;
@@ -306,11 +305,11 @@ __kernel void search(
 			{
 				if (update_share)
 				{
-					*share0 = fnv(init0 ^ (a + i), ((uint *)&mix)[i]) % DAG_SIZE;
+					*share0 = fnv(init0 ^ (a + i), ((uint *)&mix)[i]) % as_uint2(DAG_SIZE).x;
 				}
 				barrier(CLK_LOCAL_MEM_FENCE);
 
-				mix = fnv4(mix, g_dag[*share0].uint4s[thread_id]);
+				mix = fnv4(mix, ((__global hash128_t*) g_dag)[*share0].uint4s[thread_id]);
 			}
 		}
 
@@ -331,7 +330,7 @@ __kernel void search(
 	state[16] = 0x8000000000000000;
 
 	// keccak_256(keccak_512(header..nonce) .. mix);
-	keccak_f1600_no_absorb((uint2*)state, 1, isolate);
+	keccak_f1600_no_absorb((uint2*)state, 1, DAG_SIZE);
 
 	if (as_ulong(as_uchar8(state[0]).s76543210) < target)
 	{

@@ -1534,7 +1534,7 @@ static cl_int queue_ethash_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
   unsigned int num = 0;
   cl_int status = 0;
   cl_ulong le_target;
-  cl_uint Isolate = UINT32_MAX;
+  cl_uint Isolate2 = UINT32_MAX;
 
   dag = &blk->work->thr->cgpu->eth_dag;
   cg_ilock(&dag->lock);
@@ -1597,7 +1597,7 @@ static cl_int queue_ethash_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
     CL_SET_ARG(eth_cache);
     CL_SET_ARG(dag->dag_buffer);
     CL_SET_ARG(CacheSize64);
-    CL_SET_ARG(Isolate);
+    CL_SET_ARG(Isolate2);
 
     cl_ulong DAGSize = EthGetDAGSize(blk->work->eth_epoch);
     size_t DAGItems = (size_t) (DAGSize / 64);
@@ -1628,7 +1628,7 @@ static cl_int queue_ethash_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
 
   // Not nodes now (64 bytes), but DAG entries (128 bytes)
   cl_ulong DAGSize = EthGetDAGSize(blk->work->eth_epoch);
-  cl_uint ItemsArg = DAGSize / 128;
+  cl_ulong ItemsArg = DAGSize / 128;
 
   // DO NOT flip80.
   status |= clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, CL_FALSE, 0, 32, blk->work->data, 0, NULL, NULL);
@@ -1639,7 +1639,6 @@ static cl_int queue_ethash_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_u
   CL_SET_ARG(ItemsArg);
   CL_SET_ARG(blk->work->Nonce);
   CL_SET_ARG(le_target);
-  CL_SET_ARG(Isolate);
 
   if (status != CL_SUCCESS)
     cg_runlock(&dag->lock);
