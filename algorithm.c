@@ -243,20 +243,17 @@ static cl_int queue_argon2d_kernel(struct __clState *clState, struct _dev_blk_ct
     uint32_t lanes = 8;
     uint32_t segment_blocks = 15;
 
-
-    clSetKernelArg(clState->extra_kernels[0], 0, bufferSize, NULL);
-    clSetKernelArg(clState->extra_kernels[0], 1, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
-    clSetKernelArg(clState->extra_kernels[0], 2, sizeof(uint), &passes);
-    clSetKernelArg(clState->extra_kernels[0], 3, sizeof(uint), &lanes);
-    clSetKernelArg(clState->extra_kernels[0], 4, sizeof(uint), &segment_blocks);
+    clSetKernelArg(clState->extra_kernels[0], 0, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
+    clSetKernelArg(clState->extra_kernels[0], 1, sizeof(uint), &passes);
+    clSetKernelArg(clState->extra_kernels[0], 2, sizeof(uint), &lanes);
+    clSetKernelArg(clState->extra_kernels[0], 3, sizeof(uint), &segment_blocks);
 
     // // final - serach 2
     size_t smem = 129 * sizeof(cl_ulong) * 8 + 18 * sizeof(cl_ulong) * 8;
-    clSetKernelArg(clState->extra_kernels[1], 0, smem, NULL);
-    clSetKernelArg(clState->extra_kernels[1], 1, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
-    clSetKernelArg(clState->extra_kernels[1], 2, sizeof(clState->outputBuffer), (void *)&clState->outputBuffer);
-    clSetKernelArg(clState->extra_kernels[1], 3, sizeof(uint), &(blk->nonce));
-    clSetKernelArg(clState->extra_kernels[1], 4, sizeof(cl_uint), (void*)&le_target);
+    clSetKernelArg(clState->extra_kernels[1], 0, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
+    clSetKernelArg(clState->extra_kernels[1], 1, sizeof(clState->outputBuffer), (void *)&clState->outputBuffer);
+    clSetKernelArg(clState->extra_kernels[1], 2, sizeof(uint), &(blk->nonce));
+    clSetKernelArg(clState->extra_kernels[1], 3, sizeof(cl_uint), (void*)&le_target);
 
 
     return status;

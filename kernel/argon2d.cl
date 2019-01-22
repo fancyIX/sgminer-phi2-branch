@@ -1597,15 +1597,15 @@ void argon2_step(
 
 __attribute__((reqd_work_group_size(32 * 8, 1, 1)))
 __kernel void search1(
-        __local struct u64_shuffle_buf *shuffle_bufs,
         __global struct block_g *memory, uint passes, uint lanes,
         uint segment_blocks)
 {
+    __local char shuffle_bufs[32 * 8 * 1 * sizeof(uint32_t) * 2];
     uint job_id = get_global_id(1);
     uint lane   = get_global_id(0) / THREADS_PER_LANE;
     uint warp   = get_local_id(0) / THREADS_PER_LANE;
     uint thread = get_local_id(0) % THREADS_PER_LANE;
-    __local struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[warp];
+    __local struct u64_shuffle_buf *shuffle_buf = (__local struct u64_shuffle_buf *) &shuffle_bufs[warp * sizeof(struct u64_shuffle_buf)];
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
     memory += (size_t)job_id * lanes * lane_blocks;
     struct block_th prev, addr, tmp;
@@ -1725,7 +1725,6 @@ void blake2b_compress(
 
 __attribute__((reqd_work_group_size(4, 8, 1)))
 __kernel void search2(
-    __local uint64_t* smem,
     __global struct block* memory,
     __global uint32_t* output,
     const uint32_t startNonce,
@@ -1733,13 +1732,14 @@ __kernel void search2(
 
     )
 {
+    __local char smem[129 * sizeof(uint64_t) * 8 + 18 * sizeof(uint64_t) * 8];
     uint32_t idx            = get_local_id(0);
     uint32_t jobId          = get_group_id(1)*get_local_size(1)+get_local_id(1);
     const uint32_t nonce    = startNonce + jobId;
 
     __global uint32_t* memLane = (__global uint32_t*)((memory+jobId*ALGO_TOTAL_BLOCKS)+ALGO_LANES*(ALGO_LANE_LENGHT-1));
-    __local uint64_t* input = &smem[129*get_local_id(1)];
-    __local uint64_t* buffer= (__local uint64_t*)&smem[129*get_local_size(1)+get_local_id(1)*18];
+    __local uint64_t* input = (__local uint64_t*) &smem[129*get_local_id(1)*sizeof(uint64_t)];
+    __local uint64_t* buffer= (__local uint64_t*) &smem[129*get_local_size(1)*sizeof(uint64_t)+get_local_id(1)*18*sizeof(uint64_t)];
     __local uint32_t* input_32 = (__local uint32_t*)input;
     
     load_block_fin(memLane,&input_32[1],idx);
