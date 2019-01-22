@@ -54,6 +54,7 @@
 #include "algorithm/allium.h"
 #include "algorithm/lyra2h.h"
 #include "algorithm/x22i.h"
+#include "algorithm/argon2d/argon2d.h"
 
 #include "compat.h"
 
@@ -99,7 +100,8 @@ const char *algorithm_type_str[] = {
   "Lbry",
   "Phi1612",
   "Phi2",
-  "Sibcoin"
+  "Sibcoin",
+  "Argon2d"
 };
 
 void sha256(const unsigned char *message, unsigned int len, unsigned char *digest)
@@ -209,6 +211,55 @@ static void append_x13_compiler_options(struct _build_kernel_data *data, struct 
 
   sprintf(buf, "big%u%s", (unsigned int)opt_hamsi_expand_big, ((opt_hamsi_short) ? "hs" : ""));
   strcat(data->binary_filename, buf);
+}
+
+static cl_int queue_argon2d_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+
+    cl_kernel *kernel;
+    cl_uint le_target;
+    cl_int status = 0;
+    unsigned int num = 0;
+
+    le_target = (cl_uint)le32toh(((uint32_t *)blk->work->target)[7]);
+
+    flip80(clState->cldata, blk->work->data);
+
+    status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
+
+    if (status != CL_SUCCESS) {
+        applog(LOG_ERR, "EnqueueWriteBuffer failed", status);
+        exit(1);
+    }
+
+    // init - search
+    clSetKernelArg(clState->kernel, 0, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
+    clSetKernelArg(clState->kernel, 1, sizeof(clState->CLbuffer0), (void *)&clState->CLbuffer0);
+    clSetKernelArg(clState->kernel, 2, sizeof(uint), &(blk->nonce));
+
+    //fill - search 1
+    size_t bufferSize = 32 * 8 * 1 * sizeof(cl_uint) * 2;
+    uint32_t passes = 2;
+    uint32_t lanes = 8;
+    uint32_t segment_blocks = 15;
+
+
+    clSetKernelArg(clState->extra_kernels[0], 0, bufferSize, NULL);
+    clSetKernelArg(clState->extra_kernels[0], 1, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
+    clSetKernelArg(clState->extra_kernels[0], 2, sizeof(uint), &passes);
+    clSetKernelArg(clState->extra_kernels[0], 3, sizeof(uint), &lanes);
+    clSetKernelArg(clState->extra_kernels[0], 4, sizeof(uint), &segment_blocks);
+
+    // // final - serach 2
+    size_t smem = 129 * sizeof(cl_ulong) * 8 + 18 * sizeof(cl_ulong) * 8;
+    clSetKernelArg(clState->extra_kernels[1], 0, smem, NULL);
+    clSetKernelArg(clState->extra_kernels[1], 1, sizeof(clState->padbuffer8), (void *)&clState->padbuffer8);
+    clSetKernelArg(clState->extra_kernels[1], 2, sizeof(clState->outputBuffer), (void *)&clState->outputBuffer);
+    clSetKernelArg(clState->extra_kernels[1], 3, sizeof(uint), &(blk->nonce));
+    clSetKernelArg(clState->extra_kernels[1], 4, sizeof(cl_uint), (void*)&le_target);
+
+
+    return status;
 }
 
 static cl_int queue_scrypt_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
@@ -1798,6 +1849,8 @@ static algorithm_settings_t algos[] = {
 
   { "bitblock", ALGO_X15, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 14, 4 * 16 * 4194304, 0, bitblock_regenhash, NULL, NULL, queue_bitblock_kernel, gen_hash, append_x13_compiler_options },
   { "bitblockold", ALGO_X15, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 4 * 16 * 4194304, 0, bitblock_regenhash, NULL, NULL, queue_bitblockold_kernel, gen_hash, append_x13_compiler_options },
+
+  { "argon2d",ALGO_ARGON2D,"",1,65536,65536,0,0,0xFF,0xFFFFULL,0x0000ffffUL,2,-1, 0 ,argon2d_regenhash,NULL,NULL,queue_argon2d_kernel,gen_hash, NULL },
 
   { "x22i", ALGO_X22I, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 23, 4 * 16 * 4194304, 0, x22i_regenhash, NULL, NULL, queue_x22i_kernel, gen_hash, append_x13_compiler_options },
 

@@ -1115,8 +1115,8 @@ void apply_pool_profile(struct pool *pool)
       }
       else {
         //nothing anywhere? default to sgminer default of 8
-        int_type = 0;
-        pool->intensity = strdup("8");
+        int_type = 1;
+        pool->xintensity = strdup("256");
       }
     }
   }
