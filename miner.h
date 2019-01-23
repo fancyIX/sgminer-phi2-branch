@@ -589,6 +589,7 @@ struct cgpu_info {
   struct thr_info **thr;
 
   int64_t max_hashes;
+  unsigned int throughput;
 
   bool mapped;
   int virtual_gpu;

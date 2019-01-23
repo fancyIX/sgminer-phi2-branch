@@ -33,6 +33,15 @@
     <Filter Include="Header Files\SWIFFTX">
       <UniqueIdentifier>{ccf835be-7815-4997-8c02-b7067ca52a6c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\algorithm\argon2d">
+      <UniqueIdentifier>{9c7d2cab-06c9-454c-a809-8fe3b751dc65}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\algorithm\argon2d">
+      <UniqueIdentifier>{9b45d21e-9019-4bb9-8003-546a188287d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\algorithm\argon2d\argon2ref">
+      <UniqueIdentifier>{f56e1dbc-bcca-4879-bf50-ec810f56b8ce}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\adl.c">
@@ -307,6 +316,30 @@
     </ClCompile>
     <ClCompile Include="..\SWIFFTX\SWIFFTX.c">
       <Filter>Source Files\SWIFFTX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\blake2\blake2b.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\argon2.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\ref.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\core.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\encoding.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\thread.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\opt.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2d.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -606,6 +639,33 @@
     </ClInclude>
     <ClInclude Include="..\SWIFFTX\stdbool.h">
       <Filter>Header Files\SWIFFTX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blamka-round-opt.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blamka-round-ref.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2-impl.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\thread.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\encoding.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\argon2.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -35,6 +35,8 @@
 #include "adl.h"
 #include "util.h"
 
+#include "algorithm/argon2d/argon2d.h"
+
 /* TODO: cleanup externals ********************/
 
 #ifdef HAVE_CURSES
@@ -1035,7 +1037,7 @@ static _clState *clStates[MAX_GPUDEVICES];
 
 static void set_threads_hashes(unsigned int vectors, unsigned int compute_shaders, int64_t *hashes, size_t *globalThreads,
   unsigned int minthreads, __maybe_unused int *intensity, __maybe_unused int *xintensity,
-  __maybe_unused int *rawintensity, algorithm_t *algorithm)
+  __maybe_unused int *rawintensity, algorithm_t *algorithm, unsigned int* throughput)
 {
   unsigned int threads = 0;
   while (threads < minthreads) {
@@ -1058,6 +1060,10 @@ static void set_threads_hashes(unsigned int vectors, unsigned int compute_shader
         threads = minthreads;
       }
     }
+  }
+
+  if (algorithm->type == ALGO_ARGON2D) {
+      threads = *throughput;
   }
 
   *globalThreads = threads;
@@ -1412,7 +1418,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   }
 
   set_threads_hashes(clState->vwidth, clState->compute_shaders, &hashes, globalThreads, localThreads[0],
-    &gpu->intensity, &gpu->xintensity, &gpu->rawintensity, &gpu->algorithm);
+    &gpu->intensity, &gpu->xintensity, &gpu->rawintensity, &gpu->algorithm, &gpu->throughput);
   if (hashes > gpu->max_hashes)
     gpu->max_hashes = hashes;
 
@@ -1425,6 +1431,12 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
 
+  if (gpu->algorithm.type == ALGO_ARGON2D) {
+    const uint32_t throughput = gpu->throughput;
+	  const size_t global[] = { 16, throughput };
+	  const size_t local[] = { 16, 16 };
+	  status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernel, 2, NULL, global, local, 0, NULL, NULL);
+  } else
   status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernel, 1, p_global_work_offset,
     globalThreads, localThreads, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
@@ -1534,6 +1546,16 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
       localThreads2[0] = 64;
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
+    } else if (gpu->algorithm.type == ALGO_ARGON2D && i == 0) {
+      const uint32_t throughput = gpu->throughput;
+      const size_t global2[] = { 32 * 8, throughput };
+	    const size_t local2[] = { 32 * 8, 1 };
+	    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, NULL, global2, local2, 0, NULL, NULL);
+    } else if (gpu->algorithm.type == ALGO_ARGON2D && i == 1) {
+      const uint32_t throughput = gpu->throughput;
+      const size_t global3[] = { 4, throughput };
+	    const size_t local3[] = { 4, 8 };
+	    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, NULL, global3, local3, 0, NULL, NULL);
     }
     else
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,

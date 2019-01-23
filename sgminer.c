@@ -281,7 +281,7 @@ static char datestamp[40];
 static char blocktime[32];
 struct timeval block_timeval;
 static char best_share[8] = "0";
-double current_diff = 0xFFFFFFFFFFFFFFFFULL;
+double current_diff = 0;
 static char block_diff[8];
 double best_diff = 0;
 
@@ -1917,7 +1917,7 @@ static bool jobj_binary(const json_t *obj, const char *key,
 
 static struct work *make_work(void)
 {
-  struct work *w = (struct work *)calloc(1, sizeof(struct work));
+  struct work *w = (struct work *)calloc(sizeof(struct work), 1);
 
   if (unlikely(!w))
     quit(1, "Failed to calloc work in make_work");
@@ -7417,7 +7417,8 @@ bool test_nonce(struct work *work, uint32_t nonce)
 
   // for Neoscrypt, the diff1targ value is in work->target
   if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_PLUCK
-    || work->pool->algorithm.type == ALGO_YESCRYPT || work->pool->algorithm.type == ALGO_YESCRYPT_MULTI) {
+    || work->pool->algorithm.type == ALGO_YESCRYPT || work->pool->algorithm.type == ALGO_YESCRYPT_MULTI
+    || work->pool->algorithm.type == ALGO_ARGON2D) {
     diff1targ = ((uint32_t *)work->target)[7];
   }
   else if (work->pool->algorithm.type == ALGO_ETHASH) {
@@ -7460,6 +7461,12 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 {
   struct work *work_out;
   update_work_stats(thr, work);
+
+  if (work->pool->algorithm.type == ALGO_ARGON2D) {
+      work_out = copy_work(work);
+      submit_work_async(work_out);
+      return true;
+  }
 
   if (!fulltest(work->hash, work->target)) {
     applog(LOG_INFO, "%s %d: Share above target", thr->cgpu->drv->name,

@@ -44,6 +44,7 @@
 #include "algorithm/lyra2h.h"
 #include "algorithm/phi2.h"
 #include "algorithm/x22i.h"
+#include "algorithm/argon2d/argon2d.h"
 
 /* FIXME: only here for global config vars, replace with configuration.h
  * or similar as soon as config is in a struct instead of littered all
@@ -335,6 +336,13 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   if ((strcmp(cgpu->algorithm.name, "bufius") == 0) && ((cgpu->lookup_gap != 2) && (cgpu->lookup_gap != 4) && (cgpu->lookup_gap != 8))) {
     applog(LOG_WARNING, "Kernel bufius only supports lookup-gap of 2, 4 or 8 (currently %d), forcing to 2", cgpu->lookup_gap);
     cgpu->lookup_gap = 2;
+  }
+
+  //Set the default threads/throughput based on available memory and number of running threads on the GPU
+  if (strcmp(cgpu->algorithm.name, "argon2d") == 0) {
+      cgpu->throughput = ((cgpu->max_alloc * 80 / 100) / cgpu->threads) / AR2D_MEM_PER_BATCH;
+      if (cgpu->intensity > 0)
+          cgpu->throughput = cgpu->intensity * 1000;
   }
 
   // neoscrypt TC
@@ -896,6 +904,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     bufsize = 8 * 8 * cgpu->thread_concurrency;
 
     applog(LOG_DEBUG, "x22i buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
+  }
+  else if (algorithm->type == ALGO_ARGON2D) {
+    bufsize = (size_t)cgpu->throughput * AR2D_MEM_PER_BATCH;
+    readbufsize = 80;
   }
   else {
     bufsize = (size_t)algorithm->rw_buffer_size;
