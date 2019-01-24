@@ -1547,10 +1547,17 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
     } else if (gpu->algorithm.type == ALGO_ARGON2D && i == 0) {
-      const uint32_t throughput = gpu->throughput;
-      const size_t global2[] = { 32 * 8, throughput };
-	    const size_t local2[] = { 32 * 8, 1 };
-	    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, NULL, global2, local2, 0, NULL, NULL);
+      if (clState->prebuilt) {
+        const uint32_t throughput = gpu->throughput;
+        const size_t global2[] = { 32, 8, throughput };
+	      const size_t local2[] = { 32, 8, 1 };
+	      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 3, NULL, global2, local2, 0, NULL, NULL);
+      } else {
+        const uint32_t throughput = gpu->throughput;
+        const size_t global2[] = { 32 * 8, throughput };
+	      const size_t local2[] = { 32 * 8, 1 };
+	      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, NULL, global2, local2, 0, NULL, NULL);
+      }
     } else if (gpu->algorithm.type == ALGO_ARGON2D && i == 1) {
       const uint32_t throughput = gpu->throughput;
       const size_t global3[] = { 4, throughput };
