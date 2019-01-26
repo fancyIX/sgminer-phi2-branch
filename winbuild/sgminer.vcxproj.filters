@@ -42,6 +42,12 @@
     <Filter Include="Header Files\algorithm\argon2d\argon2ref">
       <UniqueIdentifier>{f56e1dbc-bcca-4879-bf50-ec810f56b8ce}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\merkletree">
+      <UniqueIdentifier>{55272338-2bc9-4856-84ca-9d1d7eafa8f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\merkletree">
+      <UniqueIdentifier>{84355695-64c5-4530-95b2-80a4ba9c2ccd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\adl.c">
@@ -318,7 +324,10 @@
       <Filter>Source Files\SWIFFTX</Filter>
     </ClCompile>
     <ClCompile Include="..\algorithm\argon2d\argon2ref\blake2\blake2b.c">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\argon2d\argon2ref\blake2\blake2ba.c">
+      <Filter>Source Files\algorithm\argon2d</Filter>
     </ClCompile>
     <ClCompile Include="..\algorithm\argon2d\argon2ref\argon2.c">
       <Filter>Source Files\algorithm\argon2d</Filter>
@@ -340,6 +349,15 @@
     </ClCompile>
     <ClCompile Include="..\algorithm\argon2d\argon2d.c">
       <Filter>Source Files\algorithm\argon2d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\merkletree\merkle-tree.cpp">
+      <Filter>Source Files\merkletree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\merkletree\mtp.cpp">
+      <Filter>Source Files\merkletree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\mtp_algo.c">
+      <Filter>Source Files\algorithm</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -666,6 +684,27 @@
     </ClInclude>
     <ClInclude Include="..\algorithm\argon2d\argon2ref\argon2.h">
       <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\merkletree\merkle-tree.hpp">
+      <Filter>Header Files\merkletree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\merkletree\mtp.h">
+      <Filter>Header Files\merkletree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2b-load-sse2.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2b-load-sse41.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2b-round.h">
+      <Filter>Header Files\algorithm\argon2d\argon2ref</Filter>
+    </ClInclude>
+    <ClInclude Include="..\uint256.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\mtp_algo.h">
+      <Filter>Header Files\algorithm</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

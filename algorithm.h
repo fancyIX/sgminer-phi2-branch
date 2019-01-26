@@ -12,6 +12,7 @@
 #include "ocl/build_kernel.h"   // For the build_kernel_data type
 
 typedef enum {
+  ALGO_MTP,
   ALGO_UNK,
   ALGO_ALLIUM,
   ALGO_CRE,

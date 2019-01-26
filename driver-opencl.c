@@ -1354,6 +1354,7 @@ static bool opencl_thread_init(struct thr_info *thr)
     return false;
   }
 
+if (clState!=NULL)
   status |= clEnqueueWriteBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0,
     buffersize, blank_res, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
@@ -1431,6 +1432,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
 
+if (work->pool->algorithm.type != ALGO_MTP) {
   if (gpu->algorithm.type == ALGO_ARGON2D) {
     const uint32_t throughput = gpu->throughput;
 	  const size_t global[] = { 16, throughput };
@@ -1572,7 +1574,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
       return -1;
     }
   }
-
+}
   status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_FALSE, 0,
     buffersize, thrdata->res, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {

@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <jansson.h>
+#include <bosjansson.h>
 #include <ccan/opt/opt.h>
 #ifdef HAVE_LIBCURL
 #include <curl/curl.h>
@@ -40,6 +40,7 @@ extern char *curly;
 #include "logging.h"
 #include "util.h"
 #include "algorithm.h"
+#include "merkletree/mtp.h"
 
 #include <sys/types.h>
 #ifndef WIN32
@@ -276,6 +277,7 @@ extern int opt_remoteconf_retry;
 extern int opt_remoteconf_wait;
 extern bool opt_remoteconf_usecache;
 
+#define MTP_L 64
 
 enum alive {
   LIFE_WELL,
@@ -548,6 +550,43 @@ typedef struct _gpu_sysfs_info {
   uint8_t pcie_index[3];
 } gpu_sysfs_info;
 
+struct mtp {
+	int MTPVersion;
+	unsigned char MerkleRoot[16];
+	unsigned char mtpHashValue[32];
+	uint64_t nBlockMTP[MTP_L * 2][128];
+	unsigned char nProofMTP[MTP_L * 3 * 353];
+	uint32_t TheNonce;
+};
+
+struct _mtp_gpu_t;
+typedef struct _mtp_cache_t {
+	uint32_t JobId;
+	uint64_t XtraNonce2;
+	MerkleTree *ordered_tree;
+	unsigned char TheMerkleRoot[16];
+	argon2_context context;
+	argon2_instance_t instance;
+	uint8_t *dx;
+	struct mtp mtpPOW;
+	bool disabled;
+} mtp_cache_t;
+
+typedef struct _mtp_gpu_t {
+	cglock_t lock;
+	char* prev_job_id;
+	cl_mem hblock;
+	cl_mem hblock2;
+	cl_mem blockheader;
+    cl_mem tree; // dx
+	cl_mem root;
+	struct pool *pool;
+	mtp_cache_t mtp_cache;
+	uint32_t nDevs;
+	uint32_t StartNonce;
+	uint32_t MaxNonce;
+} mtp_gpu_t;
+
 struct _eth_dag_t;
 typedef struct _eth_cache_t {
   uint8_t seed_hash[32];
@@ -653,6 +692,7 @@ struct cgpu_info {
 
   struct sgminer_stats sgminer_stats;
   eth_dag_t eth_dag;
+  mtp_gpu_t mtp_buffer;
 
   bool shutdown;
 
@@ -1388,6 +1428,7 @@ enum pool_state {
 
 struct stratum_work {
   char *job_id;
+  char *prev_job_id;
   char *prev_hash;
   unsigned char **merkle_bin;
   char *bbversion;
@@ -1424,6 +1465,9 @@ struct pool {
   uint8_t Target[32];
   uint8_t EthWork[32];
   uint8_t NetDiff[32];
+
+  //MTP stuff
+  mtp_cache_t mtp_cache;
 
   double diff_accepted;
   double diff_rejected;
@@ -1509,6 +1553,7 @@ struct pool {
   SOCKETTYPE sock;
   char *sockbuf;
   size_t sockbuf_size;
+  size_t sockbuf_bossize;
   char *sockaddr_url; /* stripped url used for sockaddr */
   char *sockaddr_proxy_url;
   char *sockaddr_proxy_port;
@@ -1524,9 +1569,11 @@ struct pool {
   bool stratum_notify;
   struct stratum_work swork;
   pthread_t stratum_sthread;
+  pthread_t stratum_sthread_bos;
   pthread_t stratum_rthread;
   pthread_mutex_t stratum_lock;
   struct thread_q *stratum_q;
+  struct thread_q *stratum_q_bos;
   int sshares; /* stratum shares submitted waiting on response */
 
   /* GBT variables */
@@ -1577,6 +1624,8 @@ struct work {
   uint32_t eth_epoch;
   uint64_t Nonce;
 
+  mtp mtpPOW;
+
   int   rolls;
   int   drv_rolllimit; /* How much the driver can roll ntime */
 
@@ -1598,6 +1647,7 @@ struct work {
 
   bool    stratum;
   char    *job_id;
+  char    *prev_job_id;
   uint64_t  nonce2;
   size_t    nonce2_len;
   char    *ntime;
