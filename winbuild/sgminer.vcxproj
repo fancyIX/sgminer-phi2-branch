@@ -222,7 +222,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>_M_AMD64;_AMD64_;WIN32;_WIN64;PTW32_STATIC_LIB;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_ALLOW_KEYWORD_MACROS;_M_AMD64;_AMD64_;WIN32;_WIN64;PTW32_STATIC_LIB;_CRT_SECURE_NO_WARNINGS;_CRT_SECURE_NO_DEPRECATE;WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <AdditionalIncludeDirectories>$(ProjectDir)..;$(ProjectDir)dist\include\;$(ProjectDir)..\submodules\jansson\src\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ExceptionHandling>false</ExceptionHandling>
@@ -264,9 +264,7 @@
     <ClCompile Include="..\algorithm.c" />
     <ClCompile Include="..\algorithm\animecoin.c" />
     <ClCompile Include="..\algorithm\argon2d\argon2ref\blake2\blake2b.c" />
-    <ClCompile Include="..\argon2ref\argon2d\argon2ref\blake2\blake2ba.c" />
     <ClCompile Include="..\algorithm\argon2d\argon2ref\argon2.c" />
-    <ClCompile Include="..\algorithm\argon2d\argon2ref\opt.c" />
     <ClCompile Include="..\algorithm\argon2d\argon2ref\core.c" />
     <ClCompile Include="..\algorithm\argon2d\argon2ref\encoding.c" />
     <ClCompile Include="..\algorithm\argon2d\argon2ref\ref.c" />
@@ -306,6 +304,12 @@
     <ClCompile Include="..\algorithm\whirlcoin.c" />
     <ClCompile Include="..\algorithm\yescrypt.c" />
     <ClCompile Include="..\algorithm\yescryptcommon.c" />
+    <ClCompile Include="..\mtp_argon2ref\mtp_argon2.c" />
+    <ClCompile Include="..\mtp_argon2ref\mtp_blake2ba.c" />
+    <ClCompile Include="..\mtp_argon2ref\mtp_core.c" />
+    <ClCompile Include="..\mtp_argon2ref\mtp_encoding.c" />
+    <ClCompile Include="..\mtp_argon2ref\mtp_ref.c" />
+    <ClCompile Include="..\mtp_argon2ref\mtp_thread.c" />
     <ClCompile Include="..\merkletree\merkle-tree.cpp" />
     <ClCompile Include="..\merkletree\mtp.cpp" />
     <ClCompile Include="..\api.c" />
@@ -381,9 +385,6 @@
     <ClInclude Include="..\algorithm\argon2d\argon2ref\thread.h" />
     <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2.h" />
     <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2-impl.h" />
-    <ClInclude Include="..\argon2ref\argon2d\argon2ref\blake2\blake2b-load-sse2.h" />
-    <ClInclude Include="..\argon2ref\argon2d\argon2ref\blake2\blake2b-load-sse41.h" />
-    <ClInclude Include="..\argon2ref\argon2d\argon2ref\blake2\blake2b-round.h" />
     <ClInclude Include="..\algorithm\bitblock.h" />
     <ClInclude Include="..\algorithm\x22i.h" />
     <ClInclude Include="..\algorithm\blake256.h" />
@@ -417,6 +418,17 @@
     <ClInclude Include="..\algorithm\fresh.h" />
     <ClInclude Include="..\algorithm\whirlcoin.h" />
     <ClInclude Include="..\algorithm\yescrypt.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_argon2.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blake2-impl.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blake2.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blake2b-load-sse2.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blake2b-load-sse41.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blake2b-round.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blamka-round-opt.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_blamka-round-ref.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_core.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_encoding.h" />
+    <ClInclude Include="..\mtp_argon2ref\mtp_thread.h" />
     <ClInclude Include="..\merkletree\merkle-tree.hpp" />
     <ClInclude Include="..\merkletree\mtp.h" />
     <ClInclude Include="..\api.h" />

@@ -48,6 +48,12 @@
     <ClCompile Include="..\..\submodules\jansson\src\value.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\submodules\jansson\src\bos_deserializer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\submodules\jansson\src\bos_serializer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="jansson_config.h">
@@ -69,6 +75,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\submodules\jansson\src\utf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\jansson\src\bosjansson.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\submodules\jansson\src\lookup3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

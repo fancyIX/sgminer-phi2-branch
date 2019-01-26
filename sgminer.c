@@ -5438,7 +5438,7 @@ static bool parse_stratum_response_bos(struct pool *pool, json_t *val)
 	err_val = json_object_get(val, "error");
 	id_val = json_object_get(val, "id");
 
-	if ((json_is_null(id_val) || !id_val) && (pool->algorithm.type != ALGO_ETHASH && pool->algorithm.type != ALGO_CRYPTONIGHT)) {
+	if ((json_is_null(id_val) || !id_val) && (pool->algorithm.type != ALGO_ETHASH)) {
 		char *ss;
 
 		if (err_val)
@@ -5473,43 +5473,7 @@ static bool parse_stratum_response_bos(struct pool *pool, json_t *val)
 		pool_diff = pool->swork.diff;
 		cg_runlock(&pool->data_lock);
 
-		//for cryptonight, the result contains the "status" object which should = "OK" on accept
-		if (pool->algorithm.type == ALGO_CRYPTONIGHT) {
-			json_t *res_id, *res_job;
-
-			//check if the result contains an id... if so then we need to process as first job, not share response
-			if ((res_id = json_object_get(res_val, "id"))) {
-				cg_wlock(&pool->data_lock);
-				strcpy(pool->XMRAuthID, json_string_value(res_id));
-				cg_wunlock(&pool->data_lock);
-
-				//get the job object and send to parse notify
-				if ((res_job = json_object_get(res_val, "job"))) {
-					ret = parse_notify_cn(pool, res_job);
-				}
-
-				goto out;
-			}
-
-			if (json_is_null(err_val) && !strcmp(json_string_value(json_object_get(res_val, "status")), "OK")) {
-				success = true;
-			}
-			else {
-				char *ss;
-
-				if (err_val) {
-					ss = json_dumps(err_val, JSON_INDENT(3));
-				}
-				else {
-					ss = strdup("(unknown reason)");
-				}
-
-				applog(LOG_INFO, "JSON-RPC response decode failed: %s", ss);
-
-				free(ss);
-			}
-		}
-		else {
+		{
 			success = json_is_true(res_val);
 		}
 
@@ -6226,7 +6190,7 @@ retry_stratum:
     if (!init) {
       bool ret = false;
       if (pool->algorithm.type == ALGO_MTP)
-        ret = initiate_stratum_bos(pool) && (!pool->extranonce_subscribe || subscribe_extranonce(pool)) && auth_stratum_bos(pool);
+        ret = initiate_stratum_bos(pool) && auth_stratum_bos(pool);
       else 
 	      ret = initiate_stratum(pool) && (!pool->extranonce_subscribe || subscribe_extranonce(pool)) && auth_stratum(pool);
 
@@ -7936,7 +7900,7 @@ static void hash_sole_work(struct thr_info *mythr)
       set_target(work->device_target, work->device_diff, work->pool->algorithm.diff_multiplier2, work->thr_id);
     }
 
-    if (work->pool->algorithm.type = ALGO_MTP)
+    if (work->pool->algorithm.type == ALGO_MTP)
 		  memcpy(work->device_target, work->pool->Target, 32);
 
     do {

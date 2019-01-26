@@ -3,8 +3,8 @@
 #include <iomanip>
 #include <algorithm>
 #include <iterator>
-//#include "blake2/blake2.h"
-#include "../argon2ref/blake2.h"
+//#include "mtp_blake2/blake2.h"
+#include "../mtp_argon2ref/mtp_blake2.h"
 
 std::ostream& operator<<(std::ostream& os, const MerkleTree::Buffer& buffer)
 {
@@ -93,23 +93,23 @@ void MerkleTree::Destructor()
 
 MerkleTree::Buffer MerkleTree::hash(const Buffer& data)
 {
-    ablake2b_state state;
-    ablake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
+    amtp_blake2b_state state;
+    amtp_blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
   //  printf("%x %x %x %x\n",state.t[0],state.t[1],state.f[0],state.f[1]);
     for (Buffer::const_iterator it = data.begin(); it != data.end(); ++it) {
-        ablake2b4rounds_update(&state, &(*it), sizeof(*it));
+        amtp_blake2b4rounds_update(&state, &(*it), sizeof(*it));
     }
     uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
-    ablake2b4rounds_final(&state, digest, sizeof(digest));
+    amtp_blake2b4rounds_final(&state, digest, sizeof(digest));
     return Buffer(digest, digest + sizeof(digest));
 }
 
 void gen_layer(uint8_t* o, uint8_t* n, int size){
 	for(int i=0;i<size;i++){
-		ablake2b_state state;
-	        ablake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
-		ablake2b4rounds_update(&state, &o[32*i], 32);
-		ablake2b4rounds_final(&state, &n[16*i], 16);
+		amtp_blake2b_state state;
+	        amtp_blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
+		amtp_blake2b4rounds_update(&state, &o[32*i], 32);
+		amtp_blake2b4rounds_final(&state, &n[16*i], 16);
 	}
 }
 

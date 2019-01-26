@@ -2376,6 +2376,11 @@ bool parse_method(struct pool *pool, char *s)
     goto done;
   }
 
+  if (!strncasecmp(buf, "mining.set_target", 17) && parse_target(pool, params)) {
+    ret = true;
+    goto done;
+  }
+
 done:
   json_decref(val); // TBD???
   return ret;
@@ -3449,8 +3454,15 @@ bool restart_stratum(struct pool *pool)
 {
   applog(LOG_DEBUG, "Restarting stratum on pool %s", get_pool_name(pool));
 
-if (pool->algorithm.type != ALGO_MTP) {
+if (pool->algorithm.type == ALGO_MTP) {
   if (pool->stratum_active)
+		suspend_stratum(pool);
+	if (!initiate_stratum_bos(pool))
+		return false;
+	if (!auth_stratum_bos(pool))
+		return false;
+} else {
+    if (pool->stratum_active)
     suspend_stratum(pool);
   if (!initiate_stratum(pool))
     return false;
@@ -3458,15 +3470,6 @@ if (pool->algorithm.type != ALGO_MTP) {
     return false;
   if (!auth_stratum(pool))
     return false;
-} else {
-  if (pool->stratum_active)
-		suspend_stratum(pool);
-	if (!initiate_stratum_bos(pool))
-		return false;
-	if (pool->extranonce_subscribe && !subscribe_extranonce(pool))
-		return false;
-	if (!auth_stratum_bos(pool))
-		return false;
 }
 
   return true;

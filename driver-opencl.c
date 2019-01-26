@@ -1432,7 +1432,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
 
-if (work->pool->algorithm.type != ALGO_MTP) {
+if (gpu->algorithm.type != ALGO_MTP) {
   if (gpu->algorithm.type == ALGO_ARGON2D) {
     const uint32_t throughput = gpu->throughput;
 	  const size_t global[] = { 16, throughput };
@@ -1442,7 +1442,7 @@ if (work->pool->algorithm.type != ALGO_MTP) {
   status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernel, 1, p_global_work_offset,
     globalThreads, localThreads, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
-    if (work->pool->algorithm.type == ALGO_ETHASH)
+    if (gpu->algorithm.type == ALGO_ETHASH)
         cg_runlock(&gpu->eth_dag.lock);
     applog(LOG_ERR, "Error %d: Enqueueing kernel onto command queue. (clEnqueueNDRangeKernel)", status);
     return -1;
@@ -1578,7 +1578,7 @@ if (work->pool->algorithm.type != ALGO_MTP) {
   status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_FALSE, 0,
     buffersize, thrdata->res, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
-    if (work->pool->algorithm.type == ALGO_ETHASH)
+    if (gpu->algorithm.type == ALGO_ETHASH)
       cg_runlock(&gpu->eth_dag.lock);
     applog(LOG_ERR, "Error: clEnqueueReadBuffer failed error %d. (clEnqueueReadBuffer)", status);
     return -1;
@@ -1591,7 +1591,7 @@ if (work->pool->algorithm.type != ALGO_MTP) {
 
   /* This finish flushes the readbuffer set with CL_FALSE in clEnqueueReadBuffer */
   clFinish(clState->commandQueue);
-  if (work->pool->algorithm.type == ALGO_ETHASH)
+  if (gpu->algorithm.type == ALGO_ETHASH)
     cg_runlock(&gpu->eth_dag.lock);
 
   /* found entry is used as a counter to say how many nonces exist */

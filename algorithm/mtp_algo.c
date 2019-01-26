@@ -47,17 +47,8 @@
  */
 
 
-static inline void
-be32enc_vect(uint32_t *dst, const uint32_t *src, uint32_t len)
-{
-	uint32_t i;
 
-	for (i = 0; i < len; i++)
-		dst[i] = htobe32(src[i]);
-}
-
-
-inline void mtp_hash(void *state, const void *input)
+void mtp_hash(void *state, const void *input)
 {
     sph_blake256_context     ctx_blake;
  

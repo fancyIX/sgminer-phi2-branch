@@ -1838,47 +1838,47 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 
 		mtp->dx = (uint8_t*)malloc(MTP_TREE_SIZE);
 
-		mtp->context = init_argon2d_param((const char*)endiandata);
-		argon2_ctx_from_mtp(&mtp->context, &mtp->instance);
+		mtp->context = init_mtp_argon2d_param((const char*)endiandata);
+		mtp_argon2_ctx_from_mtp(&mtp->context, &mtp->instance);
 		//// copy first blocks to gpu
 
 		size_t TheSize = 128 * sizeof(uint64_t);
 		size_t TheOffSet = 128 * sizeof(uint64_t);
 		
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 0, TheSize, (uchar*)mtp->instance.memory[0].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 0, TheSize, (unsigned char*)mtp->instance.memory[0].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS) 
 			applog(LOG_ERR, "problem copying instance to hblock", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 1, TheSize, (uchar*)mtp->instance.memory[1].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 1, TheSize, (unsigned char*)mtp->instance.memory[1].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 1048576, TheSize, (uchar*)mtp->instance.memory[2].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 1048576, TheSize, (unsigned char*)mtp->instance.memory[2].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 1048577, TheSize, (uchar*)mtp->instance.memory[3].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock, true, TheOffSet * 1048577, TheSize, (unsigned char*)mtp->instance.memory[3].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 2097152 - hbs_half, TheSize, (uchar*)mtp->instance.memory[4].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 2097152 - hbs_half, TheSize, (unsigned char*)mtp->instance.memory[4].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock2", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 2097153 - hbs_half, TheSize, (uchar*)mtp->instance.memory[5].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 2097153 - hbs_half, TheSize, (unsigned char*)mtp->instance.memory[5].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock2", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 3145728 - hbs_half, TheSize, (uchar*)mtp->instance.memory[6].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 3145728 - hbs_half, TheSize, (unsigned char*)mtp->instance.memory[6].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock2", status);
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 3145729 - hbs_half, TheSize, (uchar*)mtp->instance.memory[7].v, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->hblock2, true, TheOffSet * 3145729 - hbs_half, TheSize, (unsigned char*)mtp->instance.memory[7].v, 0, NULL, NULL);
 		if (status != CL_SUCCESS)
 			applog(LOG_ERR, "problem copying instance to hblock2", status);
 
 
-		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->blockheader, true, 0, 32, (uchar*)mtp->instance.argon_block_header, 0, NULL, NULL);
+		status |= clEnqueueWriteBuffer(clState->commandQueue, buffer->blockheader, true, 0, 32, (unsigned char*)mtp->instance.argon_block_header, 0, NULL, NULL);
 		if (status != CL_SUCCESS) {
 			applog(LOG_ERR, "Error %d while creating the MTP buffers.", status);
 		}
@@ -1987,7 +1987,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 	uint32_t rawint = 2 << (blk->work->thr->cgpu->intensity - 1);
 	kernel = &clState->mtp_yloop;
 	size_t Global2 = rawint ; //1048576; //65536;
-	size_t Local2 = 256;
+	size_t Local2 = 128;
 	size_t buffersize = 1024;
 	num = 0;
 	CL_SET_ARG(clState->CLbuffer0);
@@ -2209,6 +2209,7 @@ static algorithm_settings_t algos[] = {
   { "lyra2Zz"   , ALGO_LYRA2ZZ   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, -1, 0, lyra2Zz_regenhash,  blake256_midstate_112, blake256_prepare_work_112, queue_lyra2zz_kernel, gen_hash, NULL },
   { "lyra2h"   , ALGO_LYRA2H   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, -1, 0, lyra2h_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2h_kernel, gen_hash, NULL },
   { "allium", ALGO_ALLIUM, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 2 * 8 * 4194304, 0, allium_regenhash, blake256_midstate, blake256_prepare_work, queue_allium_kernel, gen_hash, NULL },
+  { "mtp"   , ALGO_MTP   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, 0,0, mtp_regenhash   , NULL, NULL, queue_mtp_kernel   , gen_hash, NULL },
 
   // kernels starting from this will have difficulty calculated by using fuguecoin algorithm
 #define A_FUGUE(a, b, c) \

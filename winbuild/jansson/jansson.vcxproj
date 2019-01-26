@@ -142,6 +142,7 @@
       <CompileAs>CompileAsC</CompileAs>
       <DisableSpecificWarnings>4005;4996</DisableSpecificWarnings>
       <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -150,6 +151,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\submodules\jansson\src\bos_deserializer.c" />
+    <ClCompile Include="..\..\submodules\jansson\src\bos_serializer.c" />
     <ClCompile Include="..\..\submodules\jansson\src\dump.c" />
     <ClCompile Include="..\..\submodules\jansson\src\error.c" />
     <ClCompile Include="..\..\submodules\jansson\src\hashtable.c" />
@@ -163,9 +166,11 @@
     <ClCompile Include="..\..\submodules\jansson\src\value.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\submodules\jansson\src\bosjansson.h" />
     <ClInclude Include="..\..\submodules\jansson\src\hashtable.h" />
     <ClInclude Include="..\..\submodules\jansson\src\jansson.h" />
     <ClInclude Include="..\..\submodules\jansson\src\jansson_private.h" />
+    <ClInclude Include="..\..\submodules\jansson\src\lookup3.h" />
     <ClInclude Include="..\..\submodules\jansson\src\strbuffer.h" />
     <ClInclude Include="..\..\submodules\jansson\src\utf.h" />
     <ClInclude Include="jansson_config.h" />

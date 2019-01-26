@@ -565,8 +565,8 @@ typedef struct _mtp_cache_t {
 	uint64_t XtraNonce2;
 	MerkleTree *ordered_tree;
 	unsigned char TheMerkleRoot[16];
-	argon2_context context;
-	argon2_instance_t instance;
+	mtp_argon2_context context;
+	mtp_argon2_instance_t instance;
 	uint8_t *dx;
 	struct mtp mtpPOW;
 	bool disabled;
