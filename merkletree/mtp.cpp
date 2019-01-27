@@ -557,7 +557,7 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			static_clear_internal_memory(argon_blockhash_curr_bytes, MTP_ARGON2_argon_block_SIZE);
 
 
-			std::deque<std::vector<uint8_t>> zProofMTP = TheTree.getProofOrdered(hash_curr, ij + 1);
+			std::deque<std::vector<uint8_t> > zProofMTP = TheTree.getProofOrdered(hash_curr, ij + 1);
 
 			nProofMTP[(j * 3 - 3) * 353] = (unsigned char)(zProofMTP.size());
 
@@ -586,7 +586,7 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			static_clear_internal_memory(argon_blockhash_prev.v, MTP_ARGON2_argon_block_SIZE);
 			static_clear_internal_memory(argon_blockhash_prev_bytes, MTP_ARGON2_argon_block_SIZE);
 
-			std::deque<std::vector<uint8_t>> zProofMTP2 = TheTree.getProofOrdered(hash_prev, prev_index + 1);
+			std::deque<std::vector<uint8_t> > zProofMTP2 = TheTree.getProofOrdered(hash_prev, prev_index + 1);
 
 			nProofMTP[(j * 3 - 2) * 353] = (unsigned char)(zProofMTP2.size());
 
@@ -612,7 +612,7 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			static_clear_internal_memory(argon_blockhash_ref.v, MTP_ARGON2_argon_block_SIZE);
 			static_clear_internal_memory(argon_blockhash_ref_bytes, MTP_ARGON2_argon_block_SIZE);
 
-			std::deque<std::vector<uint8_t>> zProofMTP3 = TheTree.getProofOrdered(hash_ref, ref_index + 1);
+			std::deque<std::vector<uint8_t> > zProofMTP3 = TheTree.getProofOrdered(hash_ref, ref_index + 1);
 
 			nProofMTP[(j * 3 - 1) * 353] = (unsigned char)(zProofMTP3.size());
 
@@ -750,7 +750,7 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			static_clear_internal_memory(argon_blockhash_curr_bytes, MTP_ARGON2_argon_block_SIZE);
 
 
-			std::deque<std::vector<uint8_t>> zProofMTP = TheTree.getProofOrdered(hash_curr, ij + 1);
+			std::deque<std::vector<uint8_t> > zProofMTP = TheTree.getProofOrdered(hash_curr, ij + 1);
 
 			nProofMTP[(j * 3 - 3) * 353] = (unsigned char)(zProofMTP.size());
 
@@ -780,7 +780,7 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			static_clear_internal_memory(argon_blockhash_prev.v, MTP_ARGON2_argon_block_SIZE);
 			static_clear_internal_memory(argon_blockhash_prev_bytes, MTP_ARGON2_argon_block_SIZE);
 
-			std::deque<std::vector<uint8_t>> zProofMTP2 = TheTree.getProofOrdered(hash_prev, prev_index + 1);
+			std::deque<std::vector<uint8_t> > zProofMTP2 = TheTree.getProofOrdered(hash_prev, prev_index + 1);
 
 			nProofMTP[(j * 3 - 2) * 353] = (unsigned char)(zProofMTP2.size());
 
@@ -901,6 +901,7 @@ MerkleTree::Elements mtp_init( mtp_argon2_instance_t *instance) {
 
 }
 
+/*
 MerkleTree::Elements   mtp_init2(mtp_argon2_instance_t *instance) {
 
 	MerkleTree::Elements  elements;
@@ -923,7 +924,7 @@ MerkleTree::Elements   mtp_init2(mtp_argon2_instance_t *instance) {
 		return elements;
 	}
 
-}
+}*/
 
 void  mtp_init3(mtp_argon2_instance_t *instance, int thr_id, MerkleTree &ThatTree) {
 

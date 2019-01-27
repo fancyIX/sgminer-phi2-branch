@@ -89,7 +89,7 @@ int mtp_solver_c(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbl
 #ifdef __cplusplus
 
 MerkleTree::Elements mtp_init(mtp_argon2_instance_t *instance);
-MerkleTree::Elements mtp_init2(mtp_argon2_instance_t *instance);
+//MerkleTree::Elements mtp_init2(mtp_argon2_instance_t *instance);
 //uint8_t *mtp_init3(mtp_argon2_instance_t *instance, int thr_id);
 //void  mtp_init3(mtp_argon2_instance_t *instance, int thr_id, MerkleTree *TheTree);
 //MerkleTree  mtp_init3(mtp_argon2_instance_t *instance, int thr_id);
