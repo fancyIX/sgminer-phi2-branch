@@ -65,7 +65,7 @@ void getargon_blockIndex(uint32_t ij, mtp_argon2_instance_t *instance, uint32_t 
 
 	mtp_argon2_position_t position = { 0, Lane , (uint8_t)Slice, posIndex };
 
-	uint32_t ref_index = index_alpha(instance, &position, pseudo_rand, ref_lane == position.lane);
+	uint32_t ref_index = mtp_index_alpha(instance, &position, pseudo_rand, ref_lane == position.lane);
 
 	uint32_t computed_ref_argon_block = instance->lane_length * ref_lane + ref_index;
 
@@ -277,7 +277,7 @@ truc++;
 
 
 
-        ref_index = index_alpha(instance, &position, pseudo_rand & 0xFFFFFFFF,
+		ref_index = mtp_index_alpha(instance, &position, pseudo_rand & 0xFFFFFFFF,
                                 ref_lane == position.lane);
 
 
@@ -382,7 +382,7 @@ void fill_segment_noinde(const mtp_argon2_instance_t *instance,
 		* lane.
 		*/
 		position.index = i;
-		ref_index = index_alpha(instance, &position, pseudo_rand & 0xFFFFFFFF,
+		ref_index = mtp_index_alpha(instance, &position, pseudo_rand & 0xFFFFFFFF,
 			ref_lane == position.lane);
 
 		/* 2 Creating a new argon_block */

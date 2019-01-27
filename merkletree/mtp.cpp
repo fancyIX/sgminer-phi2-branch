@@ -23,7 +23,12 @@ static const unsigned int memory_cost = memcost;
 
 //extern void get_argon_block(int thr_id, void* d, uint32_t index){};
 //extern void get_argon_block(int thr_id, void* clblock, uint32_t index);
-extern "C" void get_argon_block(cl_command_queue Queue,cl_mem block, cl_mem block2, uint8_t* clblock,  uint32_t index);
+#ifdef _MSC_VER
+extern
+#else
+extern "C" 
+#endif
+void get_argon_block(cl_command_queue Queue,cl_mem block, cl_mem block2, uint8_t* clblock,  uint32_t index);
 uint32_t index_beta(const mtp_argon2_instance_t *instance,
 	const mtp_argon2_position_t *position, uint32_t pseudo_rand,
 	int same_lane) {

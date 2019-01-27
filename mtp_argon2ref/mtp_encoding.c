@@ -340,7 +340,7 @@ int mtp_decode_string(mtp_argon2_context *ctx, const char *str, mtp_argon2_type 
     ctx->flags = MTP_ARGON2_DEFAULT_FLAGS;
 
     /* On return, must have valid context */
-    validation_result = validate_inputs(ctx);
+	validation_result = mtp_validate_inputs(ctx);
     if (validation_result != MTP_ARGON2_OK) {
         return validation_result;
     }
@@ -388,7 +388,7 @@ int mtp_encode_string(char *dst, size_t dst_len, mtp_argon2_context *ctx,
     } while ((void)0, 0)
 
     const char* type_string = mtp_argon2_type2string(type, 0);
-    int validation_result = validate_inputs(ctx);
+	int validation_result = mtp_validate_inputs(ctx);
 
     if (!type_string) {
       return MTP_ARGON2_ENCODING_FAIL;

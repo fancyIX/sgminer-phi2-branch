@@ -39,7 +39,7 @@ const char *mtp_argon2_type2string(mtp_argon2_type type, int uppercase) {
 
 int mtp_argon2_ctx(mtp_argon2_context *context, mtp_argon2_type type) {
     /* 1. Validate all inputs */
-    int result = validate_inputs(context);
+    int result = mtp_validate_inputs(context);
     uint32_t memory_argon_blocks, segment_length;
     mtp_argon2_instance_t instance;
 
@@ -76,7 +76,7 @@ int mtp_argon2_ctx(mtp_argon2_context *context, mtp_argon2_type type) {
     /* 3. Initialization: Hashing inputs, allocating memory, filling first
      * argon_blocks
      */
-    result = initialize(&instance, context);
+    result = mtp_initialize(&instance, context);
  
     if (MTP_ARGON2_OK != result) {
         return result;
@@ -89,7 +89,7 @@ int mtp_argon2_ctx(mtp_argon2_context *context, mtp_argon2_type type) {
         return result;
     }
     /* 5. Finalization */
-    finalize(context, &instance);
+	mtp_finalize(context, &instance);
  
     return MTP_ARGON2_OK;
 }
@@ -98,7 +98,7 @@ int mtp_argon2_ctx_from_mtp(mtp_argon2_context *context, mtp_argon2_instance_t *
 
 //	printf("1. Validate all inputs \n");
 	/* 1. Validate all inputs */
-	int result = validate_inputs(context);
+	int result = mtp_validate_inputs(context);
 	uint32_t memory_argon_blocks, segment_length;
 	//mtp_argon2_instance_t instance;
 
@@ -131,7 +131,7 @@ int mtp_argon2_ctx_from_mtp(mtp_argon2_context *context, mtp_argon2_instance_t *
 
 //	printf("3. Initializatio n: Hashing inputs, allocating memory, filling first argon_blocks\n");
 	/* 3. Initialization: Hashing inputs, allocating memory, filling first argon_blocks */
-	result = initialize(instance, context);
+	result = mtp_initialize(instance, context);
 
 	if (MTP_ARGON2_OK != result) {
 		printf("error code = %d\n", result);
