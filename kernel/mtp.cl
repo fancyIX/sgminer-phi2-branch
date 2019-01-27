@@ -608,11 +608,14 @@ static unsigned warp_id()
 	return ret;
 }
 #endif
+#define LEN 8
+#define DIV 256
+//#define FARLOAD(x) far[warp][(x) + lane*(LEN+SHR_OFF)]
+#define FARSTORE(x) far[warp][lane + (x)*(LEN+SHR_OFF)]
+#define FARLOAD(x) FarReg[(x)]
 
-#define FARLOAD(x) far[warp][(x)*(8+SHR_OFF) + lane]
-#define FARSTORE(x) far[warp][lane*(8+SHR_OFF) + (x)]
-#define SHR_OFF 1
-#define TPB_MTP 128
+#define SHR_OFF 0
+#define TPB_MTP 64
 
 __attribute__((reqd_work_group_size(TPB_MTP, 1, 1)))
 __kernel void mtp_yloop(__global unsigned int* pData, __global const uint4  * __restrict__ DBlock, __global const uint4  * __restrict__ DBlock2,
@@ -625,10 +628,11 @@ __global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce,  uint
 	uint32_t event_thread = get_global_id(0) - get_global_offset(0); //thread / ThreadNumber;
 
 	uint32_t NonceIterator = get_global_id(0);
-	int lane = get_local_id(0) % 8;
-	int warp = get_local_id(0) / 8;;//warp_id();
-	__local  ulong2 far[TPB_MTP / 8][8 * (8 + SHR_OFF)];
-	__local  uint32_t farIndex[TPB_MTP / 8][8];
+	int lane = get_local_id(0) % DIV;
+	int warp = get_local_id(0) / DIV;;//warp_id();
+//	__local  ulong2 far[TPB_MTP/ DIV][256 * (LEN + SHR_OFF)];
+		ulong2 FarReg[8]; 
+	 uint32_t farIndex;
 	const uint32_t half_memcost = 2 * 1024 * 1024;
 	 const uint64_t lblakeFinal[8] =
 	{
@@ -681,7 +685,7 @@ __global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce,  uint
 				FARLOAD(t + 6) = D[t];
 
 			}
-			farIndex[warp][lane] = YLocal.s0 & 0x3FFFFF;
+			farIndex = YLocal.s0 & 0x3FFFFF;
 			barrier(CLK_LOCAL_MEM_FENCE);
 
 			ulong8 DataChunk[2];
@@ -701,7 +705,7 @@ __global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce,  uint
 					ulong2 *D = (ulong2*)&YLocal;
 					D[t] = FARLOAD(t + 6);
 				}
-
+				barrier(CLK_LOCAL_MEM_FENCE);
 
 				len += last ? 32 : 128;
 
@@ -712,10 +716,11 @@ __global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce,  uint
 					#pragma unroll 
 					for (int t = 0; t<8; t++) {
 
-						__global ulong2 *farP = (farIndex[warp][t]<half_memcost)?  (__global ulong2*)&GBlock[farIndex[warp][t] * 64 + 0 + 8 * i + 0] 
-																				 : (__global ulong2*)&GBlock2[(farIndex[warp][t] - half_memcost) * 64 + 0 + 8 * i + 0];
+						__global ulong2 *farP = (farIndex<half_memcost)?  (__global ulong2*)&GBlock[farIndex * 64 + 0 + 8 * i + 0]
+																				 : (__global ulong2*)&GBlock2[(farIndex - half_memcost) * 64 + 0 + 8 * i + 0];
 
-						far[warp][lane*(8 + SHR_OFF) + (t)] = (last) ? (ulong2)(0, 0) : farP[lane];
+					//	far[warp][t + (LEN + SHR_OFF) * (lane)] = (last) ? (ulong2)(0, 0) : farP[t];
+						FarReg[t] = (last) ? (ulong2)(0, 0) : farP[t];
 					}
 
 					barrier(CLK_LOCAL_MEM_FENCE);
@@ -726,6 +731,7 @@ __global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce,  uint
 					ulong2 *D = (ulong2*)DataChunk;
 					D[t + 2] = (FARLOAD(t));
 				}
+				barrier(CLK_LOCAL_MEM_FENCE);
 				((uint16*)DataChunk)[0].lo = YLocal;
 
 				//	uint16 DataTmp2;
