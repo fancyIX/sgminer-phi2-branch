@@ -807,7 +807,7 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			static_clear_internal_memory(argon_blockhash_ref.v, MTP_ARGON2_argon_block_SIZE);
 			static_clear_internal_memory(argon_blockhash_ref_bytes, MTP_ARGON2_argon_block_SIZE);
 
-			std::deque<std::vector<uint8_t>> zProofMTP3 = TheTree.getProofOrdered(hash_ref, ref_index + 1);
+			std::deque<std::vector<uint8_t> > zProofMTP3 = TheTree.getProofOrdered(hash_ref, ref_index + 1);
 
 			nProofMTP[(j * 3 - 1) * 353] = (unsigned char)(zProofMTP3.size());
 
