@@ -255,7 +255,7 @@ static const char *decode_decimal(const char *str, unsigned long *v) {
  * when it is fed into decode_string.
  */
 
-int decode_string(mtp_argon2_context *ctx, const char *str, mtp_argon2_type type) {
+int mtp_decode_string(mtp_argon2_context *ctx, const char *str, mtp_argon2_type type) {
 
 /* check for prefix */
 #define CC(prefix)                                                             \
@@ -357,7 +357,7 @@ int decode_string(mtp_argon2_context *ctx, const char *str, mtp_argon2_type type
 #undef BIN
 }
 
-int encode_string(char *dst, size_t dst_len, mtp_argon2_context *ctx,
+int mtp_encode_string(char *dst, size_t dst_len, mtp_argon2_context *ctx,
                   mtp_argon2_type type) {
 #define SS(str)                                                                \
     do {                                                                       \

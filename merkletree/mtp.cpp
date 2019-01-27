@@ -23,7 +23,7 @@ static const unsigned int memory_cost = memcost;
 
 //extern void get_argon_block(int thr_id, void* d, uint32_t index){};
 //extern void get_argon_block(int thr_id, void* clblock, uint32_t index);
-extern void get_argon_block(cl_command_queue Queue,cl_mem block, cl_mem block2, uint8_t* clblock,  uint32_t index);
+extern "C" void get_argon_block(cl_command_queue Queue,cl_mem block, cl_mem block2, uint8_t* clblock,  uint32_t index);
 uint32_t index_beta(const mtp_argon2_instance_t *instance,
 	const mtp_argon2_position_t *position, uint32_t pseudo_rand,
 	int same_lane) {
@@ -361,13 +361,13 @@ void fill_argon_block2_withIndex(__m128i *state, const argon_block *ref_argon_bl
 
 
 
-static void copy_argon_block(argon_block *dst, const argon_block *src) {
+static void static_copy_argon_block(argon_block *dst, const argon_block *src) {
 	memcpy(dst->v, src->v, sizeof(uint64_t) * MTP_ARGON2_QWORDS_IN_argon_block);
 }
-static void copy_argon_blockS(argon_blockS *dst, const argon_blockS *src) {
+static void static_copy_argon_blockS(argon_blockS *dst, const argon_blockS *src) {
 	memcpy(dst->v, src->v, sizeof(uint64_t) * MTP_ARGON2_QWORDS_IN_argon_block);
 }
-static void copy_argon_blockS(argon_blockS *dst, const argon_block *src) {
+static void static_copy_argon_blockS(argon_blockS *dst, const argon_block *src) {
 	memcpy(dst->v, src->v, sizeof(uint64_t) * MTP_ARGON2_QWORDS_IN_argon_block);
 }
 
@@ -389,18 +389,18 @@ static void  secure_wipe_memory(void *v, size_t n) {
 
 /* Memory clear flag defaults to true. */
 
-static void clear_internal_memory(void *v, size_t n) {
+static void static_clear_internal_memory(void *v, size_t n) {
 	if (MTP_FLAG_clear_internal_memory && v) {
 		secure_wipe_memory(v, n);
 	}
 }
 
 
-static void free_memory(const mtp_argon2_context *context, uint8_t *memory,
+static void static_free_memory(const mtp_argon2_context *context, uint8_t *memory,
 	size_t num, size_t size) {
 //	size_t memory_size = num*size;
 	size_t memory_size = 128 * 8 * 2 * 4 * 2;
-//	clear_internal_memory(memory, memory_size);
+//	static_clear_internal_memory(memory, memory_size);
 	if (context->free_cbk) {
 		(context->free_cbk)(memory, memory_size);
 	}
@@ -518,13 +518,13 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			uint32_t ref_index;
 			getargon_blockindex_orig(ij, instance, &prev_index, &ref_index);
  
-			copy_argon_blockS(&nargon_blockMTP[j * 2 - 2], &instance->memory[prev_index]);
+			static_copy_argon_blockS(&nargon_blockMTP[j * 2 - 2], &instance->memory[prev_index]);
 			//ref argon_block
-			copy_argon_blockS(&nargon_blockMTP[j * 2 - 1], &instance->memory[ref_index]);
+			static_copy_argon_blockS(&nargon_blockMTP[j * 2 - 1], &instance->memory[ref_index]);
 
 			argon_block argon_blockhash;
 			uint8_t argon_blockhash_bytes[MTP_ARGON2_argon_block_SIZE];
-			copy_argon_block(&argon_blockhash, &instance->memory[ij]);
+			static_copy_argon_block(&argon_blockhash, &instance->memory[ij]);
 
  
 			store_argon_block(&argon_blockhash_bytes, &argon_blockhash);
@@ -540,7 +540,7 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			unsigned char curr[32] = { 0 };
 			argon_block argon_blockhash_curr;
 			uint8_t argon_blockhash_curr_bytes[MTP_ARGON2_argon_block_SIZE];
-			copy_argon_block(&argon_blockhash_curr, &instance->memory[ij]);
+			static_copy_argon_block(&argon_blockhash_curr, &instance->memory[ij]);
 			store_argon_block(&argon_blockhash_curr_bytes, &argon_blockhash_curr);
 			amtp_blake2b_state state_curr;
 			amtp_blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);
@@ -548,8 +548,8 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
 			amtp_blake2b4rounds_final(&state_curr, digest_curr, sizeof(digest_curr));
 			MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));
-			clear_internal_memory(argon_blockhash_curr.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_curr_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_curr.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_curr_bytes, MTP_ARGON2_argon_block_SIZE);
 
 
 			std::deque<std::vector<uint8_t>> zProofMTP = TheTree.getProofOrdered(hash_curr, ij + 1);
@@ -566,7 +566,7 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			unsigned char prev[32]={0};
 			argon_block argon_blockhash_prev;
 			uint8_t argon_blockhash_prev_bytes[MTP_ARGON2_argon_block_SIZE];
-			copy_argon_block(&argon_blockhash_prev, &instance->memory[prev_index]);
+			static_copy_argon_block(&argon_blockhash_prev, &instance->memory[prev_index]);
 			store_argon_block(&argon_blockhash_prev_bytes, &argon_blockhash_prev);
 			amtp_blake2b_state state_prev;
 			amtp_blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
@@ -578,8 +578,8 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 
  
 			MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));
-			clear_internal_memory(argon_blockhash_prev.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_prev_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_prev.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_prev_bytes, MTP_ARGON2_argon_block_SIZE);
 
 			std::deque<std::vector<uint8_t>> zProofMTP2 = TheTree.getProofOrdered(hash_prev, prev_index + 1);
 
@@ -596,7 +596,7 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			unsigned char ref[32] = { 0 };
 			argon_block argon_blockhash_ref;
 			uint8_t argon_blockhash_ref_bytes[MTP_ARGON2_argon_block_SIZE];
-			copy_argon_block(&argon_blockhash_ref, &instance->memory[ref_index]);
+			static_copy_argon_block(&argon_blockhash_ref, &instance->memory[ref_index]);
 			store_argon_block(&argon_blockhash_ref_bytes, &argon_blockhash_ref);
 			amtp_blake2b_state state_ref;
 			amtp_blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
@@ -604,8 +604,8 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 			uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
 			amtp_blake2b4rounds_final(&state_ref, digest_ref, sizeof(digest_ref));
 			MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));
-			clear_internal_memory(argon_blockhash_ref.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_ref_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_ref.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_ref_bytes, MTP_ARGON2_argon_block_SIZE);
 
 			std::deque<std::vector<uint8_t>> zProofMTP3 = TheTree.getProofOrdered(hash_ref, ref_index + 1);
 
@@ -654,7 +654,15 @@ MerkleTree TheTree,uint32_t* input, uint256 hashTarget) {
 	return 0;
 }
 
-
+int mtp_solver_c(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clblock2, uint32_t TheNonce, mtp_argon2_instance_t *instance,
+	argon_blockS *nargon_blockMTP /*[72 * 2][128]*/, unsigned char *nProofMTP, unsigned char* resultMerkleRoot, unsigned char* mtpHashValue,
+	MerkleTree* pTheTree, uint32_t* input, uint256* phashTarget) {
+		uint256 TheUint256Target[1];
+		TheUint256Target[0] = ((uint256*)phashTarget)[0];
+		return mtp_solver(thr_id, Queue, clblock, clblock2, TheNonce, instance,
+	                      nargon_blockMTP /*[72 * 2][128]*/, nProofMTP, resultMerkleRoot, mtpHashValue,
+	                      *pTheTree, input, TheUint256Target[0]);
+	}
 
 int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clblock2, uint32_t TheNonce, mtp_argon2_instance_t *instance,
 	argon_blockS *nargon_blockMTP /*[72 * 2][128]*/, unsigned char* nProofMTP, unsigned char* resultMerkleRoot, unsigned char* mtpHashValue,
@@ -698,14 +706,14 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			uint32_t ref_index;
 			getargon_blockindex(thr_id, Queue, clblock, clblock2, ij, instance, &prev_index, &ref_index);
 
-			//			copy_argon_blockS(&nargon_blockMTP[j * 2 - 2], &instance->memory[prev_index]);
+			//			static_copy_argon_blockS(&nargon_blockMTP[j * 2 - 2], &instance->memory[prev_index]);
 			get_argon_block(/*thr_id,*/Queue,clblock, clblock2, (uint8_t*)nargon_blockMTP[j * 2 - 2].v, prev_index);
 			//ref argon_block
-			//			copy_argon_blockS(&nargon_blockMTP[j * 2 - 1], &instance->memory[ref_index]);
+			//			static_copy_argon_blockS(&nargon_blockMTP[j * 2 - 1], &instance->memory[ref_index]);
 			get_argon_block(/*thr_id,*/Queue, clblock, clblock2, (uint8_t*)nargon_blockMTP[j * 2 - 1].v, ref_index);
 			argon_block argon_blockhash;
 			uint8_t argon_blockhash_bytes[MTP_ARGON2_argon_block_SIZE];
-			//			copy_argon_block(&argon_blockhash, &instance->memory[ij]);
+			//			static_copy_argon_block(&argon_blockhash, &instance->memory[ij]);
 			get_argon_block(/*thr_id,*/Queue, clblock, clblock2, (uint8_t*)&argon_blockhash.v, ij);
 
 
@@ -718,13 +726,13 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			amtp_blake2b_final(&BlakeHash2, (unsigned char*)&Y[j], 32);
 			////////////////////////////////////////////////////////////////
 			// current argon_block
-			clear_internal_memory(argon_blockhash.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_bytes, MTP_ARGON2_argon_block_SIZE);
 
 			unsigned char curr[32] = { 0 };
 			argon_block argon_blockhash_curr;
 			uint8_t argon_blockhash_curr_bytes[MTP_ARGON2_argon_block_SIZE];
-			//			copy_argon_block(&argon_blockhash_curr, &instance->memory[ij]);
+			//			static_copy_argon_block(&argon_blockhash_curr, &instance->memory[ij]);
 			get_argon_block(/*thr_id,*/Queue, clblock, clblock2, (uint8_t*)&argon_blockhash_curr.v, ij);
 			store_argon_block(&argon_blockhash_curr_bytes, &argon_blockhash_curr);
 			amtp_blake2b_state state_curr;
@@ -733,8 +741,8 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
 			amtp_blake2b4rounds_final(&state_curr, digest_curr, sizeof(digest_curr));
 			MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));
-			clear_internal_memory(argon_blockhash_curr.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_curr_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_curr.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_curr_bytes, MTP_ARGON2_argon_block_SIZE);
 
 
 			std::deque<std::vector<uint8_t>> zProofMTP = TheTree.getProofOrdered(hash_curr, ij + 1);
@@ -751,7 +759,7 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			unsigned char prev[32] = { 0 };
 			argon_block argon_blockhash_prev;
 			uint8_t argon_blockhash_prev_bytes[MTP_ARGON2_argon_block_SIZE];
-			//			copy_argon_block(&argon_blockhash_prev, &instance->memory[prev_index]);
+			//			static_copy_argon_block(&argon_blockhash_prev, &instance->memory[prev_index]);
 			get_argon_block(/*thr_id,*/Queue, clblock, clblock2, (uint8_t*)&argon_blockhash_prev.v, prev_index);
 			store_argon_block(&argon_blockhash_prev_bytes, &argon_blockhash_prev);
 			amtp_blake2b_state state_prev;
@@ -764,8 +772,8 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 
 
 			MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));
-			clear_internal_memory(argon_blockhash_prev.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_prev_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_prev.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_prev_bytes, MTP_ARGON2_argon_block_SIZE);
 
 			std::deque<std::vector<uint8_t>> zProofMTP2 = TheTree.getProofOrdered(hash_prev, prev_index + 1);
 
@@ -782,7 +790,7 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			unsigned char ref[32] = { 0 };
 			argon_block argon_blockhash_ref;
 			uint8_t argon_blockhash_ref_bytes[MTP_ARGON2_argon_block_SIZE];
-			//			copy_argon_block(&argon_blockhash_ref, &instance->memory[ref_index]);
+			//			static_copy_argon_block(&argon_blockhash_ref, &instance->memory[ref_index]);
 			get_argon_block(/*thr_id,*/Queue, clblock, clblock2, (uint8_t*)&argon_blockhash_ref.v, ref_index);
 			store_argon_block(&argon_blockhash_ref_bytes, &argon_blockhash_ref);
 			amtp_blake2b_state state_ref;
@@ -791,8 +799,8 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 			uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
 			amtp_blake2b4rounds_final(&state_ref, digest_ref, sizeof(digest_ref));
 			MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));
-			clear_internal_memory(argon_blockhash_ref.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_ref_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_ref.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_ref_bytes, MTP_ARGON2_argon_block_SIZE);
 
 			std::deque<std::vector<uint8_t>> zProofMTP3 = TheTree.getProofOrdered(hash_ref, ref_index + 1);
 
@@ -857,7 +865,7 @@ MerkleTree::Elements mtp_init( mtp_argon2_instance_t *instance) {
 		for (int i = 0; i < instance->memory_argon_blocks; ++i) {
 			argon_block argon_blockhash;
 			uint8_t argon_blockhash_bytes[MTP_ARGON2_argon_block_SIZE];
-			copy_argon_block(&argon_blockhash, &instance->memory[i]);
+			static_copy_argon_block(&argon_blockhash, &instance->memory[i]);
 			store_argon_block(&argon_blockhash_bytes, &argon_blockhash);
 
 //			uint512 hashargon_block;
@@ -869,8 +877,8 @@ MerkleTree::Elements mtp_init( mtp_argon2_instance_t *instance) {
 			MerkleTree::Buffer hash_digest = MerkleTree::Buffer(digest, digest + sizeof(digest));
 			elements.push_back(hash_digest);
 
-			clear_internal_memory(argon_blockhash.v, MTP_ARGON2_argon_block_SIZE);
-			clear_internal_memory(argon_blockhash_bytes, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash.v, MTP_ARGON2_argon_block_SIZE);
+			static_clear_internal_memory(argon_blockhash_bytes, MTP_ARGON2_argon_block_SIZE);
 
 		}
 /*
@@ -930,6 +938,6 @@ void mtp_hash(char* output, const char* input, unsigned int d,uint32_t TheNonce)
     mtp_argon2_instance_t instance;
     mtp_argon2_ctx_from_mtp(&context, &instance);
 //    mtp_prover(TheNonce, &instance, d, output);
-//    free_memory(&context, (uint8_t *)instance.memory, instance.memory_argon_blocks, sizeof(argon_block));
+//    static_free_memory(&context, (uint8_t *)instance.memory, instance.memory_argon_blocks, sizeof(argon_block));
 
 }

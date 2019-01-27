@@ -420,3 +420,16 @@ std::string MerkleTree::elementsToHex(const Elements& elements)
 	return oss.str();
 }
 
+void call_MerkleTree_Destructor(MerkleTree* mt) {
+    mt->Destructor();
+}
+
+MerkleTree *call_new_MerkleTree(uint8_t* elements, bool preserveOrder) {
+    return new MerkleTree(elements, preserveOrder);
+}
+
+void call_MerkleTree_getRoot(MerkleTree* mt, unsigned char *TheMerkleRoot) {
+    MerkleTree::Buffer root = mt->getRoot();
+	std::copy(root.begin(), root.end(), TheMerkleRoot);
+	root.resize(0);
+}

@@ -66,7 +66,7 @@ uint64_t ref_argon_block;
 */
 /*****************Functions that work with the argon_block******************/
 
-/* Initialize each byte of the argon_block with @in */
+/* mtp_initialize each byte of the argon_block with @in */
 void init_argon_block_value(argon_block *b, uint8_t in);
 
 /* Copy argon_block @src to argon_block @dst */
@@ -123,7 +123,7 @@ typedef struct MTPArgon2_thread_data {
  * @param num the number of elements to be allocated
  * @return MTP_ARGON2_OK if @memory is a valid pointer and memory is allocated
  */
-int allocate_memory(const mtp_argon2_context *context, uint8_t **memory,
+int mtp_allocate_memory(const mtp_argon2_context *context, uint8_t **memory,
                     size_t num, size_t size);
 
 /*
@@ -134,7 +134,7 @@ int allocate_memory(const mtp_argon2_context *context, uint8_t **memory,
  * @param size the size in bytes for each element to be deallocated
  * @param num the number of elements to be deallocated
  */
-void free_memory(const mtp_argon2_context *context, uint8_t *memory,
+void mtp_free_memory(const mtp_argon2_context *context, uint8_t *memory,
                  size_t num, size_t size);
 
 /* Function that securely cleans the memory. This ignores any flags set
@@ -161,7 +161,7 @@ void mtp_clear_internal_memory(void *v, size_t n);
  * If so we can reference the current segment
  * @pre All pointers must be valid
  */
-uint32_t index_alpha(const mtp_argon2_instance_t *instance,
+uint32_t mtp_index_alpha(const mtp_argon2_instance_t *instance,
                      const mtp_argon2_position_t *position, uint32_t pseudo_rand,
                      int same_lane);
 
@@ -172,7 +172,7 @@ uint32_t index_alpha(const mtp_argon2_instance_t *instance,
  * @return MTP_ARGON2_OK if everything is all right, otherwise one of error codes
  * (all defined in <argon2.h>
  */
-int validate_inputs(const mtp_argon2_context *context);
+int mtp_validate_inputs(const mtp_argon2_context *context);
 
 /*
  * Hashes all the inputs into @a argon_blockhash[PREHASH_DIGEST_LENGTH], clears
@@ -184,7 +184,7 @@ int validate_inputs(const mtp_argon2_context *context);
  * @pre    @a argon_blockhash must have at least @a PREHASH_DIGEST_LENGTH bytes
  * allocated
  */
-void initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
+void mtp_initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
                   mtp_argon2_type type);
 
 /*
@@ -193,19 +193,19 @@ void initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
  * @param argon_blockhash Pointer to the pre-hashing digest
  * @pre argon_blockhash must point to @a PREHASH_SEED_LENGTH allocated values
  */
-void fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_instance_t *instance);
+void mtp_fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_instance_t *instance);
 
 /*
  * Function allocates memory, hashes the inputs with Blake,  and creates first
  * two argon_blocks. Returns the pointer to the main memory with 2 argon_blocks per lane
- * initialized
+ * mtp_initialized
  * @param  context  Pointer to the MTPArgon2 internal structure containing memory
  * pointer, and parameters for time and space requirements.
  * @param  instance Current MTPArgon2 instance
  * @return Zero if successful, -1 if memory failed to allocate. @context->state
  * will be modified if successful.
  */
-int initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context);
+int mtp_initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context);
 
 /*
  * XORing the last argon_block of each lane, hashing it, making the tag. Deallocates
@@ -218,7 +218,7 @@ int initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context);
  * @pre if context->free_cbk is not NULL, it should point to a function that
  * deallocates memory
  */
-void finalize(const mtp_argon2_context *context, mtp_argon2_instance_t *instance);
+void mtp_finalize(const mtp_argon2_context *context, mtp_argon2_instance_t *instance);
 
 /*
  * Function that fills the segment using previous segments also from other
@@ -228,7 +228,7 @@ void finalize(const mtp_argon2_context *context, mtp_argon2_instance_t *instance
  * @param position Current position
  * @pre all argon_block pointers must be valid
  */
-void fill_segment(const mtp_argon2_instance_t *instance,
+void mtp_fill_segment(const mtp_argon2_instance_t *instance,
                   mtp_argon2_position_t position);
 
 /*
@@ -237,7 +237,7 @@ void fill_segment(const mtp_argon2_instance_t *instance,
  * @param instance Pointer to the current instance
  * @return MTP_ARGON2_OK if successful, @context->state
  */
-int fill_memory_argon_blocks(mtp_argon2_instance_t *instance);
+int mtp_fill_memory_argon_blocks(mtp_argon2_instance_t *instance);
 
-int fill_memory_argon_blocks_mtp(mtp_argon2_instance_t *instance);
+int mtp_fill_memory_argon_blocks_mtp(mtp_argon2_instance_t *instance);
 #endif

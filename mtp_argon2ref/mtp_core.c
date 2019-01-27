@@ -84,7 +84,7 @@ void store_argon_block(void *output, const argon_block *src) {
 
 /***************Memory functions*****************/
 
-int allocate_memory(const mtp_argon2_context *context, uint8_t **memory,
+int mtp_allocate_memory(const mtp_argon2_context *context, uint8_t **memory,
                     size_t num, size_t size) {
     size_t memory_size = num*size;
     if (memory == NULL) {
@@ -111,7 +111,7 @@ int allocate_memory(const mtp_argon2_context *context, uint8_t **memory,
     return MTP_ARGON2_OK;
 }
 
-void free_memory(const mtp_argon2_context *context, uint8_t *memory,
+void mtp_free_memory(const mtp_argon2_context *context, uint8_t *memory,
                  size_t num, size_t size) {
     size_t memory_size = num*size;
     clear_internal_memory(memory, memory_size);
@@ -143,7 +143,7 @@ void mtp_clear_internal_memory(void *v, size_t n) {
   }
 }
 
-void finalize(const mtp_argon2_context *context, mtp_argon2_instance_t *instance) {
+void mtp_finalize(const mtp_argon2_context *context, mtp_argon2_instance_t *instance) {
     if (context != NULL && instance != NULL) {
         argon_block argon_blockhash;
         uint32_t l;
@@ -172,12 +172,12 @@ void finalize(const mtp_argon2_context *context, mtp_argon2_instance_t *instance
         print_tag(context->out, context->outlen);
 #endif
 
-        free_memory(context, (uint8_t *)instance->memory,
+        mtp_free_memory(context, (uint8_t *)instance->memory,
                     instance->memory_argon_blocks, sizeof(argon_block));
     }
 }
 
-uint32_t index_alpha(const mtp_argon2_instance_t *instance,
+uint32_t mtp_index_alpha(const mtp_argon2_instance_t *instance,
                      const mtp_argon2_position_t *position, uint32_t pseudo_rand,
                      int same_lane) {
     /*
@@ -248,7 +248,7 @@ uint32_t index_alpha(const mtp_argon2_instance_t *instance,
 }
 
 /* Single-threaded version for p=1 case */
-static int fill_memory_argon_blocks_st(mtp_argon2_instance_t *instance) {
+static int mtp_fill_memory_argon_blocks_st(mtp_argon2_instance_t *instance) {
     uint32_t r, s, l;
 
     for (r = 0; r < instance->passes; ++r) {
@@ -256,7 +256,7 @@ static int fill_memory_argon_blocks_st(mtp_argon2_instance_t *instance) {
             for (l = 0; l< instance->lanes; ++l) {
                 mtp_argon2_position_t position = {r, l, (uint8_t)s, 0};
 				
-                fill_segment(instance, position);
+                mtp_fill_segment(instance, position);
             }
         }
 #ifdef GENKAT
@@ -269,19 +269,19 @@ static int fill_memory_argon_blocks_st(mtp_argon2_instance_t *instance) {
 #if !defined(MTP_ARGON2_NO_THREADS)
 
 #ifdef _WIN32
-static unsigned __stdcall fill_segment_thr(void *thread_data)
+static unsigned __stdcall mtp_fill_segment_thr(void *thread_data)
 #else
-static void *fill_segment_thr(void *thread_data)
+static void *mtp_fill_segment_thr(void *thread_data)
 #endif
 {
     mtp_argon2_thread_data *my_data = (mtp_argon2_thread_data *)thread_data;
-    fill_segment(my_data->instance_ptr, my_data->pos);
+    mtp_fill_segment(my_data->instance_ptr, my_data->pos);
     mtp_argon2_thread_exit();
     return 0;
 }
 
 /* Multi-threaded version for p > 1 case */
-static int fill_memory_argon_blocks_mt(mtp_argon2_instance_t *instance) {
+static int mtp_fill_memory_argon_blocks_mt(mtp_argon2_instance_t *instance) {
     uint32_t r, s;
     mtp_argon2_thread_handle_t *thread = NULL;
     mtp_argon2_thread_data *thr_data = NULL;
@@ -325,13 +325,13 @@ static int fill_memory_argon_blocks_mt(mtp_argon2_instance_t *instance) {
                     instance; /* preparing the thread input */
                 memcpy(&(thr_data[l].pos), &position,
                        sizeof(mtp_argon2_position_t));
-                if (mtp_argon2_thread_create(&thread[l], &fill_segment_thr,
+                if (mtp_argon2_thread_create(&thread[l], &mtp_fill_segment_thr,
                                          (void *)&thr_data[l])) {
                     rc = MTP_ARGON2_THREAD_FAIL;
                     goto fail;
                 }
 
-                /* fill_segment(instance, position); */
+                /* mtp_fill_segment(instance, position); */
                 /*Non-thread equivalent of the lines above */
             }
 
@@ -362,20 +362,20 @@ fail:
 
 #endif /* MTP_ARGON2_NO_THREADS */
 
-int fill_memory_argon_blocks(mtp_argon2_instance_t *instance) {
+int mtp_fill_memory_argon_blocks(mtp_argon2_instance_t *instance) {
 	if (instance == NULL || instance->lanes == 0) {
 	    return MTP_ARGON2_INCORRECT_PARAMETER;
     }
 
 #if defined(MTP_ARGON2_NO_THREADS)
-    return fill_memory_argon_blocks_st(instance);
+    return mtp_fill_memory_argon_blocks_st(instance);
 #else
     return instance->threads == 1 ?
-			fill_memory_argon_blocks_st(instance) : fill_memory_argon_blocks_mt(instance);
+			mtp_fill_memory_argon_blocks_st(instance) : mtp_fill_memory_argon_blocks_mt(instance);
 #endif
 }
 
-int fill_memory_argon_blocks_mtp(mtp_argon2_instance_t *instance) {
+int mtp_fill_memory_argon_blocks_mtp(mtp_argon2_instance_t *instance) {
 	uint32_t r, s;
 	mtp_argon2_thread_handle_t *thread = NULL;
 	mtp_argon2_thread_data *thr_data = NULL;
@@ -422,12 +422,12 @@ int fill_memory_argon_blocks_mtp(mtp_argon2_instance_t *instance) {
 				position.index = 0;
 				thr_data[l].instance_ptr = instance; /* preparing the thread input */
 				memcpy(&(thr_data[l].pos), &position, sizeof(mtp_argon2_position_t));
-				if (mtp_argon2_thread_create(&thread[l], &fill_segment_thr, (void *)&thr_data[l])) {
+				if (mtp_argon2_thread_create(&thread[l], &mtp_fill_segment_thr, (void *)&thr_data[l])) {
 					rc = MTP_ARGON2_THREAD_FAIL;
 					goto fail;
 				}
 
-				/* fill_segment(instance, position); */
+				/* mtp_fill_segment(instance, position); */
 				/*Non-thread equivalent of the lines above */
 			}
 
@@ -451,7 +451,7 @@ fail:
 	return rc;
 }
 
-int validate_inputs(const mtp_argon2_context *context) {
+int mtp_validate_inputs(const mtp_argon2_context *context) {
     if (NULL == context) {
         return MTP_ARGON2_INCORRECT_PARAMETER;
     }
@@ -578,7 +578,7 @@ int validate_inputs(const mtp_argon2_context *context) {
     return MTP_ARGON2_OK;
 }
 
-void fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_instance_t *instance) {
+void mtp_fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_instance_t *instance) {
     uint32_t l;
     /* Make the first and second argon_block in each lane as G(H0||0||i) or
        G(H0||1||i) */
@@ -611,7 +611,7 @@ void fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_instance
 
 }
 
-void initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
+void mtp_initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
                   mtp_argon2_type type) {
     amtp_blake2b_state BlakeHash;
     uint8_t value[sizeof(uint32_t)];
@@ -689,7 +689,7 @@ void initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
 
 }
 
-int initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context) {
+int mtp_initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context) {
     uint8_t argon_blockhash[MTP_ARGON2_PREHASH_SEED_LENGTH];
     int result = MTP_ARGON2_OK;
 
@@ -698,7 +698,7 @@ int initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context) {
     instance->context_ptr = context;
 
     /* 1. Memory allocation */
-    result = allocate_memory(context, (uint8_t **)&(instance->memory),
+    result = mtp_allocate_memory(context, (uint8_t **)&(instance->memory),
                              instance->memory_argon_blocks, sizeof(argon_block));
     if (result != MTP_ARGON2_OK) {
         return result;
@@ -708,7 +708,7 @@ int initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context) {
     /* H_0 + 8 extra bytes to produce the first argon_blocks */
     /* uint8_t argon_blockhash[MTP_ARGON2_PREHASH_SEED_LENGTH]; */
     /* Hashing all inputs */
-    initial_hash(argon_blockhash, context, instance->type);
+    mtp_initial_hash(argon_blockhash, context, instance->type);
     /* Zeroing 8 extra bytes */
     clear_internal_memory(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH,
                           MTP_ARGON2_PREHASH_SEED_LENGTH -
@@ -723,7 +723,7 @@ int initialize(mtp_argon2_instance_t *instance, mtp_argon2_context *context) {
 
     /* 3. Creating first argon_blocks, we always have at least two argon_blocks in a slice
      */
-    fill_first_argon_blocks(argon_blockhash, instance);
+    mtp_fill_first_argon_blocks(argon_blockhash, instance);
     /* Clearing the hash */
     clear_internal_memory(argon_blockhash, MTP_ARGON2_PREHASH_SEED_LENGTH);
 

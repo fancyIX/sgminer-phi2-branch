@@ -31,7 +31,7 @@
 *
 * on success, MTP_ARGON2_OK is returned.
 */
-int encode_string(char *dst, size_t dst_len, mtp_argon2_context *ctx,
+int mtp_encode_string(char *dst, size_t dst_len, mtp_argon2_context *ctx,
                   mtp_argon2_type type);
 
 /*
@@ -46,7 +46,7 @@ int encode_string(char *dst, size_t dst_len, mtp_argon2_context *ctx,
 *
 * Returned value is MTP_ARGON2_OK on success, other MTP_ARGON2_ codes on error.
 */
-int decode_string(mtp_argon2_context *ctx, const char *str, mtp_argon2_type type);
+int mtp_decode_string(mtp_argon2_context *ctx, const char *str, mtp_argon2_type type);
 
 /* Returns the length of the encoded byte stream with length len */
 size_t mtp_b64len(uint32_t len);

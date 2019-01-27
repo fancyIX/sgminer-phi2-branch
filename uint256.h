@@ -5,6 +5,8 @@
 #ifndef BITCOIN_UINT256_H
 #define BITCOIN_UINT256_H
 
+#ifdef __cplusplus
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -1001,6 +1003,12 @@ inline int Testuint256AdHoc(std::vector<std::string> vArg)
     return (0);
 }
 
+#endif
+
+#else
+  typedef
+    struct uint256
+      uint256;
 #endif
 
 #endif

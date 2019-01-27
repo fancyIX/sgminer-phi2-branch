@@ -49,6 +49,7 @@ AM_MAINTAINER_MODE
 
 dnl Checks for programs
 AC_PROG_CC
+AC_PROG_CXX
 gl_EARLY
 AC_PROG_GCC_TRADITIONAL
 AM_PROG_CC_C_O
@@ -254,7 +255,7 @@ AM_CONDITIONAL([HAVE_WINDOWS], [test x$have_win32 = xtrue])
 AM_CONDITIONAL([HAVE_x86_64], [test x$have_x86_64 = xtrue])
 
 AC_CONFIG_SUBDIRS([submodules/jansson])
-JANSSON_LIBS="submodules/jansson/src/.libs/libjansson.a"
+JANSSON_LIBS="submodules/jansson/src/.libs/libbosjansson.a"
 
 PKG_PROG_PKG_CONFIG()
 

@@ -1762,6 +1762,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 			int TED = 0;
 			for (int i = 0; i< total_devices;i++)
 					if (devices_enabled[i]) TED++;
+      if (TED == 0) TED++;
 			
 			buffer->nDevs = TED;
 			buffer->MaxNonce = 0xFFFFFFFF/TED;
@@ -1775,7 +1776,8 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 
 	//		free_memory(&mtp->context, (unsigned char *)mtp->instance.memory, mtp->instance.memory_argon_blocks, sizeof(argon_block));
 
-			mtp->ordered_tree->Destructor();
+			//mtp->ordered_tree->Destructor();
+      call_MerkleTree_Destructor(mtp->ordered_tree);
 			free(mtp->dx);
 	//		delete  mtp->ordered_tree;
 			clReleaseMemObject(buffer->hblock);
@@ -1952,20 +1954,22 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 		size_t mtp_tree_size = 2 * 1048576 * 4 * sizeof(uint64_t);
 		clEnqueueReadBuffer(clState->commandQueue, buffer->tree, CL_TRUE, 0, mtp_tree_size, mtp->dx, 0, NULL, NULL);
 //		printf("Step 2 : Compute the root Φ of the Merkle hash tree \n");
-		mtp->ordered_tree = new MerkleTree(mtp->dx, true);
+		// mtp->ordered_tree = new MerkleTree(mtp->dx, true);
+    mtp->ordered_tree = call_new_MerkleTree(mtp->dx, true);
 
 //		JobId[thr_id] = work->data[17];
 //		XtraNonce2[thr_id] = ((uint64_t*)work->xnonce2)[0];
 		blk->work->prev_job_id = blk->work->job_id;
 		pool->swork.prev_job_id = pool->swork.job_id;
 		buffer->prev_job_id = pool->swork.job_id;
-		MerkleTree::Buffer root = mtp->ordered_tree->getRoot();
-		std::copy(root.begin(), root.end(), mtp->TheMerkleRoot);
+		//MerkleTree::Buffer root = mtp->ordered_tree->getRoot();
+		//std::copy(root.begin(), root.end(), mtp->TheMerkleRoot);
 
 //		mtp_setBlockTarget(thr_id, endiandata, ptarget, &TheMerkleRoot[thr_id]);
 //		printf("merkleroot %08x %08x %08x %08x \n", ((uint32_t*)mtp->TheMerkleRoot)[0], ((uint32_t*)mtp->TheMerkleRoot)[1], ((uint32_t*)mtp->TheMerkleRoot)[2], ((uint32_t*)mtp->TheMerkleRoot)[3]);
 //		clFinish(clState->commandQueue);
-		root.resize(0);
+		//root.resize(0);
+    call_MerkleTree_getRoot(mtp->ordered_tree, mtp->TheMerkleRoot);
 	}
 
 
@@ -2006,8 +2010,8 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 	status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_FALSE, 0, buffersize, Solution, 0, NULL, NULL);
 	buffer->StartNonce += rawint;
 	if (Solution[0xff]) {
-		uint256 TheUint256Target[1];
-		TheUint256Target[0] = ((uint256*)ptarget)[0];
+		//uint256 TheUint256Target[1];
+		//TheUint256Target[0] = ((uint256*)ptarget)[0];
 		unsigned char mtpHashValue[32];
 		argon_blockS nBlockMTP[MTP_L * 2] = { 0 };
 		unsigned char nProofMTP[MTP_L * 3 * 353] = { 0 };
@@ -2015,8 +2019,8 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 
 		
 
-		uint32_t is_sol = mtp_solver(0, clState->commandQueue, buffer->hblock, buffer->hblock2, Solution[0],
-		&mtp->instance, nBlockMTP, nProofMTP, mtp->TheMerkleRoot, mtpHashValue, *mtp->ordered_tree, endiandata, TheUint256Target[0]);
+		uint32_t is_sol = mtp_solver_c(0, clState->commandQueue, buffer->hblock, buffer->hblock2, Solution[0],
+		&mtp->instance, nBlockMTP, nProofMTP, mtp->TheMerkleRoot, mtpHashValue, mtp->ordered_tree, endiandata, (uint256*)ptarget);
 		if (is_sol==1) {
 		memcpy(blk->work->mtpPOW.MerkleRoot, mtp->TheMerkleRoot,16);
 		for (int j = 0; j<(MTP_L * 2); j++)
@@ -2027,8 +2031,8 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 		blk->work->mtpPOW.TheNonce = Solution[0];
 		((uint32_t*)blk->work->data)[19] = Solution[0];
 //			printf("*************************************************************************************Found a solution\n");
-		} else 
-			printf("*************************************************************************************Not a solution\n");
+		} //else 
+			//printf("*************************************************************************************Not a solution\n");
 
 	}
 //printf("after mtp_yloop\n");

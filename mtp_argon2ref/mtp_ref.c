@@ -186,7 +186,7 @@ static void next_addresses(argon_block *address_argon_block, argon_block *input_
     fill_argon_block(zero_argon_block, address_argon_block, address_argon_block, 0, argon_block_header);
 }
 
-void fill_segment(const mtp_argon2_instance_t *instance,
+void mtp_fill_segment(const mtp_argon2_instance_t *instance,
                   mtp_argon2_position_t position) {
     argon_block *ref_argon_block = NULL, *curr_argon_block = NULL;
 	uint32_t *zPrevargon_block = NULL, *zRefargon_block = NULL;

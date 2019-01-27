@@ -83,7 +83,7 @@ int mtp_argon2_ctx(mtp_argon2_context *context, mtp_argon2_type type) {
     }
 
     /* 4. Filling memory */
-    result = fill_memory_argon_blocks(&instance);
+    result = mtp_fill_memory_argon_blocks(&instance);
  
     if (MTP_ARGON2_OK != result) {
         return result;
@@ -222,7 +222,7 @@ int mtp_argon2_hash(const uint32_t t_cost, const uint32_t m_cost,
 
     /* if encoding requested, write it */
     if (encoded && encodedlen) {
-        if (encode_string(encoded, encodedlen, &context, type) != MTP_ARGON2_OK) {
+        if (mtp_encode_string(encoded, encodedlen, &context, type) != MTP_ARGON2_OK) {
             mtp_clear_internal_memory(out, hashlen); /* wipe buffers if error */
             mtp_clear_internal_memory(encoded, encodedlen);
             free(out);
@@ -345,7 +345,7 @@ int mtp_argon2_verify(const char *encoded, const void *pwd, const size_t pwdlen,
     ctx.pwd = (uint8_t *)pwd;
     ctx.pwdlen = (uint32_t)pwdlen;
 
-    ret = decode_string(&ctx, encoded, type);
+    ret = mtp_decode_string(&ctx, encoded, type);
     if (ret != MTP_ARGON2_OK) {
         goto fail;
     }

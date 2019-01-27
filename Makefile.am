@@ -95,6 +95,9 @@ sgminer_SOURCES += algorithm/x22i.c algorithm/x22i.h
 sgminer_SOURCES += algorithm/ethash.c algorithm/ethgencache.c algorithm/ethash.h algorithm/eth-sha3.c algorithm/eth-sha3.h
 sgminer_SOURCES += algorithm/argon2d/argon2ref/blake2/blake2b.c  algorithm/argon2d/argon2ref/argon2.c  algorithm/argon2d/argon2ref/core.c algorithm/argon2d/argon2ref/opt.c  algorithm/argon2d/argon2ref/thread.c algorithm/argon2d/argon2ref/encoding.c algorithm/argon2d/argon2ref/argon2.h
 sgminer_SOURCES += algorithm/argon2d/argon2d.c algorithm/argon2d/argon2d.h
+sgminer_SOURCES += mtp_argon2ref/mtp_argon2.c mtp_argon2ref/mtp_blake2ba.c mtp_argon2ref/mtp_core.c mtp_argon2ref/mtp_encoding.c mtp_argon2ref/mtp_ref.c mtp_argon2ref/mtp_thread.c mtp_argon2ref/mtp_argon2.h mtp_argon2ref/mtp_blake2-impl.h mtp_argon2ref/mtp_blake2.h mtp_argon2ref/mtp_blake2b-load-sse2.h mtp_argon2ref/mtp_blake2b-load-sse41.h mtp_argon2ref/mtp_blake2b-round.h mtp_argon2ref/mtp_blamka-round-opt.h mtp_argon2ref/mtp_blamka-round-ref.h mtp_argon2ref/mtp_core.h mtp_argon2ref/mtp_encoding.h mtp_argon2ref/mtp_thread.h
+sgminer_SOURCES += algorithm/mtp_algo.c algorithm/mtp_algo.h
+sgminer_SOURCES += merkletree/merkle-tree.cpp merkletree/mtp.cpp merkletree/merkle-tree.hpp merkletree/mtp.h
 
 bin_SCRIPTS	= $(top_srcdir)/kernel/*.cl
 

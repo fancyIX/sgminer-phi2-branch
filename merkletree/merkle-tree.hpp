@@ -1,6 +1,7 @@
 #ifndef MERKLE_TREE_HPP_
 #define MERKLE_TREE_HPP_
 
+#ifdef __cplusplus
 extern "C" {
 #include <stdint.h>
 }
@@ -263,5 +264,26 @@ private :
 	/** Converts a list of hashes into a formated hexadecimal string */
 	void  elementsToFormatHex(const Elements& elements, char* TheChar);
 };
+
+#else
+  typedef
+    struct MerkleTree
+      MerkleTree;
+#endif
+
+#ifdef __cplusplus
+extern "C"
+#endif
+void call_MerkleTree_Destructor(MerkleTree* mt);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+MerkleTree *call_new_MerkleTree(uint8_t* elements, bool preserveOrder);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+void call_MerkleTree_getRoot(MerkleTree* mt, unsigned char *TheMerkleRoot);
 
 #endif // MERKLE_TREE_HPP_

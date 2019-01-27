@@ -550,14 +550,14 @@ typedef struct _gpu_sysfs_info {
   uint8_t pcie_index[3];
 } gpu_sysfs_info;
 
-struct mtp {
+typedef struct mtp {
 	int MTPVersion;
 	unsigned char MerkleRoot[16];
 	unsigned char mtpHashValue[32];
 	uint64_t nBlockMTP[MTP_L * 2][128];
 	unsigned char nProofMTP[MTP_L * 3 * 353];
 	uint32_t TheNonce;
-};
+} mtp;
 
 struct _mtp_gpu_t;
 typedef struct _mtp_cache_t {
