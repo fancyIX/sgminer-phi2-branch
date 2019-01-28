@@ -64,6 +64,7 @@
 
 const char *algorithm_type_str[] = {
   "mtp",
+  "mtp_vega",
   "Unknown",
   "Allium",
   "Credits",
@@ -2218,6 +2219,7 @@ static algorithm_settings_t algos[] = {
   { "lyra2h"   , ALGO_LYRA2H   , "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, -1, 0, lyra2h_regenhash,  blake256_midstate, blake256_prepare_work, queue_lyra2h_kernel, gen_hash, NULL },
   { "allium", ALGO_ALLIUM, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 2 * 8 * 4194304, 0, allium_regenhash, blake256_midstate, blake256_prepare_work, queue_allium_kernel, gen_hash, NULL },
   { "mtp"   , ALGO_MTP   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, 0,0, mtp_regenhash   , NULL, NULL, queue_mtp_kernel   , gen_hash, NULL },
+  { "mtp_vega"   , ALGO_MTP   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, 0,0, mtp_regenhash   , NULL, NULL, queue_mtp_kernel   , gen_hash, NULL },
 
   // kernels starting from this will have difficulty calculated by using fuguecoin algorithm
 #define A_FUGUE(a, b, c) \

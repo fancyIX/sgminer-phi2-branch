@@ -1354,8 +1354,9 @@ static bool opencl_thread_init(struct thr_info *thr)
     return false;
   }
 
-  status |= clEnqueueWriteBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0,
-    buffersize, blank_res, 0, NULL, NULL);
+  if (clState != NULL)
+    status |= clEnqueueWriteBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0,
+      buffersize, blank_res, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
     free(thrdata->res);
     free(thrdata);
