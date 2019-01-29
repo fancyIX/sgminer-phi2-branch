@@ -754,11 +754,15 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 
 			nProofMTP[(j * 3 - 3) * 353] = (unsigned char)(zProofMTP.size());
 
-			int k1 = 0;
+			/* int k1 = 0;
 			for (const std::vector<uint8_t> &mtpData : zProofMTP) {
 				std::copy(mtpData.begin(), mtpData.end(), nProofMTP + ((j * 3 - 3) * 353 + 1 + k1 * mtpData.size()));
 				k1++;
-			}
+			}*/
+                        for (int k1 = 0; k1 < zProofMTP.size(); k1++) {
+                            const std::vector<uint8_t> &mtpData = zProofMTP[k1];
+                            std::copy(mtpData.begin(), mtpData.end(), nProofMTP + ((j * 3 - 3) * 353 + 1 + k1 * mtpData.size()));
+                        }
 
 			//prev proof
 			unsigned char prev[32] = { 0 };
@@ -784,11 +788,15 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 
 			nProofMTP[(j * 3 - 2) * 353] = (unsigned char)(zProofMTP2.size());
 
-			int k2 = 0;
+			/* int k2 = 0;
 			for (const std::vector<uint8_t> &mtpData : zProofMTP2) {
 				std::copy(mtpData.begin(), mtpData.end(), nProofMTP + ((j * 3 - 2) * 353 + 1 + k2 * mtpData.size()));
 				k2++;
-			}
+			} */
+                        for (int k1 = 0; k1 < zProofMTP2.size(); k1++) {
+                            const std::vector<uint8_t> &mtpData = zProofMTP2[k1];
+                            std::copy(mtpData.begin(), mtpData.end(), nProofMTP + ((j * 3 - 2) * 353 + 1 + k1 * mtpData.size()));
+                        }
 
 
 			//ref proof
@@ -811,11 +819,16 @@ int mtp_solver(int thr_id, cl_command_queue Queue, cl_mem clblock, cl_mem clbloc
 
 			nProofMTP[(j * 3 - 1) * 353] = (unsigned char)(zProofMTP3.size());
 
-			int k3 = 0;
+			/* int k3 = 0;
 			for (const std::vector<uint8_t> &mtpData : zProofMTP3) {
 				std::copy(mtpData.begin(), mtpData.end(), nProofMTP + ((j * 3 - 1) * 353 + 1 + k3 * mtpData.size()));
 				k3++;
-			}
+			}*/
+                        for (int k1 = 0; k1 < zProofMTP3.size(); k1++) {
+                            const std::vector<uint8_t> &mtpData = zProofMTP3[k1];
+                            std::copy(mtpData.begin(), mtpData.end(), nProofMTP + ((j * 3 - 1) * 353 + 1 + k1 * mtpData.size()));
+                        }
+
 
 
 			/////////////////////////////////////////////////////////////////////
