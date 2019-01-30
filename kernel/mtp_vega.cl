@@ -621,7 +621,7 @@ __global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce,  uint
 	uint32_t NonceIterator = get_global_id(0);
 	int lane = get_local_id(0) % 32;
 	int warp = get_local_id(0) / 32;;//warp_id();
-	__local  ulong2 far[TPB_MTP/ 32][8 * (32 + SHR_OFF)];
+	__local  ulong2 far[TPB_MTP/ 32][32 * (32 + SHR_OFF)];
 	 uint32_t farIndex;
 	const uint32_t half_memcost = 2 * 1024 * 1024;
 	 const uint64_t lblakeFinal[8] =

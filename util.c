@@ -1687,8 +1687,8 @@ char *recv_line_bos(struct pool *pool)
 	char *tok, *sret = NULL;
 	ssize_t len, buflen;
 	int waited = 0;
-	json_t *MyObject2 = json_object();
-	json_t *MyObject = json_object();
+	json_t *MyObject2 = NULL;
+	json_t *MyObject = NULL;
 	uint32_t bossize = 0;
 
 	bool istarget = false;
@@ -1753,7 +1753,8 @@ char *recv_line_bos(struct pool *pool)
 			printf("missing something in message \n");
 		else
 			MyObject2 = bos_deserialize(pool->sockbuf, boserror);
-			MyObject = recode_message(MyObject2);
+		MyObject = recode_message(MyObject2);
+    json_decref(MyObject2);
 
 	if (bos_sizeof(pool->sockbuf)<pool->sockbuf_bossize) {
 		uint32_t totsize = pool->sockbuf_bossize;
@@ -2639,15 +2640,17 @@ bool auth_stratum_bos(struct pool *pool)
 	json_error_t *boserror = (json_error_t *)malloc(sizeof(json_error_t));
 	bos_t *serialized = bos_serialize(MyObject, boserror);
 	
-	if (!stratum_send_bos(pool, (char*)serialized->data, serialized->size))
-									return ret;
-	
+	if (!stratum_send_bos(pool, (char*)serialized->data, serialized->size)) {
+    bos_free(serialized);
+    return ret;
+  }
 
 	/* Parse all data in the queue and anything left should be auth */
 	while (42) {
 		sret = recv_line_bos(pool);
 
 		if (!sret) {
+      bos_free(serialized);
 			return ret;
 		}
 		else if (parse_method(pool, sret)) {
@@ -2688,6 +2691,7 @@ bool auth_stratum_bos(struct pool *pool)
 
 out:
 	json_decref(val);
+  bos_free(serialized);
 	return ret;
 }
 
@@ -3446,6 +3450,7 @@ out:
 		}
 	}
 
+  bos_free(serialized);
 	json_decref(val);
 	return ret;
 }

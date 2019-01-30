@@ -5965,7 +5965,7 @@ static void *stratum_sthread_bos(void *userdata)
 
 
 	bos_t *serialized;
-	json_t *MyObject = json_object();
+	json_t *MyObject;
 	uint32_t SizeMerkleRoot = 16;
 	uint32_t SizeReserved = 64;
 	uint32_t SizeMtpHash = 32;
@@ -6027,6 +6027,7 @@ static void *stratum_sthread_bos(void *userdata)
 			unsigned char* hexjob_id = (unsigned char*)malloc(4);
 			hex2bin(hexjob_id, work->job_id, 8);
 
+      MyObject = json_object();
 			json_t *json_arr = json_array();
 			json_object_set_new(MyObject, "id", json_integer(4));
 			json_object_set_new(MyObject, "method", json_string("mining.submit"));
@@ -6116,17 +6117,16 @@ static void *stratum_sthread_bos(void *userdata)
 			pool->stale_shares++;
 			total_stale++;
 		}
+    if(MyObject!=NULL)
+		  json_decref(MyObject);
+	  if (serialized!=NULL)
+		  bos_free(serialized);
 	}
 
 	/* Freeze the work queue but don't free up its memory in case there is
 	* work still trying to be submitted to the removed pool. */
 	tq_freeze(pool->stratum_q);
 	
-	if(MyObject!=NULL)
-		json_decref(MyObject);
-	if (free!=NULL)
-		free(serialized);
-
 	return NULL;
 }
 
