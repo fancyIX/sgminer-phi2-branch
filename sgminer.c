@@ -6044,10 +6044,8 @@ static void *stratum_sthread_bos(void *userdata)
 
 			json_object_set_new(MyObject, "params", json_arr);
 
-			json_error_t *boserror = (json_error_t *)malloc(sizeof(json_error_t));
-			bos_t *serialized = bos_serialize(MyObject, boserror);
-
-			free(boserror);
+			json_error_t boserror;
+			bos_t *serialized = bos_serialize(MyObject, &boserror);
 
 
 

@@ -1744,15 +1744,15 @@ char *recv_line_bos(struct pool *pool)
 
 	len = pool->sockbuf_bossize;
 
-		json_error_t *boserror = (json_error_t *)malloc(sizeof(json_error_t));
+		json_error_t boserror;
 		if (bos_sizeof(pool->sockbuf) < pool->sockbuf_bossize) {
 			//				MyObject2 = bos_deserialize(s + bos_sizeof(s), boserror);
-			MyObject2 = bos_deserialize(pool->sockbuf, boserror);
+			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
 		}
 		else if (bos_sizeof(pool->sockbuf) > pool->sockbuf_bossize)
 			printf("missing something in message \n");
 		else
-			MyObject2 = bos_deserialize(pool->sockbuf, boserror);
+			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
 		MyObject = recode_message(MyObject2);
     json_decref(MyObject2);
 
@@ -2637,8 +2637,8 @@ bool auth_stratum_bos(struct pool *pool)
 	json_array_append(json_arr, json_string(pool->rpc_user));
 	json_array_append(json_arr, json_string(pool->rpc_pass));
 
-	json_error_t *boserror = (json_error_t *)malloc(sizeof(json_error_t));
-	bos_t *serialized = bos_serialize(MyObject, boserror);
+	json_error_t boserror;
+	bos_t *serialized = bos_serialize(MyObject, &boserror);
 	
 	if (!stratum_send_bos(pool, (char*)serialized->data, serialized->size)) {
     bos_free(serialized);
@@ -3318,8 +3318,8 @@ resend:
 	} else 
 		clear_sock(pool);
 
-	json_error_t *boserror = (json_error_t *)malloc(sizeof(json_error_t));
-	bos_t *serialized = bos_serialize(MyObject, boserror);
+	json_error_t boserror;
+	bos_t *serialized = bos_serialize(MyObject, &boserror);
 
 	if (__stratum_send_bos(pool, (char*)serialized->data, serialized->size) != SEND_OK) {
 	
