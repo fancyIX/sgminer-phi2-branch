@@ -6029,7 +6029,7 @@ static void *stratum_sthread_bos(void *userdata)
 
       MyObject = json_object();
 			json_t *json_arr = json_array();
-			json_object_set_new(MyObject, "id", json_integer(4));
+			json_object_set_new(MyObject, "id", json_integer(sshare->id));
 			json_object_set_new(MyObject, "method", json_string("mining.submit"));
 
 			json_array_append(json_arr, json_string(pool->rpc_user));

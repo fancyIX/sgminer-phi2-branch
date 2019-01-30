@@ -1754,7 +1754,7 @@ char *recv_line_bos(struct pool *pool)
 		else
 			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
 		MyObject = recode_message(MyObject2);
-    json_decref(MyObject2);
+    //json_decref(MyObject2);
 
 	if (bos_sizeof(pool->sockbuf)<pool->sockbuf_bossize) {
 		uint32_t totsize = pool->sockbuf_bossize;
@@ -2631,7 +2631,7 @@ bool auth_stratum_bos(struct pool *pool)
 
 	json_t *MyObject = json_object();
 	json_t *json_arr = json_array();
-	json_object_set_new(MyObject, "id", json_integer(2));
+	json_object_set_new(MyObject, "id", json_integer(swork_id++));
 	json_object_set_new(MyObject, "method", json_string("mining.authorize"));
 	json_object_set_new(MyObject, "params", json_arr);
 	json_array_append(json_arr, json_string(pool->rpc_user));
@@ -3308,7 +3308,7 @@ resend:
 
 	sockd = true;
 
-	json_object_set_new(MyObject, "id", json_integer(1));
+	json_object_set_new(MyObject, "id", json_integer(swork_id++));
 	json_object_set_new(MyObject, "method", json_string("mining.subscribe"));
 	json_object_set_new(MyObject, "params", json_arr);
 	if (!recvd) {
