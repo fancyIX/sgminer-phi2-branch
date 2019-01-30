@@ -6024,7 +6024,7 @@ static void *stratum_sthread_bos(void *userdata)
 			sshare->id = swork_id++;
 			mutex_unlock(&sshare_lock);
 
-			unsigned char* hexjob_id = (unsigned char*)malloc(4);
+			unsigned char hexjob_id[4];
 			hex2bin(hexjob_id, work->job_id, 8);
 
       MyObject = json_object();
