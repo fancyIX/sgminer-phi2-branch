@@ -1673,7 +1673,7 @@ json_t* recode_message(json_t *MyObject2)
 				}
 
 			}
-			json_decref(value2);
+			// json_decref(value2);
 		}
 	}
 	return MyObject;
