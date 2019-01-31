@@ -1773,8 +1773,8 @@ char *recv_line_bos(struct pool *pool)
 	pool->sgminer_pool_stats.bytes_received += len;
 	pool->sgminer_pool_stats.net_bytes_received += len;
 out:
-//	if (!sret)
-//		clear_sock(pool);
+	if (MyObject==NULL)
+			clear_sock(pool);
 	if (opt_protocol)
 		applog(LOG_DEBUG, "RECVD: %s", json_dumps(MyObject, 0));
 	char *ret = json_dumps(MyObject, 0);

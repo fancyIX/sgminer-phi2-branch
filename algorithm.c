@@ -1776,7 +1776,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 		if (buffer->prev_job_id!=NULL) {
 
 	//		free_memory(&mtp->context, (unsigned char *)mtp->instance.memory, mtp->instance.memory_argon_blocks, sizeof(argon_block));
-
+      free(mtp->instance.memory);
 			//mtp->ordered_tree->Destructor();
       call_MerkleTree_Destructor(mtp->ordered_tree);
 			free(mtp->dx);
@@ -2023,13 +2023,13 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 		uint32_t is_sol = mtp_solver_c(0, clState->commandQueue, buffer->hblock, buffer->hblock2, Solution[0],
 		&mtp->instance, nBlockMTP, nProofMTP, mtp->TheMerkleRoot, mtpHashValue, mtp->ordered_tree, endiandata, (uint256*)ptarget);
 		if (is_sol==1) {
-		memcpy(blk->work->mtpPOW.MerkleRoot, mtp->TheMerkleRoot,16);
+		memcpy(pool->mtp_cache.mtpPOW.MerkleRoot, mtp->TheMerkleRoot,16);
 		for (int j = 0; j<(MTP_L * 2); j++)
 			for (int i = 0; i<128; i++)
-				blk->work->mtpPOW.nBlockMTP[j][i] = nBlockMTP[j].v[i];
+				pool->mtp_cache.mtpPOW.nBlockMTP[j][i] = nBlockMTP[j].v[i];
 
-		memcpy(blk->work->mtpPOW.nProofMTP, nProofMTP, sizeof(unsigned char)* MTP_L * 3 * 353);
-		blk->work->mtpPOW.TheNonce = Solution[0];
+		memcpy(pool->mtp_cache.mtpPOW.nProofMTP, nProofMTP, sizeof(unsigned char)* MTP_L * 3 * 353);
+		pool->mtp_cache.mtpPOW.TheNonce = Solution[0];
 		((uint32_t*)blk->work->data)[19] = Solution[0];
 //			printf("*************************************************************************************Found a solution\n");
 		}else {

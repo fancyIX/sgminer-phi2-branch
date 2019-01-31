@@ -6009,12 +6009,12 @@ static void *stratum_sthread_bos(void *userdata)
 			applog(LOG_DEBUG, "stratum_sthread_bos() algorithm = %s", pool->algorithm.name);
 
 			unsigned char TheMerkle[16];
-			memcpy(TheMerkle, work->mtpPOW.MerkleRoot, 16);
+			memcpy(TheMerkle, pool->mtp_cache.mtpPOW.MerkleRoot, 16);
 			applog(LOG_DEBUG, "stratum_sthread_bos THE MERKLE ROOT %08x %08x %08x %08x", ((uint32_t*)TheMerkle)[0], ((uint32_t*)TheMerkle)[1]
 				, ((uint32_t*)TheMerkle)[2], ((uint32_t*)TheMerkle)[3]);
 
 				ntime = htole32(((uint32_t*)work->data)[17]);
-				nonce = htole32(work->mtpPOW.TheNonce);
+				nonce = htole32(pool->mtp_cache.mtpPOW.TheNonce);
 			//	nonce = htole32(((uint32_t*)work->data)[19]);
 			*((uint64_t *)nonce2) = htole64(work->nonce2);
 			applog(LOG_DEBUG, "stratum_sthread_bos THE NONCE %08x ", nonce);
@@ -6039,9 +6039,9 @@ static void *stratum_sthread_bos(void *userdata)
 			json_array_append(json_arr, json_bytes((unsigned char*)&work->nonce2, sizeof(uint64_t*)));
 			json_array_append(json_arr, json_bytes((unsigned char*)&ntime, sizeof(uint32_t)));
 			json_array_append(json_arr, json_bytes((unsigned char*)&nonce, sizeof(uint32_t)));
-			json_array_append(json_arr, json_bytes(work->mtpPOW.MerkleRoot, SizeMerkleRoot));
-			json_array_append(json_arr, json_bytes((unsigned char*)work->mtpPOW.nBlockMTP, SizeBlockMTP));
-			json_array_append(json_arr, json_bytes(work->mtpPOW.nProofMTP, SizeProofMTP));
+			json_array_append(json_arr, json_bytes(pool->mtp_cache.mtpPOW.MerkleRoot, SizeMerkleRoot));
+			json_array_append(json_arr, json_bytes((unsigned char*)pool->mtp_cache.mtpPOW.nBlockMTP, SizeBlockMTP));
+			json_array_append(json_arr, json_bytes(pool->mtp_cache.mtpPOW.nProofMTP, SizeProofMTP));
 
 			json_error_t boserror;
 			bos_t *serialized = bos_serialize(MyObject, &boserror);
@@ -6062,6 +6062,8 @@ static void *stratum_sthread_bos(void *userdata)
 			mutex_lock(&sshare_lock);
 			if (likely(stratum_send_bos(pool, (char*)serialized->data, serialized->size))) {
 				int ssdiff;
+        if (serialized != NULL)
+					bos_free(serialized);
 
 				if (pool_tclear(pool, &pool->submit_fail))
 					applog(LOG_WARNING, "%s communication resumed, submitting work", get_pool_name(pool));
@@ -7789,15 +7791,11 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
-	unsigned char TheMerkle[16];
-  memcpy(TheMerkle,work->mtpPOW.MerkleRoot,16);
-	applog(LOG_DEBUG, "THE MERKLE ROOT %08x %08x %08x %08x", ((uint32_t*)TheMerkle)[0], ((uint32_t*)TheMerkle)[1]
-		, ((uint32_t*)TheMerkle)[2], ((uint32_t*)TheMerkle)[3]);
 
   if (work->pool->algorithm.type == ALGO_MTP) {
-    struct work *work_out;
+    struct work *work_out = make_work();
     update_work_stats(thr, work);
-    work_out = copy_work(work);
+    _copy_work(work_out, work, 0);
     submit_work_async(work_out);
     return true;
   }

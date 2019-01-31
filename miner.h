@@ -580,7 +580,7 @@ typedef struct _mtp_gpu_t {
 	cl_mem blockheader;
     cl_mem tree; // dx
 	cl_mem root;
-	struct pool *pool;
+	// struct pool *pool;
 	mtp_cache_t mtp_cache;
 	uint32_t nDevs;
 	uint32_t StartNonce;
@@ -1624,7 +1624,7 @@ struct work {
   uint32_t eth_epoch;
   uint64_t Nonce;
 
-  mtp mtpPOW;
+  // mtp mtpPOW;
 
   int   rolls;
   int   drv_rolllimit; /* How much the driver can roll ntime */
