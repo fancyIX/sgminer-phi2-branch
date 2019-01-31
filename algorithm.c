@@ -2043,6 +2043,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 //printf("after mtp_yloop\n");
 //	if (status != CL_SUCCESS)
 //		cg_runlock(&dag->lock);
+        if (Solution) free(Solution);
 	return status;
 }
 

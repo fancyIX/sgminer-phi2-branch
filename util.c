@@ -1588,34 +1588,34 @@ json_t* recode_message(json_t *MyObject2)
 	bool istarget = false;
 	const char *key;
 	json_t *value;
+        void *tmp;
 	json_t *MyObject = json_object();
-	json_object_foreach(MyObject2, key, value) {
-
+	json_object_foreach_safe(MyObject2, tmp, key, value) {
+/*
 		if (!strcmp(key, "method"))
 			if (!strcmp(json_string_value(value), "mining.set_target") ||
 				!strcmp(json_string_value(value), "mining.notify")
 				) {
 				istarget = false;
 			}
-
+*/
 
 		if (json_is_null(value))
-			json_object_set_new(MyObject, key, value);
+			json_object_set(MyObject, key, json_null());
 
 		if (json_is_string(value))
-			json_object_set_new(MyObject, key, value);
+			json_object_set(MyObject, key, json_string(json_string_value(value)));
 		if (json_is_integer(value))
-			json_object_set_new(MyObject, key, value);
+			json_object_set(MyObject, key, json_integer(json_integer_value(value)));
 
 		if (json_is_boolean(value))
-			json_object_set_new(MyObject, key, value);
+			json_object_set(MyObject, key, json_boolean(json_boolean_value(value)));
 
 		if (json_is_array(value)) {
 			json_t *json_arr = json_array();
 			json_object_set_new(MyObject, key, json_arr);
 			size_t index;
 			json_t *value2 = NULL;
-
 			json_array_foreach(value, index, value2) {
 
 				if (!istarget) {
@@ -1633,14 +1633,14 @@ json_t* recode_message(json_t *MyObject2)
 				}
 				else {
 					if (json_is_bytes(value2)) {
-						json_array_append(json_arr, value2);
+						json_array_append(json_arr, json_bytes(json_bytes_value(value2), json_bytes_size(value2)));
 					}
 				}
 				if (json_is_string(value2)) {
-					json_array_append(json_arr, value2);
+					json_array_append(json_arr, json_string(json_string_value(value2)));
 				}
 				if (json_is_boolean(value2)) {
-					json_array_append(json_arr, value2);
+					json_array_append(json_arr, json_boolean(json_boolean_value(value2)));
 				}
 				if (json_is_array(value2)) {
 					size_t index2;
@@ -1665,7 +1665,7 @@ json_t* recode_message(json_t *MyObject2)
 						}
 						else {
 							if (json_is_bytes(value3))
-								json_array_append(json_arr2, value3);
+								json_array_append(json_arr2, json_bytes(json_bytes_value(value3), json_bytes_size(value3)));
 						}
 					}
 					//							json_t *json_arr2 = json_array();
@@ -1750,11 +1750,11 @@ char *recv_line_bos(struct pool *pool)
 			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
 		}
 		else if (bos_sizeof(pool->sockbuf) > pool->sockbuf_bossize)
-			printf("missing something in message \n");
+			applog(LOG_ERR, "missing something in message \n");
 		else
 			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
-		MyObject = recode_message(MyObject2);
-    //json_decref(MyObject2);
+		  MyObject = recode_message(MyObject2);
+      if (MyObject2) json_decref(MyObject2);
 
 	if (bos_sizeof(pool->sockbuf)<pool->sockbuf_bossize) {
 		uint32_t totsize = pool->sockbuf_bossize;
@@ -1777,7 +1777,10 @@ out:
 //		clear_sock(pool);
 	if (opt_protocol)
 		applog(LOG_DEBUG, "RECVD: %s", json_dumps(MyObject, 0));
-	return json_dumps(MyObject, 0);
+	char *ret = json_dumps(MyObject, 0);
+        if (MyObject) json_decref(MyObject);
+        
+        return ret;
 }
 
 /* Extracts a string value from a json array with error checking. To be used
@@ -2640,6 +2643,7 @@ bool auth_stratum_bos(struct pool *pool)
 	json_error_t boserror;
 	bos_t *serialized = bos_serialize(MyObject, &boserror);
 	
+  json_decref(MyObject);
 	if (!stratum_send_bos(pool, (char*)serialized->data, serialized->size)) {
     bos_free(serialized);
     return ret;
@@ -3296,8 +3300,8 @@ bool initiate_stratum_bos(struct pool *pool)
 	json_t *val = NULL, *res_val, *err_val;
 	json_error_t err;
 	int n2size;
-	json_t *MyObject = json_object();
-	json_t *json_arr = json_array();
+	json_t *MyObject;
+	json_t *json_arr;
 resend:
 	if (!setup_stratum_socket(pool)) {
 		/* FIXME: change to LOG_DEBUG when issue #88 resolved */
@@ -3307,7 +3311,8 @@ resend:
 	}
 
 	sockd = true;
-
+  MyObject = json_object();
+	json_arr = json_array();
 	json_object_set_new(MyObject, "id", json_integer(swork_id++));
 	json_object_set_new(MyObject, "method", json_string("mining.subscribe"));
 	json_object_set_new(MyObject, "params", json_arr);
@@ -3320,6 +3325,8 @@ resend:
 
 	json_error_t boserror;
 	bos_t *serialized = bos_serialize(MyObject, &boserror);
+
+  json_decref(MyObject);
 
 	if (__stratum_send_bos(pool, (char*)serialized->data, serialized->size) != SEND_OK) {
 	
