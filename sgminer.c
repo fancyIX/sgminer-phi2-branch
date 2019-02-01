@@ -41,7 +41,7 @@
 #include <windows.h>
 #endif
 #include <ccan/opt/opt.h>
-#include <jansson.h>
+#include <bosjansson.h>
 #ifdef HAVE_LIBCURL
 #include <curl/curl.h>
 #else
@@ -5420,6 +5420,99 @@ out:
   return ret;
 }
 
+static bool parse_stratum_response_bos(struct pool *pool, json_t *val)
+{
+	json_t  *err_val, *res_val, *id_val;
+	struct stratum_share *sshare;
+	json_error_t err;
+	bool ret = false;
+	int id;
+
+
+	if (!val) {
+		applog(LOG_INFO, "JSON decode failed: ");
+		goto out;
+	}
+
+	res_val = json_object_get(val, "result");
+	err_val = json_object_get(val, "error");
+	id_val = json_object_get(val, "id");
+
+	if ((json_is_null(id_val) || !id_val) && (pool->algorithm.type != ALGO_ETHASH)) {
+		char *ss;
+
+		if (err_val)
+			ss = json_dumps(err_val, JSON_INDENT(3));
+		else
+			ss = strdup("(unknown reason)");
+
+		applog(LOG_INFO, "JSON-RPC non method decode failed: %s", ss);
+
+		free(ss);
+
+		goto out;
+	}
+
+	id = json_integer_value(id_val);
+
+	mutex_lock(&sshare_lock);
+	HASH_FIND_INT(stratum_shares, &id, sshare);
+	if (sshare) {
+		HASH_DEL(stratum_shares, sshare);
+		pool->sshares--;
+	}
+	mutex_unlock(&sshare_lock);
+
+	if (!sshare) {
+		double pool_diff;
+		bool success = false;
+
+		/* Since the share is untracked, we can only guess at what the
+		* work difficulty is based on the current pool diff. */
+		cg_rlock(&pool->data_lock);
+		pool_diff = pool->swork.diff;
+		cg_runlock(&pool->data_lock);
+
+		{
+			success = json_is_true(res_val);
+		}
+
+		if (success) {
+			applog(LOG_NOTICE, "Accepted untracked stratum share from %s", get_pool_name(pool));
+
+			/* We don't know what device this came from so we can't
+			* attribute the work to the relevant cgpu */
+			mutex_lock(&stats_lock);
+			total_accepted++;
+			pool->accepted++;
+			total_diff_accepted += pool_diff;
+			pool->diff_accepted += pool_diff;
+			mutex_unlock(&stats_lock);
+		}
+		else {
+			applog(LOG_NOTICE, "Rejected untracked stratum share from %s", get_pool_name(pool));
+
+			mutex_lock(&stats_lock);
+			total_rejected++;
+			pool->rejected++;
+			total_diff_rejected += pool_diff;
+			pool->diff_rejected += pool_diff;
+			mutex_unlock(&stats_lock);
+		}
+		goto out;
+	}
+	stratum_share_result(val, res_val, err_val, sshare);
+	free_work(sshare->work);
+	free(sshare);
+
+	ret = true;
+out:
+//	if (val)
+//		json_decref(val);
+
+	return ret;
+}
+
 void clear_stratum_shares(struct pool *pool)
 {
   struct stratum_share *sshare, *tmpshare;
@@ -5605,7 +5698,7 @@ static void *stratum_rthread(void *userdata)
       applog(LOG_DEBUG, "Stratum select failed on %s with value %d", get_pool_name(pool), sel_ret);
       s = NULL;
     } else
-      s = recv_line(pool);
+      s = (pool->algorithm.type == ALGO_MTP)? recv_line_bos(pool) : recv_line(pool);
     if (!s) {
       applog(LOG_NOTICE, "Stratum connection to %s interrupted", get_pool_name(pool));
       pool->getfail_occasions++;
@@ -5854,12 +5947,197 @@ static void *stratum_sthread(void *userdata)
   return NULL;
 }
 
+static void *stratum_sthread_bos(void *userdata)
+{
+//	printf("*************sending  thread bos******************\n");
+
+	struct pool *pool = (struct pool *)userdata;
+	char threadname[16];
+
+	pthread_detach(pthread_self());
+
+	snprintf(threadname, sizeof(threadname), "%d/SStratum", pool->pool_no);
+	RenameThread(threadname);
+
+	pool->stratum_q = tq_new();
+	if (!pool->stratum_q)
+		quit(1, "Failed to create stratum_q in stratum_sthread");
+
+
+	bos_t *serialized;
+	json_t *MyObject;
+	uint32_t SizeMerkleRoot = 16;
+	uint32_t SizeReserved = 64;
+	uint32_t SizeMtpHash = 32;
+	uint32_t SizeBlockMTP = MTP_L * 2 * 128 * 8;
+	uint32_t SizeProofMTP = MTP_L * 3 * 353;
+	uint32_t ntime;
+	while (42) {
+		char noncehex[12], nonce2hex[20];
+		struct stratum_share *sshare;
+		uint32_t *hash32, nonce;
+		unsigned char nonce2[8];
+		uint64_t *nonce2_64;
+		struct work *work;
+		bool submitted = false;
+
+		if (unlikely(pool->removed))
+			break;
+
+		work = (struct work *)tq_pop(pool->stratum_q, NULL);
+		if (unlikely(!work))
+			quit(1, "Stratum q returned empty work");
+
+		hash32 = (uint32_t*)work->hash;
+		if (!(sshare = (struct stratum_share *)calloc(sizeof(struct stratum_share), 1))) {
+			quit(1, "%s: calloc() failed on sshare.", __func__);
+		}
+		
+		
+			if (unlikely(work->nonce2_len > 8)) {
+				applog(LOG_ERR, "%s asking for inappropriately long nonce2 length %d", get_pool_name(pool), (int)work->nonce2_len);
+				applog(LOG_ERR, "Not attempting to submit shares");
+				free_work(work);
+				continue;
+			}
+
+			// TODO: check for memory leaks
+			sshare->sshare_time = time(NULL);
+			/* This work item is freed in parse_stratum_response */
+			sshare->work = work;
+
+			applog(LOG_DEBUG, "stratum_sthread_bos() algorithm = %s", pool->algorithm.name);
+
+			unsigned char TheMerkle[16];
+			memcpy(TheMerkle, pool->mtp_cache.mtpPOW.MerkleRoot, 16);
+			applog(LOG_DEBUG, "stratum_sthread_bos THE MERKLE ROOT %08x %08x %08x %08x", ((uint32_t*)TheMerkle)[0], ((uint32_t*)TheMerkle)[1]
+				, ((uint32_t*)TheMerkle)[2], ((uint32_t*)TheMerkle)[3]);
+
+				ntime = htole32(((uint32_t*)work->data)[17]);
+				nonce = htole32(pool->mtp_cache.mtpPOW.TheNonce);
+			//	nonce = htole32(((uint32_t*)work->data)[19]);
+			*((uint64_t *)nonce2) = htole64(work->nonce2);
+			applog(LOG_DEBUG, "stratum_sthread_bos THE NONCE %08x ", nonce);
+
+			mutex_lock(&sshare_lock);
+			/* Give the stratum share a unique id */
+			sshare->id = swork_id++;
+			mutex_unlock(&sshare_lock);
+
+			unsigned char hexjob_id[4];
+			hex2bin(hexjob_id, work->job_id, 8);
+
+      MyObject = json_object();
+			json_t *json_arr = json_array();
+			json_object_set_new(MyObject, "id", json_integer(sshare->id));
+			json_object_set_new(MyObject, "method", json_string("mining.submit"));
+
+      json_object_set_new(MyObject, "params", json_arr);
+
+			json_array_append(json_arr, json_string(pool->rpc_user));
+			json_array_append(json_arr, json_bytes((unsigned char*)hexjob_id, 4));
+			json_array_append(json_arr, json_bytes((unsigned char*)&work->nonce2, sizeof(uint64_t*)));
+			json_array_append(json_arr, json_bytes((unsigned char*)&ntime, sizeof(uint32_t)));
+			json_array_append(json_arr, json_bytes((unsigned char*)&nonce, sizeof(uint32_t)));
+			json_array_append(json_arr, json_bytes(pool->mtp_cache.mtpPOW.MerkleRoot, SizeMerkleRoot));
+			json_array_append(json_arr, json_bytes((unsigned char*)pool->mtp_cache.mtpPOW.nBlockMTP, SizeBlockMTP));
+			json_array_append(json_arr, json_bytes(pool->mtp_cache.mtpPOW.nProofMTP, SizeProofMTP));
+
+			json_error_t boserror;
+			bos_t *serialized = bos_serialize(MyObject, &boserror);
+
+
+
+			applog(LOG_INFO, "Serialized size %d\n",serialized->size);
+//			stratum.sharediff = work->sharediff[0];
+
+		applog(LOG_INFO, "Submitting share %08lx to %s", (long unsigned int)htole32(hash32[6]), get_pool_name(pool));
+
+		/* Try resubmitting for up to 2 minutes if we fail to submit
+		* once and the stratum pool nonce1 still matches suggesting
+		* we may be able to resume. */
+		while (time(NULL) < sshare->sshare_time + 120) {
+			bool sessionid_match;
+
+			mutex_lock(&sshare_lock);
+			if (likely(stratum_send_bos(pool, (char*)serialized->data, serialized->size))) {
+				int ssdiff;
+
+				if (pool_tclear(pool, &pool->submit_fail))
+					applog(LOG_WARNING, "%s communication resumed, submitting work", get_pool_name(pool));
+
+				sshare->sshare_sent = time(NULL);
+				ssdiff = sshare->sshare_sent - sshare->sshare_time;
+				if (opt_debug || ssdiff > 0) {
+					applog(LOG_INFO, "Pool %d stratum share submission lag time %d seconds",
+						pool->pool_no, ssdiff);
+				}
+
+				HASH_ADD_INT(stratum_shares, id, sshare);
+				pool->sshares++;
+				mutex_unlock(&sshare_lock);
+
+				applog(LOG_DEBUG, "Successfully submitted, adding to stratum_shares db");
+				submitted = true;
+				break;
+			}
+			else {
+				mutex_unlock(&sshare_lock);
+			}
+			if (!pool_tset(pool, &pool->submit_fail) && cnx_needed(pool)) {
+				applog(LOG_WARNING, "%s stratum share submission failure", get_pool_name(pool));
+				total_ro++;
+				pool->remotefail_occasions++;
+			}
+
+			if (opt_lowmem) {
+				applog(LOG_DEBUG, "Lowmem option prevents resubmitting stratum share");
+				break;
+			}
+
+			cg_rlock(&pool->data_lock);
+			sessionid_match = (pool->nonce1 && !strcmp(work->nonce1, pool->nonce1));
+			cg_runlock(&pool->data_lock);
+
+			if (!sessionid_match) {
+				applog(LOG_DEBUG, "No matching session id for resubmitting stratum share");
+				break;
+			}
+			/* Retry every 5 seconds */
+			sleep(5);
+		}
+
+		if (unlikely(!submitted)) {
+			applog(LOG_DEBUG, "Failed to submit stratum share, discarding");
+			free_work(work);
+			free(sshare);
+			pool->stale_shares++;
+			total_stale++;
+		}
+    if(MyObject!=NULL)
+		  json_decref(MyObject);
+	  if (serialized!=NULL)
+		  bos_free(serialized);
+	}
+
+	/* Freeze the work queue but don't free up its memory in case there is
+	* work still trying to be submitted to the removed pool. */
+	tq_freeze(pool->stratum_q);
+	
+	return NULL;
+}
+
 static void init_stratum_threads(struct pool *pool)
 {
   have_longpoll = true;
 
-  if (unlikely(pthread_create(&pool->stratum_sthread, NULL, stratum_sthread, (void *)pool)))
-    quit(1, "Failed to create stratum sthread");
+if (pool->algorithm.type == ALGO_MTP) {
+	if (unlikely(pthread_create(&pool->stratum_sthread_bos, NULL, stratum_sthread_bos, (void *)pool)))
+			quit(1, "Failed to create stratum sthread");
+} else {
+	if (unlikely(pthread_create(&pool->stratum_sthread, NULL, stratum_sthread, (void *)pool)))
+			quit(1, "Failed to create stratum sthread");
+}
   if (unlikely(pthread_create(&pool->stratum_rthread, NULL, stratum_rthread, (void *)pool)))
     quit(1, "Failed to create stratum rthread");
 }
@@ -5872,8 +6150,13 @@ static bool stratum_works(struct pool *pool)
   if (!extract_sockaddr(pool->stratum_url, &pool->sockaddr_url, &pool->stratum_port))
     return false;
 
-  if (!initiate_stratum(pool))
+  if (pool->algorithm.type == ALGO_MTP) {
+    if (!initiate_stratum_bos(pool))
+    return false; 
+  } else {
+    if (!initiate_stratum(pool))
     return false;
+  }
 
   return true;
 }
@@ -5902,7 +6185,11 @@ retry_stratum:
     bool init = pool_tset(pool, &pool->stratum_init);
 
     if (!init) {
-      bool ret = initiate_stratum(pool) && (!pool->extranonce_subscribe || subscribe_extranonce(pool)) && auth_stratum(pool);
+      bool ret = false;
+      if (pool->algorithm.type == ALGO_MTP)
+        ret = initiate_stratum_bos(pool) && auth_stratum_bos(pool);
+      else 
+	      ret = initiate_stratum(pool) && (!pool->extranonce_subscribe || subscribe_extranonce(pool)) && auth_stratum(pool);
 
       if (ret)
         init_stratum_threads(pool);
@@ -6323,8 +6610,10 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     * from left to right and prevent overflow errors with small n2sizes */
     memcpy(pool->coinbase + pool->nonce2_offset, &nonce2le, pool->n2size);
   }
-  work->nonce2 = pool->nonce2++;
-  work->nonce2_len = pool->n2size;
+  if (pool->algorithm.type != ALGO_MTP) {
+	  work->nonce2 = pool->nonce2++;
+	  work->nonce2_len = pool->n2size;
+  }
 
   /* Downgrade to a read lock to read off the pool variables */
   cg_dwlock(&pool->data_lock);
@@ -6370,6 +6659,23 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     ((uint32_t *)work->data)[18] = be32toh(temp);
     ((uint32_t *)work->data)[20] = 0x80000000;
     ((uint32_t *)work->data)[31] = 0x00000280;
+  } else  if (pool->algorithm.type == ALGO_MTP) {
+	  /* Incoming data is in little endian. */
+	  memcpy(merkle_root, merkle_sha, 32);
+    
+	  uint32_t temp;
+	  memcpy(work->data, pool->header_bin, 128);
+	  memcpy(work->data + pool->merkle_offset, merkle_root, 32);
+
+	  /* Add the time encoded in little endianess. */
+	  hex2bin((unsigned char *)&temp, pool->swork.ntime, 4);
+
+	  /* Add the nbits (big endianess). */
+	  ((uint32_t *)work->data)[17] = le32toh(temp);
+	  hex2bin((unsigned char *)&temp, pool->swork.nbit, 4);
+	  ((uint32_t *)work->data)[18] = le32toh(temp);
+	  ((uint32_t *)work->data)[20] = 0x00100000;
+	  ((uint32_t *)work->data)[31] = 0x00000000;
   }
   else if (pool->algorithm.type == ALGO_DECRED) {
     uint16_t vote = (uint16_t) (opt_vote << 1) | 1;
@@ -6460,7 +6766,9 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
   // For Neoscrypt use set_target_neoscrypt() function
   if (pool->algorithm.type == ALGO_NEOSCRYPT) {
     set_target_neoscrypt(work->target, work->sdiff, work->thr_id);
-  } else {
+  } else if (pool->algorithm.type == ALGO_MTP){
+	  memcpy(work->target, pool->Target, 32);
+  } else {	
     if (pool->algorithm.calc_midstate) pool->algorithm.calc_midstate(work);
     set_target(work->target, work->sdiff, pool->algorithm.diff_multiplier2, work->thr_id);
   }
@@ -7481,6 +7789,15 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
+
+  if (work->pool->algorithm.type == ALGO_MTP) {
+    struct work *work_out = make_work();
+    update_work_stats(thr, work);
+    _copy_work(work_out, work, 0);
+    submit_work_async(work_out);
+    return true;
+  }
+
   if (test_nonce(work, nonce)) {
     submit_tested_work(thr, work);
     return true;
@@ -7575,6 +7892,9 @@ static void hash_sole_work(struct thr_info *mythr)
         work->device_diff = MIN(work->sdiff, 60e6);
       set_target(work->device_target, work->device_diff, work->pool->algorithm.diff_multiplier2, work->thr_id);
     }
+
+    if (work->pool->algorithm.type == ALGO_MTP)
+		  memcpy(work->device_target, work->pool->Target, 32);
 
     do {
       cgtime(&tv_start);

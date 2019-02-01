@@ -29,7 +29,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ccan/opt/opt.h>
-#include <jansson.h>
+#include <bosjansson.h>
 #include <libgen.h>
 #include <sha2.h>
 

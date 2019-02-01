@@ -8,6 +8,15 @@ typedef struct __clState {
   cl_kernel kernel;
   cl_kernel *extra_kernels;
   cl_kernel GenerateDAG;
+
+  /// mtp kernels
+  cl_kernel mtp_0; //initialization
+  cl_kernel mtp_1; //initialization
+  cl_kernel mtp_2; //initialization
+  cl_kernel mtp_3; //initialization
+  cl_kernel mtp_fc; //initialization
+  cl_kernel mtp_yloop; // main kernel
+
   size_t n_extra_kernels;
   cl_command_queue commandQueue;
   cl_program program;

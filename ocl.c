@@ -768,6 +768,43 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   applog(LOG_NOTICE, "Initialising kernel %s with nfactor %d, n %d",
     filename, algorithm->nfactor, algorithm->n);
 
+if (algorithm->type == ALGO_MTP) {
+	  clState->mtp_0 = clCreateKernel(clState->program, "mtp_i", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"mtp_i\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+	  clState->mtp_1 = clCreateKernel(clState->program, "mtp_i", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"mtp_i\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+	  clState->mtp_2 = clCreateKernel(clState->program, "mtp_i", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"mtp_i\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+	  clState->mtp_3 = clCreateKernel(clState->program, "mtp_i", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"mtp_i\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+	  clState->mtp_fc = clCreateKernel(clState->program, "mtp_fc", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"mtp_fc\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+	  clState->mtp_yloop = clCreateKernel(clState->program, "mtp_yloop", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"mtp_yloop\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+
+//	  clState->devid = cgpu->device_id;
+//	  return clState;
+  }
+/// default
+	else {
   /* get a kernel object handle for a kernel with the given name */
   clState->kernel = clCreateKernel(clState->program, "search", &status);
   if (status != CL_SUCCESS) {
@@ -790,6 +827,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         return NULL;
       }
     }
+  }
   }
 
   if (algorithm->type == ALGO_ETHASH) {

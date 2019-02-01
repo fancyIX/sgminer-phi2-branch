@@ -45,3 +45,16 @@ lib/warn-on-use.h
 mkinstalldirs
 
 *.swp
+*.opendb
+*.db
+
+*.db
+winbuild/.vs/sgminer/v14/.suo
+*.obj
+*.log
+*.pdb
+*.tlog
+*.ipdb
+*.iobj
+*.exe
+*.idb

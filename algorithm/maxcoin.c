@@ -10,11 +10,11 @@
 #define CL_SET_BLKARG(blkvar) status |= clSetKernelArg(*kernel, num++, sizeof(uint), (void *)&blk->blkvar)
 #define CL_SET_ARG(var) status |= clSetKernelArg(*kernel, num++, sizeof(var), (void *)&var)
 
-struct uint256
+struct uint256_maxcoin
 {
   unsigned char v[32];
 };
-typedef struct uint256 uint256;
+typedef struct uint256_maxcoin uint256_maxcoin;
 
 typedef unsigned long long  UINT64;
 
@@ -310,7 +310,7 @@ void maxcoin1(unsigned char *out, const unsigned char *inraw, unsigned inrawlen)
 
 void maxcoin_regenhash(struct work *work)
 {
-  uint256 result; 
+	uint256_maxcoin result;
 
     unsigned int data[20], datacopy[20]; // aligned for flip80
     memcpy(datacopy, work->data, 80);
