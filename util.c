@@ -1601,15 +1601,15 @@ json_t* recode_message(json_t *MyObject2)
 */
 
 		if (json_is_null(value))
-			json_object_set_new(MyObject, key, json_null());
+			json_object_set(MyObject, key, value); 
 
 		if (json_is_string(value))
-			json_object_set_new(MyObject, key, json_string(json_string_value(value)));
+			json_object_set(MyObject, key, value);
 		if (json_is_integer(value))
-			json_object_set_new(MyObject, key, json_integer(json_integer_value(value)));
+			json_object_set(MyObject, key, value);
 
 		if (json_is_boolean(value))
-			json_object_set_new(MyObject, key, json_boolean(json_boolean_value(value)));
+			json_object_set(MyObject, key, value);
 
 		if (json_is_array(value)) {
 			json_t *json_arr = json_array();
@@ -1626,7 +1626,7 @@ json_t* recode_message(json_t *MyObject2)
 						for (int k = 0; k<zsize; k++)
 							sprintf(&strval[2 * k], "%02x", zbyte[k]);
 
-						json_array_append_new(json_arr, json_string(strval));
+						json_array_append(json_arr, json_string(strval));
 						free(strval);
 					
 					}
@@ -1637,16 +1637,16 @@ json_t* recode_message(json_t *MyObject2)
 					}
 				}
 				if (json_is_string(value2)) {
-					json_array_append_new(json_arr, json_string(json_string_value(value2)));
+					json_array_append(json_arr, value2);
 				}
 				if (json_is_boolean(value2)) {
-					json_array_append_new(json_arr, json_boolean(json_boolean_value(value2)));
+					json_array_append(json_arr, value2);
 				}
 				if (json_is_array(value2)) {
 					size_t index2;
 					json_t *value3;
 					json_t *json_arr2 = json_array();
-					json_array_append_new(json_arr, json_arr2);
+					json_array_append(json_arr, json_arr2);
 					json_array_foreach(value2, index2, value3) {
 						if (!istarget) {
 							if (json_is_bytes(value3)) {
@@ -1658,7 +1658,7 @@ json_t* recode_message(json_t *MyObject2)
 								for (int k = 0; k<zsize; k++)
 									sprintf(&strval[2 * k], "%02x", zbyte[k]);
 
-								json_array_append_new(json_arr2, json_string(strval));
+								json_array_append(json_arr2, json_string(strval));
 								free(strval);
 								
 							}
@@ -1754,7 +1754,7 @@ char *recv_line_bos(struct pool *pool)
 		else
 			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
 		  MyObject = recode_message(MyObject2);
-      if (MyObject2) json_decref(MyObject2);
+      //if (MyObject2) json_decref(MyObject2);
 
 	if (bos_sizeof(pool->sockbuf)<pool->sockbuf_bossize) {
 		uint32_t totsize = pool->sockbuf_bossize;
@@ -2637,8 +2637,8 @@ bool auth_stratum_bos(struct pool *pool)
 	json_object_set_new(MyObject, "id", json_integer(swork_id++));
 	json_object_set_new(MyObject, "method", json_string("mining.authorize"));
 	json_object_set_new(MyObject, "params", json_arr);
-	json_array_append_new(json_arr, json_string(pool->rpc_user));
-	json_array_append_new(json_arr, json_string(pool->rpc_pass));
+	json_array_append(json_arr, json_string(pool->rpc_user));
+	json_array_append(json_arr, json_string(pool->rpc_pass));
 
 	json_error_t boserror;
 	bos_t *serialized = bos_serialize(MyObject, &boserror);
@@ -3317,9 +3317,9 @@ resend:
 	json_object_set_new(MyObject, "method", json_string("mining.subscribe"));
 	json_object_set_new(MyObject, "params", json_arr);
 	if (!recvd) {
-		json_array_append_new(json_arr, json_string(USER_AGENT));
+		json_array_append(json_arr, json_string(USER_AGENT));
 		if (pool->sessionid)
-			json_array_append_new(json_arr, json_string(pool->sessionid));
+			json_array_append(json_arr, json_string(pool->sessionid));
 	} else 
 		clear_sock(pool);
 
