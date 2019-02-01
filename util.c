@@ -1633,7 +1633,7 @@ json_t* recode_message(json_t *MyObject2)
 				}
 				else {
 					if (json_is_bytes(value2)) {
-						json_array_append(json_arr, json_bytes(json_bytes_value(value2), json_bytes_size(value2)));
+						json_array_append(json_arr, value2);
 					}
 				}
 				if (json_is_string(value2)) {
@@ -1665,7 +1665,7 @@ json_t* recode_message(json_t *MyObject2)
 						}
 						else {
 							if (json_is_bytes(value3))
-								json_array_append(json_arr2, json_bytes(json_bytes_value(value3), json_bytes_size(value3)));
+								json_array_append(json_arr2, value3);
 						}
 					}
 					//							json_t *json_arr2 = json_array();
