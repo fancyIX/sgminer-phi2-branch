@@ -1763,7 +1763,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 			int TED = 0;
 			for (int i = 0; i< total_devices;i++)
 					if (devices_enabled[i]) TED++;
-      if (TED == 0) TED++;
+      if (TED == 0) TED = total_devices; 
 			
 			buffer->nDevs = TED;
 			buffer->MaxNonce = 0xFFFFFFFF/TED;
