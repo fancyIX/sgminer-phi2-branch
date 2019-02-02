@@ -1679,7 +1679,105 @@ json_t* recode_message(json_t *MyObject2)
 	return MyObject;
 }
 
+void recode_message2(json_t *MyObject, json_t *MyObject2)
+{
+	size_t size;
+	bool istarget = false;
+	const char *key;
+	json_t *value;
+	json_object_foreach(MyObject2, key, value) {
 
+		if (!strcmp(key, "method"))
+			if (!strcmp(json_string_value(value), "mining.set_target") ||
+				!strcmp(json_string_value(value), "mining.notify")
+				) {
+				istarget = false;
+			}
+
+
+		if (json_is_null(value))
+			json_object_set_new(MyObject, key, value);
+
+		if (json_is_string(value))
+			json_object_set_new(MyObject, key, value);
+		if (json_is_integer(value))
+			json_object_set_new(MyObject, key, value);
+
+		if (json_is_boolean(value))
+			json_object_set_new(MyObject, key, value);
+
+		if (json_is_array(value)) {
+			json_t *json_arr = json_array();
+			json_object_set(MyObject, key, json_arr);
+			size_t index;
+			json_t *value2 = NULL;
+
+			json_array_foreach(value, index, value2) {
+
+				if (!istarget) {
+					if (json_is_bytes(value2)) {
+						int zsize = json_bytes_size(value2);
+						unsigned char* zbyte = (unsigned char*)json_bytes_value(value2);
+						char* strval = (char*)malloc(zsize * 2 + 1);
+						for (int k = 0; k<zsize; k++)
+							sprintf(&strval[2 * k], "%02x", zbyte[k]);
+
+						json_array_append_new(json_arr, json_string(strval));
+						free(strval);
+						free(zbyte);
+
+					}
+				}
+				else {
+					if (json_is_bytes(value2)) {
+						json_array_append(json_arr, value2);
+					}
+				}
+				if (json_is_string(value2)) {
+					json_array_append(json_arr, value2);
+				}
+				if (json_is_boolean(value2)) {
+					json_array_append(json_arr, value2);
+				}
+				if (json_is_array(value2)) {
+					size_t index2;
+					json_t *value3;
+					json_t *json_arr2 = json_array();
+					json_array_append(json_arr, json_arr2);
+					json_array_foreach(value2, index2, value3) {
+						if (!istarget) {
+							if (json_is_bytes(value3)) {
+								int zsize = json_bytes_size(value3);
+								unsigned char* zbyte = (unsigned char*)json_bytes_value(value3);
+								char* strval = (char*)malloc(zsize * 2 + 1);
+
+								for (int k = 0; k<zsize; k++)
+									sprintf(&strval[2 * k], "%02x", zbyte[k]);
+
+								json_array_append_new(json_arr2, json_string(strval));
+								free(strval);
+								free(zbyte);
+							}
+						}
+						else {
+							if (json_is_bytes(value3))
+								json_array_append(json_arr2, value3);
+						}
+					}
+					json_decref(json_arr2);
+				}
+
+			}
+			json_decref(value2);
+			if (json_arr->refcount != 0)
+				json_decref(json_arr);
+	//	json_decref(json_arr);
+		}
+	}	
+//if (value->refcount != 0)
+//		json_decref(value);
+	json_decref(MyObject2);
+}
 
 char *recv_line_bos(struct pool *pool)
 {
@@ -1743,17 +1841,19 @@ char *recv_line_bos(struct pool *pool)
 
 
 	len = pool->sockbuf_bossize;
-
+  MyObject = json_object();
 		json_error_t boserror;
 		if (bos_sizeof(pool->sockbuf) < pool->sockbuf_bossize) {
 			//				MyObject2 = bos_deserialize(s + bos_sizeof(s), boserror);
 			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
+      recode_message2(MyObject, MyObject2);
 		}
 		else if (bos_sizeof(pool->sockbuf) > pool->sockbuf_bossize)
 			applog(LOG_ERR, "missing something in message \n");
-		else
-			MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
-		  MyObject = recode_message(MyObject2);
+		else {
+      MyObject2 = bos_deserialize(pool->sockbuf, &boserror);
+      recode_message2(MyObject, MyObject2);
+    }
       //if (MyObject2) json_decref(MyObject2);
 
 	if (bos_sizeof(pool->sockbuf)<pool->sockbuf_bossize) {
