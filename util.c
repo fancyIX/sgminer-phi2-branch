@@ -1776,7 +1776,7 @@ out:
 	char *ret = json_dumps(MyObject, 0);
         
         if (MyObject) json_decref(MyObject);
-        //if (MyObject2) json_decref(MyObject2);
+        if (MyObject2) json_decref(MyObject2);
         return ret;
 }
 
