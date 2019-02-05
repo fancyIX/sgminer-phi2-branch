@@ -6035,13 +6035,13 @@ static void *stratum_sthread_bos(void *userdata)
       json_object_set_new(MyObject, "params", json_arr);
 
 			json_array_append_new(json_arr, json_string(pool->rpc_user));
-			json_array_append_new(json_arr, json_bytes((unsigned char*)hexjob_id, 4));
-			json_array_append_new(json_arr, json_bytes((unsigned char*)&work->nonce2, sizeof(uint64_t*)));
-			json_array_append_new(json_arr, json_bytes((unsigned char*)&ntime, sizeof(uint32_t)));
-			json_array_append_new(json_arr, json_bytes((unsigned char*)&nonce, sizeof(uint32_t)));
-			json_array_append_new(json_arr, json_bytes(pool->mtp_cache.mtpPOW.MerkleRoot, SizeMerkleRoot));
-			json_array_append_new(json_arr, json_bytes((unsigned char*)pool->mtp_cache.mtpPOW.nBlockMTP, SizeBlockMTP));
-			json_array_append_new(json_arr, json_bytes(pool->mtp_cache.mtpPOW.nProofMTP, SizeProofMTP));
+			json_array_append(json_arr, json_bytes((unsigned char*)hexjob_id, 4));
+			json_array_append(json_arr, json_bytes((unsigned char*)&work->nonce2, sizeof(uint64_t*)));
+			json_array_append(json_arr, json_bytes((unsigned char*)&ntime, sizeof(uint32_t)));
+			json_array_append(json_arr, json_bytes((unsigned char*)&nonce, sizeof(uint32_t)));
+			json_array_append(json_arr, json_bytes(pool->mtp_cache.mtpPOW.MerkleRoot, SizeMerkleRoot));
+			json_array_append(json_arr, json_bytes((unsigned char*)pool->mtp_cache.mtpPOW.nBlockMTP, SizeBlockMTP));
+			json_array_append(json_arr, json_bytes(pool->mtp_cache.mtpPOW.nProofMTP, SizeProofMTP));
 
 			json_error_t boserror;
 			bos_t *serialized = bos_serialize(MyObject, &boserror);
