@@ -5873,7 +5873,7 @@ static void *stratum_sthread(void *userdata)
       }
     }
 
-    applog(LOG_INFO, "Submitting share %08lx to %s", (long unsigned int)htole32(hash32[6]), get_pool_name(pool));
+    // applog(LOG_INFO, "Submitting share %08lx to %s", (long unsigned int)htole32(hash32[6]), get_pool_name(pool));
 
     /* Try resubmitting for up to 2 minutes if we fail to submit
      * once and the stratum pool nonce1 still matches suggesting
@@ -6034,7 +6034,7 @@ static void *stratum_sthread_bos(void *userdata)
 
       json_object_set_new(MyObject, "params", json_arr);
 
-			json_array_append(json_arr, json_string(pool->rpc_user));
+			json_array_append_new(json_arr, json_string(pool->rpc_user));
 			json_array_append(json_arr, json_bytes((unsigned char*)hexjob_id, 4));
 			json_array_append(json_arr, json_bytes((unsigned char*)&work->nonce2, sizeof(uint64_t*)));
 			json_array_append(json_arr, json_bytes((unsigned char*)&ntime, sizeof(uint32_t)));
