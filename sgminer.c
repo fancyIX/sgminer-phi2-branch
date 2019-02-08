@@ -5687,7 +5687,7 @@ static void *stratum_rthread(void *userdata)
 
     FD_ZERO(&rd);
     FD_SET(pool->sock, &rd);
-    timeout.tv_sec = 90;
+    timeout.tv_sec = 150;
     timeout.tv_usec = 0;
 
     /* The protocol specifies that notify messages should be sent

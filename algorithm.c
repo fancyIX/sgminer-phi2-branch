@@ -1717,7 +1717,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 {
 	struct pool *pool = blk->work->pool;
 	mtp_cache_t *mtp = &blk->work->thr->cgpu->mtp_buffer.mtp_cache; //&blk->work->pool->mtp_cache;
-	
+	size_t worksize = clState->wsize;
 	cl_kernel *kernel;
 	unsigned int num = 0;
 	cl_int status = 0;
@@ -1992,7 +1992,7 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 	uint32_t rawint = 2 << (blk->work->thr->cgpu->intensity - 1);
 	kernel = &clState->mtp_yloop;
 	size_t Global2 = rawint ; //1048576; //65536;
-	size_t Local2 = 64;
+	size_t Local2 = worksize;
 	size_t buffersize = 1024;
 	num = 0;
 	CL_SET_ARG(clState->CLbuffer0);
