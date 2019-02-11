@@ -684,8 +684,39 @@ static unsigned warp_id()
 }
 #endif
 
-#define FARLOAD(x) far[warp][(x)*(2+SHR_OFF) + lane]
-#define FARSTORE(x) far[warp][lane*(2+SHR_OFF) + (x)]
+
+#define SHARE_FARINDEX(carryt, carry) \
+		__asm ( \
+	    "s_nop 1\n" \
+      "v_mov_b32_dpp  %[dst0], %[src] quad_perm:[0,0,0,0] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst1], %[src] quad_perm:[1,1,1,1] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst2], %[src] quad_perm:[2,2,2,2] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst3], %[src] quad_perm:[3,3,3,3] bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst4], %[src] quad_perm:[0,0,0,0] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst5], %[src] quad_perm:[1,1,1,1] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst6], %[src] quad_perm:[2,2,2,2] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst7], %[src] quad_perm:[3,3,3,3] bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst0], %[dst0] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst1], %[dst1] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst2], %[dst2] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst3], %[dst3] row_shr:4 bank_mask:0xa\n" \
+      "v_mov_b32_dpp  %[dst4], %[dst4] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst5], %[dst5] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst6], %[dst6] row_shl:4 bank_mask:0x5\n" \
+      "v_mov_b32_dpp  %[dst7], %[dst7] row_shl:4 bank_mask:0x5\n" \
+		  	  "s_nop 1\n" \
+		  : [dst0] "=&v" ((carryt)[0]), \
+        [dst1] "=&v" ((carryt)[1]), \
+        [dst2] "=&v" ((carryt)[2]), \
+        [dst3] "=&v" ((carryt)[3]), \
+        [dst4] "=&v" ((carryt)[4]), \
+        [dst5] "=&v" ((carryt)[5]), \
+        [dst6] "=&v" ((carryt)[6]), \
+        [dst7] "=&v" ((carryt)[7]) \
+: [src] "v" (carry));
+
+#define FARLOAD(x) far[warp][(x)*(8+SHR_OFF) + lane]
+#define FARSTORE(x) far[warp][lane*(8+SHR_OFF) + (x)]
 #define SHR_OFF 0
 #ifdef WORKSIZE
 #define TPB_MTP WORKSIZE
@@ -703,10 +734,10 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * _
 	uint32_t event_thread = get_global_id(0) - get_global_offset(0); //thread / ThreadNumber;
 
 	uint32_t NonceIterator = get_global_id(0);
-	int lane = get_local_id(0) % 2;
-	int warp = get_local_id(0) / 2;;//warp_id();
-	__local  ulong8 far[TPB_MTP / 2][2 * (2 + SHR_OFF)];
-	__local  uint32_t farIndex[TPB_MTP / 2][2];
+	int lane = get_local_id(0) % 8;
+	int warp = get_local_id(0) / 8;;//warp_id();
+	__local  ulong8 far[TPB_MTP / 8][8 * (8 + SHR_OFF)];
+	__local  uint32_t farIndex;
 	const uint32_t half_memcost = 2 * 1024 * 1024;
 	const uint64_t lblakeFinal[8] =
 	{
@@ -753,8 +784,10 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * _
 			FARLOAD(1).hi = D[0];
 		}
 
-		farIndex[warp][lane] = YLocal.s0 & 0x3FFFFF;
-		barrier(CLK_LOCAL_MEM_FENCE);
+		farIndex = YLocal.s0 & 0x3FFFFF;
+		
+		uint farIndext[8];
+		SHARE_FARINDEX(farIndext, farIndex);
 
 //		ulong8 DataChunk[2];
 		uint32_t len = 0;
@@ -764,7 +797,7 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * _
 
 		//			uint8 part;
 
-
+ 
 #pragma unroll 1
 		for (int i = 0; i < 9; i++) {
 			int last = (i == 8);
@@ -772,29 +805,27 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * _
 //			for (int t = 0; t<1; t++) 
 			{
 				ulong4 *D = (ulong4*)&YLocal;
-				D[0] = FARLOAD(1).hi;
+				D[0] = FARLOAD(((i - 1) % 4) * 2 + 1).hi;
 			}
 
 
 			len += last ? 32 : 128;
 
-			//if(!last)
+			if (i == 0 || i == 4)
 			{
-
-
 				#pragma unroll 
-				for (int t = 0; t<2; t++) {
+				for (int t = 0; t<8; t++) {
 
-					__global const ulong8 * __restrict__ farP = (farIndex[warp][t]<half_memcost) ? &DBlock[farIndex[warp][t] * 16 + 2 * i]
-																			: &DBlock2[(farIndex[warp][t] - half_memcost) * 16 + 2 * i];
+					__global const ulong8 * __restrict__ farP = (farIndext[t]<half_memcost) ? &DBlock[farIndext[t] * 16 + 8 * (i / 4)]
+																			: &DBlock2[(farIndext[t] - half_memcost) * 16 + 8 * (i / 4)];
 
-					far[warp][lane*(2 + SHR_OFF) + (t)] = (last) ? (ulong8)(0, 0, 0,0,0,0,0,0) :farP[lane];
+					far[warp][lane*(8 + SHR_OFF) + (t)] = (last) ? (ulong8)(0, 0, 0,0,0,0,0,0) :farP[lane];
 				}
 
 				barrier(CLK_LOCAL_MEM_FENCE);
 			}
 
-			blake2b_compress2b_new( (uint64_t*)&DataTmp, far[warp],(uint64_t*)&YLocal, len, last);
+			blake2b_compress2b_new( (uint64_t*)&DataTmp, FARLOAD(((i) % 4) * 2),(uint64_t*)&YLocal, len, last);
 
 		}
 
