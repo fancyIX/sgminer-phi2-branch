@@ -2279,7 +2279,7 @@ const double bits128 = 340282366920938463463374607431768211456.0;
 const double bits64 = 18446744073709551616.0;
 
 /* Converts a little endian 256 bit value to a double */
-static double le256todouble(const void *target)
+double le256todouble(const void *target)
 {
   uint64_t *data64;
   double dcut64;
