@@ -2035,6 +2035,9 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 		}else {
 
 			Solution[0xff]=0;
+      hw_errors++;
+			blk->work->thr->cgpu->hw_errors++;
+			blk->work->thr->cgpu->drv->hw_error(blk->work->thr);
 		status = clEnqueueWriteBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0, buffersize, Solution, 0, NULL, NULL);
 		//printf("*************************************************************************************Not a solution\n");
    }
