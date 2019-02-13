@@ -2031,10 +2031,14 @@ static cl_int queue_mtp_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unus
 		memcpy(pool->mtp_cache.mtpPOW.nProofMTP, nProofMTP, sizeof(unsigned char)* MTP_L * 3 * 353);
 		pool->mtp_cache.mtpPOW.TheNonce = Solution[0];
 		((uint32_t*)blk->work->data)[19] = Solution[0];
+    memcpy(blk->work->hash, mtpHashValue,32);
 //			printf("*************************************************************************************Found a solution\n");
 		}else {
 
 			Solution[0xff]=0;
+      hw_errors++;
+			blk->work->thr->cgpu->hw_errors++;
+			blk->work->thr->cgpu->drv->hw_error(blk->work->thr);
 		status = clEnqueueWriteBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0, buffersize, Solution, 0, NULL, NULL);
 		//printf("*************************************************************************************Not a solution\n");
    }
