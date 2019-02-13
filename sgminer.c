@@ -2097,11 +2097,6 @@ static double get_work_blockdiff(const struct work *work)
     if (shift == 28) d *= 256.0; // testnet
     return d;
   }
-  else if (work->pool->algorithm.type == ALGO_MTP) {
-    powdiff = 0;
-	  diff64 = le32toh(*((uint32_t *)(work->data + 72))) & 0x0000000000FFFFFF;
-    numerator = work->pool->algorithm.diff_numerator << powdiff;
-  }
   else {
     shift = work->data[72];
     powdiff = (8 * (0x1d - 3)) - (8 * (shift - 3));;
@@ -6772,22 +6767,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
   if (pool->algorithm.type == ALGO_NEOSCRYPT) {
     set_target_neoscrypt(work->target, work->sdiff, work->thr_id);
   } else if (pool->algorithm.type == ALGO_MTP){
-    uint8_t sbtarget[32];
-    const double truediffone = 26959535291011309493156476344723991336010898738574164086137773096960.0;
-    double old_diff, diff;
-	  swab256(sbtarget, target);
-	  diff = (truediffone*1)/le256todouble(target);
 	  memcpy(work->target, pool->Target, 32);
-    if (pool->next_diff > 0) {
-      old_diff = pool->next_diff;
-      pool->next_diff = diff;
-    }
-    else {
-      old_diff = pool->swork.diff;
-      pool->next_diff = pool->swork.diff = diff;
-    }
-
-		applog(pool == current_pool() ? LOG_NOTICE : LOG_DEBUG, "%s difficulty changed to %.3f", get_pool_name(pool), diff);
   } else {	
     if (pool->algorithm.calc_midstate) pool->algorithm.calc_midstate(work);
     set_target(work->target, work->sdiff, pool->algorithm.diff_multiplier2, work->thr_id);

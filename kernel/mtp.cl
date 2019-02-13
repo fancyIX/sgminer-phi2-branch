@@ -207,33 +207,51 @@ static inline uint64_t eorswap64(uint64_t u, uint64_t v)
 
 
 
- static inline int blake2b_compress2_256(uint64_t *hash, const  uint64_t *block, const uint32_t len)
+ static inline int blake2b_compress2_256(uint64_t *hash, const uint64_t *hzcash, const  uint64_t *block, const uint32_t len)
 {
 	uint64_t m[16];
 	uint64_t v[16];
 
+	const uint64_t blakeIV_[8] = {
+		0x6a09e667f3bcc908UL,
+		0xbb67ae8584caa73bUL,
+		0x3c6ef372fe94f82bUL,
+		0xa54ff53a5f1d36f1UL,
+		0x510e527fade682d1UL,
+		0x9b05688c2b3e6c1fUL,
+		0x1f83d9abfb41bd6bUL,
+		0x5be0cd19137e2179UL
+	};
+
+
 #pragma unroll
 	for (int i = 0; i < 16; ++i)
 		m[i] = block[i];
+#pragma unroll
+	for (int i = 0; i < 8; ++i)
+		v[i] = hzcash[i];
 
-    v[0] = 0x6a09e667f2bdc928UL;
-	v[1] = 0xbb67ae8584caa73bUL;
-	v[2] = 0x3c6ef372fe94f82bUL;
-	v[3] = 0xa54ff53a5f1d36f1UL;
-	v[4] = 0x510e527fade682d1UL;
-	v[5] = 0x9b05688c2b3e6c1fUL;
-	v[6] = 0x1f83d9abfb41bd6bUL;
-	v[7] = 0x5be0cd19137e2179UL;
 
-	v[8]  = 0x6a09e667f3bcc908UL;
-	v[9]  = 0xbb67ae8584caa73bUL;
-	v[10] = 0x3c6ef372fe94f82bUL;
-	v[11] = 0xa54ff53a5f1d36f1UL;
-	v[12] = 0x510e527fade682d1UL;
+/*
+	v[8] = devectorize(blakeIV[0]);
+	v[9] = devectorize(blakeIV[1]);
+	v[10] = devectorize(blakeIV[2]);
+	v[11] = devectorize(blakeIV[3]);
+	v[12] = devectorize(blakeIV[4]);
 	v[12] ^= len;
-	v[13] = 0x9b05688c2b3e6c1fUL;
-	v[14] = ~(0x1f83d9abfb41bd6bUL);
-	v[15] = 0x5be0cd19137e2179UL;
+	v[13] = devectorize(blakeIV[5]);
+	v[14] = ~devectorize(blakeIV[6]);
+	v[15] = devectorize(blakeIV[7]);
+*/
+	v[8] = blakeIV_[0];
+	v[9] = blakeIV_[1];
+	v[10] = blakeIV_[2];
+	v[11] = blakeIV_[3];
+	v[12] = blakeIV_[4];
+	v[12] ^= len;
+	v[13] = blakeIV_[5];
+	v[14] = ~blakeIV_[6];
+	v[15] = blakeIV_[7];
 
 
 #define G(r,i,a,b,c,d) \
@@ -272,11 +290,9 @@ static inline uint64_t eorswap64(uint64_t u, uint64_t v)
 	ROUND(9);
 	ROUND(10);
 	ROUND(11);
-
-		hash[0] = 0x6a09e667f2bdc928UL ^ v[0] ^ v[0 + 8];
-		hash[1] = 0xbb67ae8584caa73bUL ^ v[1] ^ v[1 + 8];
-		hash[2] = 0x3c6ef372fe94f82bUL ^ v[2] ^ v[2 + 8];
-		hash[3] = 0xa54ff53a5f1d36f1UL ^ v[3] ^ v[3 + 8];
+#pragma unroll
+	for (int i = 0; i < 4; ++i)
+		hash[i] = hzcash[i] ^ v[i] ^ v[i + 8];
 
 #undef G
 #undef ROUND
@@ -540,7 +556,7 @@ static inline uint64_t eorswap64(uint64_t u, uint64_t v)
 	ROUND10;
 	ROUND11;
 	*/
-#pragma unroll
+
 	for (int i = 0; i < 8; ++i)
 		hzcash[i] ^= v[i] ^ v[i + 8];
 
@@ -663,7 +679,7 @@ static inline uint64_t eorswap64(uint64_t u, uint64_t v)
 	ROUND10;
 	ROUND11;
 	*/
-#pragma unroll
+
 	for (int i = 0; i < 8; ++i)
 		hzcash[i] ^= v[i] ^ v[i + 8];
 
@@ -702,6 +718,49 @@ static unsigned warp_id()
 #define SHR_OFF 0
 
 
+__attribute__((reqd_work_group_size(TPB_MTP, 1, 1)))
+__kernel void mtp_yloop_init(__global unsigned int* pData,  __global uint8  *  GYlocal,
+__global uint4 * Elements)
+{
+
+	uint32_t NonceNumber = 1;  // old
+	uint32_t ThreadNumber = 1;
+	uint32_t event_thread = get_global_id(0) - get_global_offset(0); //thread / ThreadNumber;
+
+	uint32_t NonceIterator = get_global_id(0);
+
+ 
+		ulong2 FarReg[8]; 
+	 uint32_t farIndex;
+	const uint32_t half_memcost = 2 * 1024 * 1024;
+	 const uint64_t lblakeFinal[8] =
+	{
+		0x6a09e667f2bdc928UL,
+		0xbb67ae8584caa73bUL,
+		0x3c6ef372fe94f82bUL,
+		0xa54ff53a5f1d36f1UL,
+		0x510e527fade682d1UL,
+		0x9b05688c2b3e6c1fUL, 
+		0x1f83d9abfb41bd6bUL,
+		0x5be0cd19137e2179UL, 
+	};
+	
+		uint8 YLocal;
+	
+		ulong8 DataChunk[2] = { 0 };
+	
+		((uint8 *)DataChunk)[0] = ((__global uint8 *)pData)[0];
+		((uint8 *)DataChunk)[1] = ((__global uint8 *)pData)[1];
+
+		((uint4*)DataChunk)[4] = ((__global uint4*)pData)[4];
+		((uint4*)DataChunk)[5] = ((__global uint4*)Elements)[0];
+
+		((uint16*)DataChunk)[1].hi.s0 = NonceIterator;
+
+		blake2b_compress2_256((uint64_t*)&YLocal, lblakeFinal, (uint64_t*)DataChunk, 100);
+		GYlocal[event_thread] = YLocal; 
+		
+	}
 
 __attribute__((reqd_work_group_size(TPB_MTP, 1, 1)))
 __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong2  * __restrict__ DBlock, __global const ulong2  * __restrict__ DBlock2,
@@ -723,10 +782,23 @@ __global uint8  *  GYlocal, __global uint32_t * __restrict__ SmallestNonce,  uin
 //		ulong2 FarReg[8]; 
 	 uint32_t farIndex;
 	const uint32_t half_memcost = 2 * 1024 * 1024;
+	 const uint64_t lblakeFinal[8] =
+	{
+		0x6a09e667f2bdc928UL,
+		0xbb67ae8584caa73bUL,
+		0x3c6ef372fe94f82bUL,
+		0xa54ff53a5f1d36f1UL,
+		0x510e527fade682d1UL,
+		0x9b05688c2b3e6c1fUL, 
+		0x1f83d9abfb41bd6bUL,
+		0x5be0cd19137e2179UL, 
+	};
 	
 		 uint64_t DataChunk[16] = {0};
 	 uint8 YLocal; // = GYlocal[event_thread] ;
 
+	
+	
 		((	uint8 *)DataChunk)[0] = ((__global uint8 *)pData)[0];
 		((	uint8 *)DataChunk)[1] = ((__global uint8 *)pData)[1];
 
@@ -735,7 +807,7 @@ __global uint8  *  GYlocal, __global uint32_t * __restrict__ SmallestNonce,  uin
 
 		((	uint16*)DataChunk)[1].hi.s0 = NonceIterator;
 
-		blake2b_compress2_256((uint64_t*)&YLocal, ( uint64_t*)DataChunk, 100);
+		blake2b_compress2_256((uint64_t*)&YLocal, lblakeFinal, ( uint64_t*)DataChunk, 100);
 		
 		bool init_blocks;
 		uint32_t unmatch_block;
@@ -746,18 +818,20 @@ __global uint8  *  GYlocal, __global uint32_t * __restrict__ SmallestNonce,  uin
 		#pragma unroll 1
 			for (int j = 1; j <= mtp_L; j++)
 		{
+
+
 			farIndex = YLocal.s0 & 0x3FFFFF;
+	
+
 	
 			uint32_t len = 0;
 
-				(( uint2*)&DataTmp)[0] = as_uint2(0x6a09e667f2bdc928UL);
-				(( uint2*)&DataTmp)[1] = as_uint2(0xbb67ae8584caa73bUL);
-				(( uint2*)&DataTmp)[2] = as_uint2(0x3c6ef372fe94f82bUL);
-				(( uint2*)&DataTmp)[3] = as_uint2(0xa54ff53a5f1d36f1UL);
-				(( uint2*)&DataTmp)[4] = as_uint2(0x510e527fade682d1UL);
-				(( uint2*)&DataTmp)[5] = as_uint2(0x9b05688c2b3e6c1fUL);
-				(( uint2*)&DataTmp)[6] = as_uint2(0x1f83d9abfb41bd6bUL);
-				(( uint2*)&DataTmp)[7] = as_uint2(0x5be0cd19137e2179UL);
+	
+			for (int i = 0; i<8; i++)
+				(( uint2*)&DataTmp)[i] = as_uint2(lblakeFinal[i]);
+
+			//			uint8 part;
+
 
 			#pragma unroll 1
 			for (int i = 0; i < 9; i++) {
@@ -765,10 +839,15 @@ __global uint8  *  GYlocal, __global uint32_t * __restrict__ SmallestNonce,  uin
  
 				len += last ? 32 : 128;
 				
+				
 					__global const ulong2 * __restrict__ farP = (farIndex<half_memcost)?  &DBlock[farIndex * 64 + 8 * i ]
-																: &DBlock2[(farIndex - half_memcost) * 64 + 8 * i];
-
-						(( ulong16*)DataChunk)[0] = (last) ? (ulong16)(0) : ((__global const ulong16 *) farP)[0];
+																																							: &DBlock2[(farIndex - half_memcost) * 64 + 8 * i];
+					
+					#pragma unroll 
+					for (int t = 0; t<8; t++) 
+						(( ulong2*)DataChunk)[t] = (last) ? (ulong2)(0, 0) : farP[t];
+					
+			//	(( uint16*)DataChunk)[0].lo = YLocal;
 
 				blake2b_compress2b_new((uint64_t*)&DataTmp, ( uint64_t*)DataChunk,( uint64_t*)&YLocal, len, last);
 
