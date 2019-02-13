@@ -2126,8 +2126,24 @@ static bool parse_target(struct pool *pool, json_t *val)
 
   cg_wlock(&pool->data_lock);
   memcpy(oldtarget, pool->Target, 32);
-if (pool->algorithm.type == ALGO_MTP)
-	memcpy(pool->Target,target,32);
+if (pool->algorithm.type == ALGO_MTP) {
+      uint8_t sbtarget[32];
+    const double truediffone = 26959535291011309493156476344723991336010898738574164086137773096960.0;
+    double old_diff, diff;
+	  swab256(sbtarget, target);
+	  diff = (truediffone*1)/le256todouble(target);
+    memcpy(pool->Target,target,32);
+    if (pool->next_diff > 0) {
+      old_diff = pool->next_diff;
+      pool->next_diff = diff;
+    }
+    else {
+      old_diff = pool->swork.diff;
+      pool->next_diff = pool->swork.diff = diff;
+    }
+
+		applog(pool == current_pool() ? LOG_NOTICE : LOG_DEBUG, "%s difficulty changed to %.3f", get_pool_name(pool), diff);
+}
 else 
   swab256(pool->Target, target);
   cg_wunlock(&pool->data_lock);
