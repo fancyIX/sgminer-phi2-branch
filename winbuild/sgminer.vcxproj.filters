@@ -128,6 +128,9 @@
     <ClCompile Include="..\sph\panama.c">
       <Filter>Source Files\sph</Filter>
     </ClCompile>
+    <ClCompile Include="..\sph\black2s.c">
+      <Filter>Source Files\sph</Filter>
+    </ClCompile>
     <ClCompile Include="..\sph\sha2.c">
       <Filter>Source Files\sph</Filter>
     </ClCompile>
@@ -318,6 +321,12 @@
       <Filter>Source Files\algorithm</Filter>
     </ClCompile>
     <ClCompile Include="..\algorithm\x22i.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\x25x.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\algorithm\lane.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\SWIFFTX\SWIFFTX.c">
@@ -650,6 +659,9 @@
       <Filter>Header Files\sph</Filter>
     </ClInclude>
     <ClInclude Include="..\algorithm\x22i.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\algorithm\x25x.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\sph\sph_shabal.h">

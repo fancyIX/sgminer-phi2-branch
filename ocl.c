@@ -44,6 +44,7 @@
 #include "algorithm/lyra2h.h"
 #include "algorithm/phi2.h"
 #include "algorithm/x22i.h"
+#include "algorithm/x25x.h"
 #include "algorithm/argon2d/argon2d.h"
 
 /* FIXME: only here for global config vars, replace with configuration.h
@@ -603,6 +604,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   else if ((cgpu->algorithm.type == ALGO_LYRA2REV2 ||
             cgpu->algorithm.type == ALGO_LYRA2REV3 ||
             cgpu->algorithm.type == ALGO_X22I ||
+            cgpu->algorithm.type == ALGO_X25X ||
             cgpu->algorithm.type == ALGO_LYRA2Z ||
             cgpu->algorithm.type == ALGO_LYRA2ZZ ||
             cgpu->algorithm.type == ALGO_LYRA2H ||
@@ -621,6 +623,8 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       scratchbuf_size = LYRA2H_SCRATCHBUF_SIZE;
     } else if (cgpu->algorithm.type == ALGO_X22I) {
       scratchbuf_size = X22I_SCRATCHBUF_SIZE;
+    } else if (cgpu->algorithm.type == ALGO_X25X) {
+      scratchbuf_size = X25X_SCRATCHBUF_SIZE;
     } else { // PHI2
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE;
     }
@@ -943,6 +947,12 @@ if (algorithm->type == ALGO_MTP) {
 
     applog(LOG_DEBUG, "x22i buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
   }
+  else if (algorithm->type == ALGO_X25X) {
+    buf4size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states  // only do half lyar2v2
+    bufsize = 24 * 8 * 8 * cgpu->thread_concurrency;
+
+    applog(LOG_DEBUG, "x25x buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
+  }
   else if (algorithm->type == ALGO_ARGON2D) {
     bufsize = (size_t)cgpu->throughput * AR2D_MEM_PER_BATCH;
     readbufsize = 80;
@@ -1035,6 +1045,12 @@ if (algorithm->type == ALGO_MTP) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer3), decrease TC or increase LG", status);
         return NULL;
       }
+      clState->MidstateBuf = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf4size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->MidstateBuf) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (MidstateBuf), decrease TC or increase LG", status);
+        return NULL;
+      }
+    } else if (algorithm->type == ALGO_X25X) {
       clState->MidstateBuf = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf4size, NULL, &status);
       if (status != CL_SUCCESS && !clState->MidstateBuf) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (MidstateBuf), decrease TC or increase LG", status);

@@ -54,6 +54,7 @@
 #include "algorithm/allium.h"
 #include "algorithm/lyra2h.h"
 #include "algorithm/x22i.h"
+#include "algorithm/x25x.h"
 #include "algorithm/argon2d/argon2d.h"
 #include "algorithm/mtp_algo.h"
 
@@ -76,6 +77,7 @@ const char *algorithm_type_str[] = {
   "X14",
   "X15",
   "X22i"
+  "X25x"
   "Keccak",
   "Quarkcoin",
   "Twecoin",
@@ -898,6 +900,88 @@ static cl_int queue_x22i_kernel(struct __clState *clState, struct _dev_blk_ctx *
   // gost - search22
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
   // sha256 - search23
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->outputBuffer);
+  CL_SET_ARG(le_target);
+
+  return status;
+}
+
+static cl_int queue_x25x_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+  cl_kernel *kernel;
+  unsigned int num;
+  cl_ulong le_target;
+  cl_int status = 0;
+
+  le_target = *(cl_ulong *)(blk->work->device_target + 24);
+  flip80(clState->cldata, blk->work->data);
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL,NULL);
+
+  // blake - search
+  kernel = &clState->kernel;
+  num = 0;
+  CL_SET_ARG(clState->CLbuffer0);
+  CL_SET_ARG(clState->padbuffer8);
+
+  kernel = clState->extra_kernels;
+  
+  // bmw - search1
+  CL_SET_ARG_0(clState->padbuffer8);
+  // groestl - search2
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // skein - search3
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // jh - search4
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // keccak - search5
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // luffa - search6
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // cubehash - search7
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // shavite - search8
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // simd - search9
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // echo - search10
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // hamsi - search11
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // fugue - search12
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // shabal - search13
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // whirlpool - search14
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // sha512 - search15
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // swifftx - search16
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // haval - search17
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // tiger - search18
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // lyra2v2 p1 - search19
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->MidstateBuf);
+  // lyra2v2 p2 - search20
+  CL_NEXTKERNEL_SET_ARG_0(clState->MidstateBuf);
+  // lyra2v2 p3 - search21
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->MidstateBuf);
+  // gost - search22
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // sha256 - search23
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // panama - search24
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // lane - search25
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // x25x_shuffle - search26
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  // blake2s - search27
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->outputBuffer);
@@ -2207,6 +2291,7 @@ static algorithm_settings_t algos[] = {
   { "argon2d",ALGO_ARGON2D,"",1,65536,65536,0,0,0xFF,0xFFFFULL,0x0000ffffUL,2,-1, 0 ,argon2d_regenhash,NULL,NULL,queue_argon2d_kernel,gen_hash, NULL },
 
   { "x22i", ALGO_X22I, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 23, 4 * 16 * 4194304, 0, x22i_regenhash, NULL, NULL, queue_x22i_kernel, gen_hash, append_x13_compiler_options },
+  { "x25x", ALGO_X25X, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 27, 4 * 16 * 4194304, 0, x25x_regenhash, NULL, NULL, queue_x25x_kernel, gen_hash, append_x13_compiler_options },
 
   { "talkcoin-mod", ALGO_NIST, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 4, 8 * 16 * 4194304, 0, talkcoin_regenhash, NULL, NULL, queue_talkcoin_mod_kernel, gen_hash, append_x11_compiler_options },
 

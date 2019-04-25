@@ -113,7 +113,7 @@ static MTP_BLAKE2_INLINE void amtp_blake2b_init0(amtp_blake2b_state *S) {
     amtp_blake2b_init0(S);
     /* IV XOR Parameter argon_block */
     for (i = 0; i < 8; ++i) {
-        S->h[i] ^= load64(&p[i * sizeof(S->h[i])]);
+        S->h[i] ^= mtp_load64(&p[i * sizeof(S->h[i])]);
     }
     S->outlen = P->digest_length;
     return 0;
@@ -342,7 +342,7 @@ static MTP_BLAKE2_INLINE void amtp_blake2b_init0(amtp_blake2b_state *S) {
 
 
     for (i = 0; i < 16; ++i) {
-        m[i] = load64(argon_block + i * sizeof(m[i]));
+        m[i] = mtp_load64(argon_block + i * sizeof(m[i]));
     }
 
     for (i = 0; i < 8; ++i) {
@@ -360,13 +360,13 @@ static MTP_BLAKE2_INLINE void amtp_blake2b_init0(amtp_blake2b_state *S) {
 #define G(r, i, a, b, c, d)                                                    \
     do {                                                                       \
         a = a + b + m[amtp_blake2b_sigma[r][2 * i + 0]];                            \
-        d = rotr64(d ^ a, 32);                                                 \
+        d = mtp_rotr64(d ^ a, 32);                                                 \
         c = c + d;                                                             \
-        b = rotr64(b ^ c, 24);                                                 \
+        b = mtp_rotr64(b ^ c, 24);                                                 \
         a = a + b + m[amtp_blake2b_sigma[r][2 * i + 1]];                            \
-        d = rotr64(d ^ a, 16);                                                 \
+        d = mtp_rotr64(d ^ a, 16);                                                 \
         c = c + d;                                                             \
-        b = rotr64(b ^ c, 63);                                                 \
+        b = mtp_rotr64(b ^ c, 63);                                                 \
     } while ((void)0, 0)
 
 #define ROUND(r)                                                               \
@@ -403,7 +403,7 @@ printf("coming here S %08x %08x %08x %08x\n", S->t[0], S->t[1], S->f[0], S->f[1]
 
 printf("m[i] ");
 	 for (i = 0; i < 16; ++i) {
-		 m[i] = load64(argon_block + i * sizeof(m[i]));
+		 m[i] = mtp_load64(argon_block + i * sizeof(m[i]));
 printf(" %08x %08x ", ((uint32_t*)m)[2*i], ((uint32_t*)m)[2 * i + 1]);
 	 }
 printf(" \n ");
@@ -427,13 +427,13 @@ printf(" \n ");
 #define G(r, i, a, b, c, d)                                                    \
     do {                                                                       \
         a = a + b + m[amtp_blake2b_sigma[r][2 * i + 0]];                            \
-        d = rotr64(d ^ a, 32);                                                 \
+        d = mtp_rotr64(d ^ a, 32);                                                 \
         c = c + d;                                                             \
-        b = rotr64(b ^ c, 24);                                                 \
+        b = mtp_rotr64(b ^ c, 24);                                                 \
         a = a + b + m[amtp_blake2b_sigma[r][2 * i + 1]];                            \
-        d = rotr64(d ^ a, 16);                                                 \
+        d = mtp_rotr64(d ^ a, 16);                                                 \
         c = c + d;                                                             \
-        b = rotr64(b ^ c, 63);                                                 \
+        b = mtp_rotr64(b ^ c, 63);                                                 \
     } while ((void)0, 0)
 
 #define ROUND(r)                                                               \
@@ -470,7 +470,7 @@ printf(" \n");
 
 
 	 for (i = 0; i < 16; ++i) {
-		 m[i] = load64(argon_block + i * sizeof(m[i]));
+		 m[i] = mtp_load64(argon_block + i * sizeof(m[i]));
 	 }
 
 	 for (i = 0; i < 8; ++i) {
@@ -488,13 +488,13 @@ printf(" \n");
 #define G(r, i, a, b, c, d)                                                    \
     do {                                                                       \
         a = a + b + m[amtp_blake2b_sigma[r][2 * i + 0]];                            \
-        d = rotr64(d ^ a, 32);                                                 \
+        d = mtp_rotr64(d ^ a, 32);                                                 \
         c = c + d;                                                             \
-        b = rotr64(b ^ c, 24);                                                 \
+        b = mtp_rotr64(b ^ c, 24);                                                 \
         a = a + b + m[amtp_blake2b_sigma[r][2 * i + 1]];                            \
-        d = rotr64(d ^ a, 16);                                                 \
+        d = mtp_rotr64(d ^ a, 16);                                                 \
         c = c + d;                                                             \
-        b = rotr64(b ^ c, 63);                                                 \
+        b = mtp_rotr64(b ^ c, 63);                                                 \
     } while ((void)0, 0)
 
 #define ROUND(r)                                                               \
@@ -667,7 +667,7 @@ printf(" \n");
     amtp_blake2b_compress(S, S->buf);
 
     for (i = 0; i < 8; ++i) { /* Output full hash to temp buffer */
-        store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
+        mtp_store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
     }
 
     memcpy(out, buffer, S->outlen);
@@ -697,7 +697,7 @@ printf(" \n");
 	 amtp_blake2b_compress_test(S, S->buf);
 
 	 for (i = 0; i < 8; ++i) { /* Output full hash to temp buffer */
-		 store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
+		 mtp_store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
 	 }
 
 	 memcpy(out, buffer, S->outlen);
@@ -730,7 +730,7 @@ printf(" \n");
 	 amtp_blake2b4rounds_compress(S, S->buf);
 
 	 for (i = 0; i < 8; ++i) { /* Output full hash to temp buffer */
-		 store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
+		 mtp_store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
 	 }
 
 	 memcpy(out, buffer, S->outlen);
@@ -761,7 +761,7 @@ printf(" \n");
 		 goto fail;
 	 
 	 /* Ensure little-endian byte order! */
-	 store32(outlen_bytes, (uint32_t)outlen);
+	 mtp_store32(outlen_bytes, (uint32_t)outlen);
 	 if (outlen <= amtp_blake2b_OUTBYTES) {
 
 

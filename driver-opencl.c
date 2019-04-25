@@ -1449,9 +1449,6 @@ if (gpu->algorithm.type != ALGO_MTP) {
   }
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
-    if (gpu->algorithm.type == ALGO_X22I && (i == 15)) {
-      //continue;
-    }
     if (gpu->algorithm.type == ALGO_PHI2 && i == 1) {
       if (clState->prebuilt) {
         const size_t off2[] = { 0, 0, *p_global_work_offset };
@@ -1508,28 +1505,28 @@ if (gpu->algorithm.type != ALGO_MTP) {
 	      const size_t expand[] = { 4, 5 };
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       }
-    } else if (gpu->algorithm.type == ALGO_X22I && (i == 18 || i == 20)) {
+    } else if ((gpu->algorithm.type == ALGO_X22I || gpu->algorithm.type == ALGO_X25X) && (i == 18 || i == 20)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
       globalThreads2[0] = globalThreads[0] * 1; // only do half lyar2v2
       localThreads2[0] = localThreads[0];
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
-    } else if (gpu->algorithm.type == ALGO_X22I && (i == 19)) {
+    } else if ((gpu->algorithm.type == ALGO_X22I || gpu->algorithm.type == ALGO_X25X) && (i == 19)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
       globalThreads2[0] = globalThreads[0] * 4; // only do half lyar2v2
       localThreads2[0] = 64;
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
-    } else if (gpu->algorithm.type == ALGO_X22I && (i == 21)) {
+    } else if ((gpu->algorithm.type == ALGO_X22I || gpu->algorithm.type == ALGO_X25X) && (i == 21)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
       globalThreads2[0] = globalThreads[0];
       localThreads2[0] = 256;
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
-    } else if (gpu->algorithm.type == ALGO_X22I && (i == 15)) {
+    } else if ((gpu->algorithm.type == ALGO_X22I || gpu->algorithm.type == ALGO_X25X) && (i == 15)) {
       const size_t off2[] = { 0, *p_global_work_offset };
 	    const size_t gws[] = { 8, globalThreads[0] };
 	    const size_t expand[] = { 8, 32 };

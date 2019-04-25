@@ -31,9 +31,6 @@
  #ifndef SHA256F_CL
  #define SHA256F_CL
 
-#define SHA256_RD14 (SHA256_S1(W12) + W7 + SHA256_S0(W15) + W14)
-#define SHA256_RD15 (SHA256_S1(W13) + W8 + SHA256_S0(W0) + W15)
-
 #define SHA256_S0(x) (ROL32(x, 25) ^ ROL32(x, 14) ^  SHR(x, 3))
 #define SHA256_S1(x) (ROL32(x, 15) ^ ROL32(x, 13) ^  SHR(x, 10))
 
@@ -72,5 +69,6 @@
 #define SHA256_R15 (W15 = SHA256_S1(W13) + W8 + SHA256_S0(W0) + W15)
 
 #define SHA256_RD14 (SHA256_S1(W12) + W7 + SHA256_S0(W15) + W14)
+#define SHA256_RD15 (SHA256_S1(W13) + W8 + SHA256_S0(W0) + W15)
 
 #endif // SHA256F_CL

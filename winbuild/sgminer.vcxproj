@@ -272,6 +272,8 @@
     <ClCompile Include="..\algorithm\argon2d\argon2d.c" />
     <ClCompile Include="..\algorithm\bitblock.c" />
     <ClCompile Include="..\algorithm\x22i.c" />
+    <ClCompile Include="..\algorithm\x25x.c" />
+    <ClCompile Include="..\algorithm\lane.c" />
     <ClCompile Include="..\algorithm\blake256.c" />
     <ClCompile Include="..\algorithm\blakecoin.c" />
     <ClCompile Include="..\algorithm\ethash.c" />
@@ -353,6 +355,7 @@
     <ClCompile Include="..\sph\keccak.c" />
     <ClCompile Include="..\sph\luffa.c" />
     <ClCompile Include="..\sph\panama.c" />
+    <ClCompile Include="..\sph\blake2s.c" />
     <ClCompile Include="..\sph\ripemd.c" />
     <ClCompile Include="..\sph\sha2.c" />
     <ClCompile Include="..\sph\sha2big.c" />
@@ -387,6 +390,7 @@
     <ClInclude Include="..\algorithm\argon2d\argon2ref\blake2\blake2-impl.h" />
     <ClInclude Include="..\algorithm\bitblock.h" />
     <ClInclude Include="..\algorithm\x22i.h" />
+    <ClInclude Include="..\algorithm\x25x.h" />
     <ClInclude Include="..\algorithm\blake256.h" />
     <ClInclude Include="..\algorithm\blakecoin.h" />
     <ClInclude Include="..\algorithm\ethash.h" />

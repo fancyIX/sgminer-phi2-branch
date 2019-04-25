@@ -30,18 +30,18 @@
  * @author   Thomas Pornin <thomas.pornin@cryptolog.com>
  */
 
-#define LVAR17(b)  sph_u32 \
+#define PANAMA_LVAR17(b)  sph_u32 \
   b ## 0, b ## 1, b ## 2, b ## 3, b ## 4, b ## 5, \
   b ## 6, b ## 7, b ## 8, b ## 9, b ## 10, b ## 11, \
   b ## 12, b ## 13, b ## 14, b ## 15, b ## 16;
 
-#define LVARS   \
-  LVAR17(a) \
-  LVAR17(g) \
-  LVAR17(p) \
-  LVAR17(t)
+#define PANAMA_LVARS   \
+  PANAMA_LVAR17(a) \
+  PANAMA_LVAR17(g) \
+  PANAMA_LVAR17(p) \
+  PANAMA_LVAR17(t)
 
-#define M17(macro)   do { \
+#define PANAMA_M17(macro)   do { \
     macro( 0,  1,  2,  4); \
     macro( 1,  2,  3,  5); \
     macro( 2,  3,  4,  6); \
@@ -61,30 +61,30 @@
     macro(16,  0,  1,  3); \
   } while (0)
 
-#define BUPDATE1(n0, n2)   do { \
+#define PANAMA_BUPDATE1(n0, n2)   do { \
     buffer[ptr24][n0] ^= buffer[ptr31][n2]; \
     buffer[ptr31][n2] ^= INW1(n2); \
   } while (0)
 
-#define BUPDATE   do { \
-    BUPDATE1(0, 2); \
-    BUPDATE1(1, 3); \
-    BUPDATE1(2, 4); \
-    BUPDATE1(3, 5); \
-    BUPDATE1(4, 6); \
-    BUPDATE1(5, 7); \
-    BUPDATE1(6, 0); \
-    BUPDATE1(7, 1); \
+#define PANAMA_BUPDATE   do { \
+    PANAMA_BUPDATE1(0, 2); \
+    PANAMA_BUPDATE1(1, 3); \
+    PANAMA_BUPDATE1(2, 4); \
+    PANAMA_BUPDATE1(3, 5); \
+    PANAMA_BUPDATE1(4, 6); \
+    PANAMA_BUPDATE1(5, 7); \
+    PANAMA_BUPDATE1(6, 0); \
+    PANAMA_BUPDATE1(7, 1); \
   } while (0)
 
-#define RSTATE(n0, n1, n2, n4)    (a ## n0 = state[n0])
+#define PANAMA_RSTATE(n0, n1, n2, n4)    (a ## n0 = state[n0])
 
-#define WSTATE(n0, n1, n2, n4)    (state[n0] = a ## n0)
+#define PANAMA_WSTATE(n0, n1, n2, n4)    (state[n0] = a ## n0)
 
-#define GAMMA(n0, n1, n2, n4)   \
+#define PANAMA_GAMMA(n0, n1, n2, n4)   \
   (g ## n0 = a ## n0 ^ (a ## n1 | SPH_T32(~a ## n2)))
 
-#define PI_ALL   do { \
+#define PANAMA_PI_ALL   do { \
     p0  = g0; \
     p1  = SPH_ROTL32( g7,  1); \
     p2  = SPH_ROTL32(g14,  3); \
@@ -104,10 +104,10 @@
     p16 = SPH_ROTL32(g10,  8); \
   } while (0)
 
-#define THETA(n0, n1, n2, n4)   \
+#define PANAMA_THETA(n0, n1, n2, n4)   \
   (t ## n0 = p ## n0 ^ p ## n1 ^ p ## n4)
 
-#define SIGMA_ALL   do { \
+#define PANAMA_SIGMA_ALL   do { \
     a0 = t0 ^ 1; \
     a1 = t1 ^ INW2(0); \
     a2 = t2 ^ INW2(1); \
@@ -132,24 +132,38 @@
  \
     ptr24 = (ptr0 - 8) & 31; \
     ptr31 = (ptr0 - 1) & 31; \
-    BUPDATE; \
-    M17(GAMMA); \
-    PI_ALL; \
-    M17(THETA); \
+    PANAMA_BUPDATE; \
+    PANAMA_M17(PANAMA_GAMMA); \
+    PANAMA_PI_ALL; \
+    PANAMA_M17(PANAMA_THETA); \
     ptr16 = ptr0 ^ 16; \
-    SIGMA_ALL; \
+    PANAMA_SIGMA_ALL; \
     ptr0 = ptr31; \
   } while (0)
 
 /*
  * These macros are used to compute
  */
-#define INC0     1
-#define INC1     2
-#define INC2     3
-#define INC3     4
-#define INC4     5
-#define INC5     6
-#define INC6     7
-#define INC7     8
+#define PANAMA_INC0     1
+#define PANAMA_INC1     2
+#define PANAMA_INC2     3
+#define PANAMA_INC3     4
+#define PANAMA_INC4     5
+#define PANAMA_INC5     6
+#define PANAMA_INC6     7
+#define PANAMA_INC7     8
+
+static sph_u32 sph_dec32le_aligned(__global uint* src)
+{
+#if SPH_LITTLE_ENDIAN
+  return *(__global const sph_u32 *)src;
+#elif SPH_BIG_ENDIAN
+  return sph_bswap32(*(__global const sph_u32 *)src);
+#else
+  return (sph_u32)(((const unsigned char *)src)[0])
+      | ((sph_u32)(((const unsigned char *)src)[1]) << 8)
+      | ((sph_u32)(((const unsigned char *)src)[2]) << 16)
+      | ((sph_u32)(((const unsigned char *)src)[3]) << 24);
+#endif
+}
 

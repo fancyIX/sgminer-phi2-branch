@@ -178,7 +178,7 @@ void getargon_blockindex(int thr_id, cl_command_queue Queue, cl_mem block, cl_me
 void Storeargon_block(void *output, const argon_block *src)
 {
 	for (unsigned i = 0; i < MTP_ARGON2_QWORDS_IN_argon_block; ++i) {
-		store64(static_cast<uint8_t*>(output)
+		mtp_store64(static_cast<uint8_t*>(output)
 			+ (i * sizeof(src->v[i])), src->v[i]);
 	}
 }
@@ -244,7 +244,7 @@ unsigned int trailing_zeros_little_endian_uint256(uint256 hash) {
 static void store_argon_block(void *output, const argon_block *src) {
     unsigned i;
     for (i = 0; i < MTP_ARGON2_QWORDS_IN_argon_block; ++i) {
-        store64((uint8_t *)output + i * sizeof(src->v[i]), src->v[i]);
+        mtp_store64((uint8_t *)output + i * sizeof(src->v[i]), src->v[i]);
     }
 }
 
