@@ -2569,27 +2569,28 @@ __constant static const ushort x25x_round_const[X25X_SHUFFLE_ROUNDS] = {
     0xd7ee, 0x6783, 0xfa6c, 0x4b9c
 };
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+#define X25X_SHFL_GROUP_SIZE 21
+
+__attribute__((reqd_work_group_size(X25X_SHFL_GROUP_SIZE, 1, 1)))
 __kernel void search26( __global uint *hashes )
 {
     uint gid = get_global_id( 0 );
     __global ushort* pblock_pointer = (__global ushort*) (hashes + 16 * (0 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))));
-    ushort block_pointer[X25X_SHUFFLE_BLOCKS];
+    __local ushort block_pointer[X25X_SHUFFLE_BLOCKS * X25X_SHFL_GROUP_SIZE];
+    uint lid = get_local_id( 0 );
     #pragma unroll
-    for (int i = 0; i < X25X_SHUFFLE_BLOCKS / 32; i++) {
-      ((ulong8 *)block_pointer)[i] = ((__global ulong8 *)pblock_pointer)[i];
+    for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
+      (block_pointer)[i * X25X_SHFL_GROUP_SIZE + lid] = (pblock_pointer)[i];
     }
-#pragma unroll
 	for (int r = 0; r < X25X_SHUFFLE_ROUNDS; r++) {
-    #pragma unroll
 		for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
-			ushort block_value = block_pointer[X25X_SHUFFLE_BLOCKS - i - 1];
-			block_pointer[i] ^= block_pointer[block_value % X25X_SHUFFLE_BLOCKS] + (x25x_round_const[r] << (i % 16));
+			ushort block_value = block_pointer[(X25X_SHUFFLE_BLOCKS - i - 1) * X25X_SHFL_GROUP_SIZE + lid];
+			block_pointer[i * X25X_SHFL_GROUP_SIZE + lid] ^= block_pointer[(block_value % X25X_SHUFFLE_BLOCKS) * X25X_SHFL_GROUP_SIZE + lid] + (x25x_round_const[r] << (i % 16));
 		}
 	}
 #pragma unroll
-    for (int i = 0; i < X25X_SHUFFLE_BLOCKS / 32; i++) {
-      ((__global ulong8 *)pblock_pointer)[i] = ((ulong8 *)block_pointer)[i];
+    for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
+      (pblock_pointer)[i] = (block_pointer)[i * X25X_SHFL_GROUP_SIZE + lid];
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
@@ -2601,14 +2602,6 @@ __kernel void search27(__global uint* hashes, volatile __global uint* output, co
 {
     uint gid = get_global_id( 0 );
     __global uint* input = hashes + 16 * (0 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input0 = hashes + 16 * (0 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input1 = hashes + 16 * (1 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input2 = hashes + 16 * (2 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input3 = hashes + 16 * (3 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input4 = hashes + 16 * (4 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input5 = hashes + 16 * (5 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input6 = hashes + 16 * (6 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-    __global uint* input7 = hashes + 16 * (7 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
 
 	blake2s_state blake2_ctx;
 
