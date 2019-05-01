@@ -2578,7 +2578,7 @@ __kernel void search26( __global uint *hashes )
     __global ushort* pblock_pointer = (__global ushort*) (hashes + 16 * (0 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))));
     __local ushort block_pointer[X25X_SHUFFLE_BLOCKS * X25X_SHFL_GROUP_SIZE];
     uint lid = get_local_id( 0 );
-    #pragma unroll
+    //#pragma unroll
     for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
       (block_pointer)[i * X25X_SHFL_GROUP_SIZE + lid] = (pblock_pointer)[i];
     }
@@ -2588,7 +2588,7 @@ __kernel void search26( __global uint *hashes )
 			block_pointer[i * X25X_SHFL_GROUP_SIZE + lid] ^= block_pointer[(block_value % X25X_SHUFFLE_BLOCKS) * X25X_SHFL_GROUP_SIZE + lid] + (x25x_round_const[r] << (i % 16));
 		}
 	}
-#pragma unroll
+//#pragma unroll
     for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
       (pblock_pointer)[i] = (block_pointer)[i * X25X_SHFL_GROUP_SIZE + lid];
     }
