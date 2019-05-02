@@ -2438,9 +2438,12 @@ __kernel void search24( __global uint *hashes )
     sph_u32 buffer[32][8];
     sph_u32 state[17];
     int i, j;
+    #pragma unroll
     for(i = 0; i < 32; i++)
+    #pragma unroll
         for(j = 0; j < 8; j++)
             buffer[i][j] = 0;
+    #pragma unroll
     for(i = 0; i < 17; i++)
         state[i] = 0;
 
@@ -2478,6 +2481,7 @@ __kernel void search24( __global uint *hashes )
 #define INW2(i)     buffer[ptr4][i]
 
     PANAMA_M17(PANAMA_RSTATE);
+    #pragma unroll
     for(i = 0; i < 32; i++) {
         unsigned ptr4 = (ptr0 + 4) & 31;
         PANAMA_STEP;
