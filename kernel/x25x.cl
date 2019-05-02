@@ -2606,7 +2606,7 @@ __kernel void search27(__global uint* hashes, volatile __global uint* output, co
 	blake2s_state blake2_ctx;
 
 	gpu_blake2s_init(&blake2_ctx, BLAKE2S_OUTBYTES);
-	gpu_blake2s_update(&blake2_ctx, (__global uchar*) input, 64 * 24);
+	gpu_blake2s_update(&blake2_ctx, (__global uchar*) input);
 
 	uint hash[8];
 	gpu_blake2s_final(&blake2_ctx, hash);

@@ -126,8 +126,7 @@ void gpu_blake2s_set_lastblock(blake2s_state *S)
 	S->f[0] = ~0U;
 }
 
-
-void gpu_blake2s_compress(blake2s_state *S, const uint *block)
+void gpu_blake2s_compress0(blake2s_state *S)
 {
 	uint m[16];
 	uint v[16];
@@ -152,7 +151,7 @@ void gpu_blake2s_compress(blake2s_state *S, const uint *block)
 
 	#pragma unroll
 	for(int i = 0; i < 16; i++)
-		m[i] = block[i];
+		m[i] = ((uint *)S->buf)[i];
 
 	#pragma unroll
 	for(int i = 0; i < 8; i++)
@@ -208,40 +207,53 @@ void gpu_blake2s_compress(blake2s_state *S, const uint *block)
 #undef BLAKE2S_ROUND
 }
 
-void inline blake2s_memcpy(uchar *dst, __global const uchar *src, uint len) {
-	for (int i = 0; i < len / 64; i++) {
-		((ulong8 *)dst)[i] = ((__global ulong8 *)src)[i];
+void inline blake2s_memcpy(blake2s_state *S, uint left, __global const uchar *src, uint len) {
+	#pragma unroll
+	for (int i = 0; i < len; i++) {
+		(S->buf)[left + i] = (src)[i];
 	}
 }
 
-void inline blake2s_memcpy2(uchar *dst, const uchar *src, uint len) {
-	for (int i = 0; i < len; i++) {
-		dst[i] = src[i];
+void inline blake2s_memcpy2(blake2s_state *S) {
+	#pragma unroll
+	for (int i = 0; i < BLAKE2S_BLOCKBYTES; i++) {
+		S->buf[i] = S->buf[BLAKE2S_BLOCKBYTES + i];
 	}
 }
 
 inline
-void gpu_blake2s_update(blake2s_state *S, __global const uchar *in, ulong inlen)
+void gpu_blake2s_update(blake2s_state *S, __global const uchar *in)
 {
-	while(inlen > 0)
+	const int left = 0;
+	size_t fill = 2 * BLAKE2S_BLOCKBYTES;
+	blake2s_memcpy(S, left, in, fill);
+	S->buflen += fill;
+	gpu_blake2s_increment_counter(S, BLAKE2S_BLOCKBYTES);
+	gpu_blake2s_compress0(S);
+	blake2s_memcpy2(S);
+	S->buflen -= BLAKE2S_BLOCKBYTES;
+	in += fill;
+
+	#pragma unroll
+	for (int inlen = 64 * 24 - 2 * BLAKE2S_BLOCKBYTES; inlen > 0; )
 	{
-		const int left = S->buflen;
+		const int left = BLAKE2S_BLOCKBYTES;
 		size_t fill = 2 * BLAKE2S_BLOCKBYTES - left;
 		if(inlen > fill)
 		{
-			blake2s_memcpy(S->buf + left, in, fill); // Fill buffer
+			blake2s_memcpy(S, left, in, fill); // Fill buffer
 			S->buflen += fill;
 
 			gpu_blake2s_increment_counter(S, BLAKE2S_BLOCKBYTES);
-			gpu_blake2s_compress(S, (uint*) S->buf); // Compress
-			blake2s_memcpy2(S->buf, S->buf + BLAKE2S_BLOCKBYTES, BLAKE2S_BLOCKBYTES); // Shift buffer left
+			gpu_blake2s_compress0(S); // Compress
+			blake2s_memcpy2(S);
 			S->buflen -= BLAKE2S_BLOCKBYTES;
 			in += fill;
 			inlen -= fill;
 		}
 		else // inlen <= fill
 		{
-			blake2s_memcpy(S->buf + left, in, (size_t) inlen);
+			blake2s_memcpy(S, left, in, fill);
 			S->buflen += (size_t) inlen; // Be lazy, do not compress
 			in += inlen;
 			inlen -= inlen;
@@ -250,31 +262,24 @@ void gpu_blake2s_update(blake2s_state *S, __global const uchar *in, ulong inlen)
 }
 
 inline
-void gpu_blake2s_update_nonce(blake2s_state *S, const uint nonce)
-{
-	gpu_store32(&S->buf[76], nonce);
-	S->buflen = 80;
-}
-
-inline
 void gpu_blake2s_final(blake2s_state *S, uint *out)
 {
 
-	if (S->buflen > BLAKE2S_BLOCKBYTES)
+	//if (S->buflen > BLAKE2S_BLOCKBYTES)
 	{
 		gpu_blake2s_increment_counter(S, BLAKE2S_BLOCKBYTES);
-		gpu_blake2s_compress(S, (uint*) S->buf);
+		gpu_blake2s_compress0(S);
 		S->buflen -= BLAKE2S_BLOCKBYTES;
-		//blake2s_memcpy2(S->buf, S->buf + BLAKE2S_BLOCKBYTES, S->buflen);
+		blake2s_memcpy2(S);
 	}
 
 	gpu_blake2s_increment_counter(S, (uint)S->buflen);
 	gpu_blake2s_set_lastblock(S);
 	//memset(&S->buf[S->buflen], 0, 2 * BLAKE2S_BLOCKBYTES - S->buflen);
 	//#pragma unroll
-	//for (int i = 0; i < (BLAKE2S_BLOCKBYTES - S->buflen)/4; i++)
-	//	gpu_store32(S->buf + BLAKE2S_BLOCKBYTES + S->buflen + (4*i), 0);
-	gpu_blake2s_compress(S, (uint*) (S->buf + BLAKE2S_BLOCKBYTES));
+	//for (int i = 0; i < (BLAKE2S_BLOCKBYTES)/4; i++)
+	//	gpu_store32(S->buf + BLAKE2S_BLOCKBYTES + (4*i), 0);
+	gpu_blake2s_compress0(S);
 
 	#pragma unroll
 	for (int i = 0; i < 8; i++)
@@ -308,6 +313,7 @@ void gpu_blake2s_init_param(blake2s_state *S, const blake2s_param *P)
 	uint *p = (uint*) P;
 
 	/* IV XOR ParamBlock */
+	#pragma unroll
 	for (int i = 0; i < 8; i++)
 		S->h[i] ^= gpu_load32(&p[i]);
 }
