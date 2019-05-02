@@ -2509,22 +2509,37 @@ __kernel void search25( __global uint *hashes )
 	uint gid = get_global_id( 0 );
     __global uint* in = hashes + 16 * (22 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
     __global uint* out = hashes + 16 * (23 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
-	
+	uint tid = get_local_id(0);
+  __local uint S_lane_T0[256];
+  __local uint S_lane_T1[256];
+  __local uint S_lane_T2[256];
+  __local uint S_lane_T3[256];
+  const int blockSize = min(256, WORKSIZE);
+  if (tid < 256) {
+    #pragma unroll
+      for (int i=0; i<(256/blockSize); i++) {
+         S_lane_T0[tid + i*blockSize] = lane_T0[tid + i*blockSize];
+         S_lane_T1[tid + i*blockSize] = lane_T1[tid + i*blockSize];
+         S_lane_T2[tid + i*blockSize] = lane_T2[tid + i*blockSize];
+         S_lane_T3[tid + i*blockSize] = lane_T3[tid + i*blockSize];
+      }
+  }
+
 	uint m[16];
 	uint h[16] = { 0x9b603481, 0x1d5a931b, 0x69c4e6e0, 0x975e2681,
 					0xb863ba53, 0x8d1be11b, 0x77340080, 0xd42c48a5,
 					0x3a3a1d61, 0x1cf3a1c4, 0xf0a30347, 0x7e56a44a,
 					0x9530ee60, 0xdadb05b6, 0x3ae3ac7c, 0xd732ac6a };
 					
-	uint t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, ta, tb, tc, td, te, tf;
-	uint s00, s01, s02, s03, s04, s05, s06, s07, s08, s09, s0a, s0b, s0c, s0d, s0e, s0f;
-	uint s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s1a, s1b, s1c, s1d, s1e, s1f;
-	uint s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s2a, s2b, s2c, s2d, s2e, s2f;
-	uint s30, s31, s32, s33, s34, s35, s36, s37, s38, s39, s3a, s3b, s3c, s3d, s3e, s3f;
-	uint s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s4a, s4b, s4c, s4d, s4e, s4f;
-	uint s50, s51, s52, s53, s54, s55, s56, s57, s58, s59, s5a, s5b, s5c, s5d, s5e, s5f;
-	uint s60, s61, s62, s63, s64, s65, s66, s67, s68, s69, s6a, s6b, s6c, s6d, s6e, s6f;
-	uint s70, s71, s72, s73, s74, s75, s76, s77, s78, s79, s7a, s7b, s7c, s7d, s7e, s7f;
+	volatile uint t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, ta, tb, tc, td, te, tf;
+	volatile uint s00, s01, s02, s03, s04, s05, s06, s07, s08, s09, s0a, s0b, s0c, s0d, s0e, s0f;
+	volatile uint s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s1a, s1b, s1c, s1d, s1e, s1f;
+	volatile uint s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s2a, s2b, s2c, s2d, s2e, s2f;
+	volatile uint s30, s31, s32, s33, s34, s35, s36, s37, s38, s39, s3a, s3b, s3c, s3d, s3e, s3f;
+	volatile uint s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s4a, s4b, s4c, s4d, s4e, s4f;
+	volatile uint s50, s51, s52, s53, s54, s55, s56, s57, s58, s59, s5a, s5b, s5c, s5d, s5e, s5f;
+	volatile uint s60, s61, s62, s63, s64, s65, s66, s67, s68, s69, s6a, s6b, s6c, s6d, s6e, s6f;
+	volatile uint s70, s71, s72, s73, s74, s75, s76, s77, s78, s79, s7a, s7b, s7c, s7d, s7e, s7f;
 	
 	#pragma unroll
 	for ( int i = 0; i < 16; i++ ) m[ i ] = in[ i ];

@@ -395,10 +395,10 @@ __constant static const uint lane_C[768] =
 	0x5715ede3, 0xfb8af6f0, 0x7dc57b78, 0x3ee2bdbc, 0x1f715ede, 0x0fb8af6f, 0xd7dc57b6, 0x6bee2bdb, 
 };
 
-#define LANE_T0 lane_T0
-#define LANE_T1 lane_T1
-#define LANE_T2 lane_T2
-#define LANE_T3 lane_T3
+#define LANE_T0 S_lane_T0
+#define LANE_T1 S_lane_T1
+#define LANE_T2 S_lane_T2
+#define LANE_T3 S_lane_T3
 #define LANE_C lane_C
 
 #define lane512_compress( m, h, ctrl )\
