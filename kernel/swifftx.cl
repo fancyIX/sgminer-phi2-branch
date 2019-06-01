@@ -517,11 +517,11 @@ unsigned char SFT_SBox[256] = {
 #define SFT_BYTE(x, n)     ((uint)amd_bfe((uint)(x), (8 * n), 8U))
 
 // #define SFT_INPUT(i) (((i) < 64) ? ((inoutptr)[(i)]) : ( ((i) < 64 * 2) ? ((in1ptr)[(i - 64)]) : ( ((i) < 64 * 3) ? (((in2ptr)[(i -  64 * 2)])) : ((in3ptr)[(i -  64 * 3)]) ) ))
-#define SFT_INPUT0(i) ((inoutptr)[(i)])
+#define SFT_INPUT0(i) ((inptr)[(i)])
 #define SFT_INPUT1(i) ((in1ptr)[(i)])
 #define SFT_INPUT2(i) ((in2ptr)[(i)])
 #define SFT_INPUT3(i) ((in3ptr)[(i)])
-#define SFT_OUTPUT(i) ((inoutptr)[(i)])
+#define SFT_OUTPUT(i) ((outptr)[(i)])
 
 #define PRAGMA(X) _Pragma(#X)
 #define PRAGMA_UNROLL PRAGMA(unroll)
@@ -679,11 +679,11 @@ unsigned char SFT_SBox[256] = {
 //__shared__ swift_int32_t __FIELD_SIZE_22__;
 #define __FIELD_SIZE_22__ (FIELD_SIZE << 22)
 
-#define e_ComputeSingleSWIFFTX(inoutptr,in1ptr,in2ptr,in3ptr,in,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
+#define e_ComputeSingleSWIFFTX_2(outptr,inptr,in1ptr,in2ptr,in3ptr,in,SBox,As,fftTable,multipliers,sum,intermediate,carry,pairs,tsum) do {    \
   PRAGMA_UNROLL    \
   for (int i = 0; i < 64 / SFT_NSTRIDE; i++) { \
       int ii = i * SFT_NSTRIDE + SFT_STRIDE; \
-      SFT_IN(ii      ) = inoutptr[ii]; \
+      SFT_IN(ii      ) = inptr[ii]; \
       SFT_IN(ii + 64 ) = in1ptr  [ii]; \
       SFT_IN(ii + 128) = in2ptr  [ii]; \
       SFT_IN(ii + 192) = in3ptr  [ii]; \
@@ -789,7 +789,7 @@ unsigned char SFT_SBox[256] = {
   for (int jj = 0; jj < SFT_N / SFT_NSTRIDE; ++jj) {   \
     SFT_TSUM(SFT_STRIDE) = sum[jj]; \
     barrier(CLK_LOCAL_MEM_FENCE);   \
-    if (SFT_STRIDE == jj) TranslateToBase256_O(tsum, inoutptr, (jj << 3), pairs);   \
+    if (SFT_STRIDE == jj) TranslateToBase256_O(tsum, outptr, (jj << 3), pairs);   \
   } \
    \
      \

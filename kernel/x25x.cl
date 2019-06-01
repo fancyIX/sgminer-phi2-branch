@@ -1,5 +1,5 @@
 /*
- * X22i kernel implementation.
+ * X25x kernel implementation.
  *
  * ==========================(LICENSE BEGIN)============================
  *
@@ -34,8 +34,8 @@
  * @author   fancyIX 2018
  */
 
-#ifndef X22I_CL
-#define X22I_CL
+#ifndef X25X_CL
+#define X25X_CL
 
 #define DEBUG(x)
 
@@ -129,6 +129,9 @@ ulong ROTL64_2(const uint2 vv, const int r) { return as_ulong((amd_bitalign((vv)
 #include "swifftx.cl"
 #include "tiger.cl"
 #include "sha256f.cl"
+#include "panama.cl"
+#include "lane.cl"
+#include "blake2s.cl"
 
 #define SWAP4(x) as_uint(as_uchar4(x).wzyx)
 #define SWAP8(x) as_ulong(as_uchar8(x).s76543210)
@@ -173,12 +176,14 @@ typedef union {
     ulong4 h8[4];
 } lyraState_t;
 
+#define X25X_HASH_ARRAY_SIZE 24
+
 // blake
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search(__global unsigned char* block, __global hash_t* hashes)
 {
     uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+    __global hash_t *hash = &(hashes[X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   sph_u64 V0 = BLAKE_IV512[0], V1 = BLAKE_IV512[1], V2 = BLAKE_IV512[2], V3 = BLAKE_IV512[3];
   sph_u64 V4 = BLAKE_IV512[4], V5 = BLAKE_IV512[5], V6 = BLAKE_IV512[6], V7 = BLAKE_IV512[7];
@@ -243,7 +248,8 @@ __kernel void search1(__global hash_t* hashes)
 {
   ulong msg[16] = { 0 };
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);	
+  __global hash_t *hash = &(hashes[X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[1 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
 
 	#pragma unroll
 	for(int i = 0; i < 8; ++i) msg[i] = hash->h8[i];
@@ -260,7 +266,7 @@ __kernel void search1(__global hash_t* hashes)
 	}
 	
 	#pragma unroll
-	for(int i = 0; i < 8; ++i) hash->h8[i] = msg[i + 8];
+	for(int i = 0; i < 8; ++i) hash1->h8[i] = msg[i + 8];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -270,7 +276,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search2(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[1 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[2 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
 
   __local ulong T0[256], T1[256], T2[256], T3[256];
 	
@@ -492,14 +499,14 @@ __kernel void search2(__global hash_t* hashes)
 	}
 	
 	//vstore8((((ulong8 *)M)[0] ^ ((ulong8 *)G)[1]), 0, hash->h8);
-  hash->h8[0] = M_0 ^ G_8;
-  hash->h8[1] = M_1 ^ G_9;
-  hash->h8[2] = M_2 ^ G_10;
-  hash->h8[3] = M_3 ^ G_11;
-  hash->h8[4] = M_4 ^ G_12;
-  hash->h8[5] = M_5 ^ G_13;
-  hash->h8[6] = M_6 ^ G_14;
-  hash->h8[7] = M_7 ^ G_15;
+  hash1->h8[0] = M_0 ^ G_8;
+  hash1->h8[1] = M_1 ^ G_9;
+  hash1->h8[2] = M_2 ^ G_10;
+  hash1->h8[3] = M_3 ^ G_11;
+  hash1->h8[4] = M_4 ^ G_12;
+  hash1->h8[5] = M_5 ^ G_13;
+  hash1->h8[6] = M_6 ^ G_14;
+  hash1->h8[7] = M_7 ^ G_15;
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
@@ -508,8 +515,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search3(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  uint offset = get_global_offset(0);
-  __global hash_t *hash = &(hashes[gid-offset]);
+  __global hash_t *hash = &(hashes[2 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[3 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
 	
 	const ulong8 m = vload8(0, hash->h8);
 	
@@ -527,7 +534,7 @@ __kernel void search3(__global hash_t* hashes)
 	p = Skein512Block(p, h2, h8, t2);
 	//p = VSWAP8(p);
 	
-	vstore8(p, 0, hash->h8);
+	vstore8(p, 0, hash1->h8);
 	
 	barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -537,7 +544,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search4(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[3 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[4 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   JH_CHUNK_TYPE evnhi = (JH_CHUNK_TYPE)(JH_BASE_TYPE_CAST(0x17AA003E964BD16FUL), JH_BASE_TYPE_CAST(0x1E806F53C1A01D89UL), JH_BASE_TYPE_CAST(0x694AE34105E66901UL), JH_BASE_TYPE_CAST(0x56F8B19DECF657CFUL));
 	JH_CHUNK_TYPE evnlo = (JH_CHUNK_TYPE)(JH_BASE_TYPE_CAST(0x43D5157A052E6A63UL), JH_BASE_TYPE_CAST(0x806D2BEA6B05A92AUL), JH_BASE_TYPE_CAST(0x5AE66F2E8E8AB546UL), JH_BASE_TYPE_CAST(0x56B116577C8806A7UL));
@@ -676,28 +684,28 @@ __kernel void search4(__global hash_t* hashes)
 	evnhi.s2 ^= JH_BASE_TYPE_CAST(0x80UL);
 	oddlo.s3 ^= JH_BASE_TYPE_CAST(0x2000000000000UL);
 	
-	hash->h8[0] = as_ulong(evnhi.s2);
-	hash->h8[1] = as_ulong(evnlo.s2);
-	hash->h8[2] = as_ulong(oddhi.s2);
-	hash->h8[3] = as_ulong(oddlo.s2);
-	hash->h8[4] = as_ulong(evnhi.s3);
-	hash->h8[5] = as_ulong(evnlo.s3);
-	hash->h8[6] = as_ulong(oddhi.s3);
-	hash->h8[7] = as_ulong(oddlo.s3);
+	hash1->h8[0] = as_ulong(evnhi.s2);
+	hash1->h8[1] = as_ulong(evnlo.s2);
+	hash1->h8[2] = as_ulong(oddhi.s2);
+	hash1->h8[3] = as_ulong(oddlo.s2);
+	hash1->h8[4] = as_ulong(evnhi.s3);
+	hash1->h8[5] = as_ulong(evnlo.s3);
+	hash1->h8[6] = as_ulong(oddhi.s3);
+	hash1->h8[7] = as_ulong(oddlo.s3);
 	
 	#else
 	
 	evnhi.hi.lo ^= JH_BASE_TYPE_CAST(0x80UL);
 	oddlo.hi.hi ^= JH_BASE_TYPE_CAST(0x2000000000000UL);
 	
-	hash->h8[0] = as_ulong(evnhi.hi.lo);
-	hash->h8[1] = as_ulong(evnlo.hi.lo);
-	hash->h8[2] = as_ulong(oddhi.hi.lo);
-	hash->h8[3] = as_ulong(oddlo.hi.lo);
-	hash->h8[4] = as_ulong(evnhi.hi.hi);
-	hash->h8[5] = as_ulong(evnlo.hi.hi);
-	hash->h8[6] = as_ulong(oddhi.hi.hi);
-	hash->h8[7] = as_ulong(oddlo.hi.hi);
+	hash1->h8[0] = as_ulong(evnhi.hi.lo);
+	hash1->h8[1] = as_ulong(evnlo.hi.lo);
+	hash1->h8[2] = as_ulong(oddhi.hi.lo);
+	hash1->h8[3] = as_ulong(oddlo.hi.lo);
+	hash1->h8[4] = as_ulong(evnhi.hi.hi);
+	hash1->h8[5] = as_ulong(evnlo.hi.hi);
+	hash1->h8[6] = as_ulong(oddhi.hi.hi);
+	hash1->h8[7] = as_ulong(oddlo.hi.hi);
 	
 	#endif
 
@@ -709,7 +717,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search5(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[4 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[5 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   volatile sph_u64 a00 = 0, a01 = 0, a02 = 0, a03 = 0, a04 = 0;
   volatile sph_u64 a10 = 0, a11 = 0, a12 = 0, a13 = 0, a14 = 0;
@@ -739,14 +748,14 @@ __kernel void search5(__global hash_t* hashes)
   a10 = ~a10;
   a20 = ~a20;
 
-  hash->h8[0] = a00;
-  hash->h8[1] = a10;
-  hash->h8[2] = a20;
-  hash->h8[3] = a30;
-  hash->h8[4] = a40;
-  hash->h8[5] = a01;
-  hash->h8[6] = a11;
-  hash->h8[7] = a21;
+  hash1->h8[0] = a00;
+  hash1->h8[1] = a10;
+  hash1->h8[2] = a20;
+  hash1->h8[3] = a30;
+  hash1->h8[4] = a40;
+  hash1->h8[5] = a01;
+  hash1->h8[6] = a11;
+  hash1->h8[7] = a21;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -756,7 +765,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search6(__global hash_t* hashes)
 {
    uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[5 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[6 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 	
 	uint8 V[5] =
 	{
@@ -768,7 +778,7 @@ __kernel void search6(__global hash_t* hashes)
 	};
 	
 	#pragma unroll
-	for(int i = 0; i < 8; ++i) hash->h8[i] = SWAP8(hash->h8[i]);
+	for(int i = 0; i < 8; ++i) hash1->h8[i] = SWAP8(hash->h8[i]);
 	
 	#pragma unroll
     for(int i = 0; i < 6; ++i)
@@ -778,7 +788,7 @@ __kernel void search6(__global hash_t* hashes)
 		{
 			case 0:
 			case 1:
-				M = shuffle(vload8(i, hash->h4), (uint8)(1, 0, 3, 2, 5, 4, 7, 6));
+				M = shuffle(vload8(i, hash1->h4), (uint8)(1, 0, 3, 2, 5, 4, 7, 6));
 				break;
 			case 2:
 			case 3:
@@ -787,7 +797,7 @@ __kernel void search6(__global hash_t* hashes)
 				break;
 			case 4:
 			case 5:
-				vstore8(shuffle(V[0] ^ V[1] ^ V[2] ^ V[3] ^ V[4], (uint8)(1, 0, 3, 2, 5, 4, 7, 6)), i & 1, hash->h4);
+				vstore8(shuffle(V[0] ^ V[1] ^ V[2] ^ V[3] ^ V[4], (uint8)(1, 0, 3, 2, 5, 4, 7, 6)), i & 1, hash1->h4);
 		}
 		if(i == 5) break;
 		
@@ -796,7 +806,7 @@ __kernel void search6(__global hash_t* hashes)
     }
 	
 	#pragma unroll
-	for(int i = 0; i < 8; ++i) hash->h8[i] = SWAP8(hash->h8[i]);
+	for(int i = 0; i < 8; ++i) hash1->h8[i] = SWAP8(hash1->h8[i]);
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -806,7 +816,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search7(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[6 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[7 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   // cubehash.h1
 
@@ -832,7 +843,7 @@ __kernel void search7(__global hash_t* hashes)
 
     if(i == 12)
     {
-      vstore8(((ulong8 *)state)[0], 0, hash->h8);
+      vstore8(((ulong8 *)state)[0], 0, hash1->h8);
       break;
     }
     if(!i) ((ulong4 *)state)[0] ^= xor;
@@ -850,7 +861,8 @@ __kernel void search8(__global hash_t* hashes)
  __local uint AES0[256], AES1[256], AES2[256], AES3[256];
 	
 	uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+ __global hash_t *hash = &(hashes[7 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[8 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 	
 	const int step = get_local_size(0);
 	
@@ -958,7 +970,7 @@ __kernel void search8(__global hash_t* hashes)
 	}
 	
 	// h[0] ^ p[2], h[1] ^ p[3], h[2] ^ p[0], h[3] ^ p[1]
-	for(int i = 0; i < 4; ++i) vstore4(h[i] ^ p[(i + 2) & 3], i, hash->h4);
+	for(int i = 0; i < 4; ++i) vstore4(h[i] ^ p[(i + 2) & 3], i, hash1->h4);
 	
 	barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -968,8 +980,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search9(__global hash_t* hashes)
 {
     uint gid = get_global_id(0);
-    __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
-
+    __global hash_t *hash = &(hashes[8 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[9 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
     // simd
     volatile s32 q[256];
     __local unsigned char x[128 * WORKSIZE];
@@ -1092,22 +1104,22 @@ __kernel void search9(__global hash_t* hashes)
         IF, 25,  4, PP8_0_);
     #undef q
 
-    hash->h4[0] = A0;
-    hash->h4[1] = A1;
-    hash->h4[2] = A2;
-    hash->h4[3] = A3;
-    hash->h4[4] = A4;
-    hash->h4[5] = A5;
-    hash->h4[6] = A6;
-    hash->h4[7] = A7;
-    hash->h4[8] = B0;
-    hash->h4[9] = B1;
-    hash->h4[10] = B2;
-    hash->h4[11] = B3;
-    hash->h4[12] = B4;
-    hash->h4[13] = B5;
-    hash->h4[14] = B6;
-    hash->h4[15] = B7;
+    hash1->h4[0] = A0;
+    hash1->h4[1] = A1;
+    hash1->h4[2] = A2;
+    hash1->h4[3] = A3;
+    hash1->h4[4] = A4;
+    hash1->h4[5] = A5;
+    hash1->h4[6] = A6;
+    hash1->h4[7] = A7;
+    hash1->h4[8] = B0;
+    hash1->h4[9] = B1;
+    hash1->h4[10] = B2;
+    hash1->h4[11] = B3;
+    hash1->h4[12] = B4;
+    hash1->h4[13] = B5;
+    hash1->h4[14] = B6;
+    hash1->h4[15] = B7;
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -1118,7 +1130,8 @@ __kernel void search10(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   uint offset = get_global_offset(0);
-  __global hash_t *hash = &(hashes[gid-offset]);
+  __global hash_t *hash = &(hashes[9 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[10 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   __local uint AES0[256];
   for(int i = get_local_id(0), step = get_local_size(0); i < 256; i += step)
@@ -1197,22 +1210,22 @@ __kernel void search10(__global hash_t* hashes)
   //#pragma unroll
   //for(int i = 0; i < 4; ++i)
   //  vstore4(vload4(i, hash->h4) ^ W[i] ^ W[i + 8] ^ (uint4)(512, 0, 0, 0), i, hash->h4);
- hash->h4[0 ] = hash->h4[0]  ^ W0.x ^ W8.x  ^ 512;
- hash->h4[1 ] = hash->h4[1]  ^ W0.y ^ W8.y  ^ 0;
- hash->h4[2 ] = hash->h4[2]  ^ W0.z ^ W8.z  ^ 0;
- hash->h4[3 ] = hash->h4[3]  ^ W0.w ^ W8.w  ^ 0;
- hash->h4[4 ] = hash->h4[4]  ^ W1.x ^ W9.x  ^ 512;
- hash->h4[5 ] = hash->h4[5]  ^ W1.y ^ W9.y  ^ 0;
- hash->h4[6 ] = hash->h4[6]  ^ W1.z ^ W9.z  ^ 0;
- hash->h4[7 ] = hash->h4[7]  ^ W1.w ^ W9.w  ^ 0;
- hash->h4[8 ] = hash->h4[8]  ^ W2.x ^ W10.x ^ 512;
- hash->h4[9 ] = hash->h4[9]  ^ W2.y ^ W10.y ^ 0;
- hash->h4[10] = hash->h4[10] ^ W2.z ^ W10.z ^ 0;
- hash->h4[11] = hash->h4[11] ^ W2.w ^ W10.w ^ 0;
- hash->h4[12] = hash->h4[12] ^ W3.x ^ W11.x ^ 512;
- hash->h4[13] = hash->h4[13] ^ W3.y ^ W11.y ^ 0;
- hash->h4[14] = hash->h4[14] ^ W3.z ^ W11.z ^ 0;
- hash->h4[15] = hash->h4[15] ^ W3.w ^ W11.w ^ 0;
+ hash1->h4[0 ] = hash->h4[0]  ^ W0.x ^ W8.x  ^ 512;
+ hash1->h4[1 ] = hash->h4[1]  ^ W0.y ^ W8.y  ^ 0;
+ hash1->h4[2 ] = hash->h4[2]  ^ W0.z ^ W8.z  ^ 0;
+ hash1->h4[3 ] = hash->h4[3]  ^ W0.w ^ W8.w  ^ 0;
+ hash1->h4[4 ] = hash->h4[4]  ^ W1.x ^ W9.x  ^ 512;
+ hash1->h4[5 ] = hash->h4[5]  ^ W1.y ^ W9.y  ^ 0;
+ hash1->h4[6 ] = hash->h4[6]  ^ W1.z ^ W9.z  ^ 0;
+ hash1->h4[7 ] = hash->h4[7]  ^ W1.w ^ W9.w  ^ 0;
+ hash1->h4[8 ] = hash->h4[8]  ^ W2.x ^ W10.x ^ 512;
+ hash1->h4[9 ] = hash->h4[9]  ^ W2.y ^ W10.y ^ 0;
+ hash1->h4[10] = hash->h4[10] ^ W2.z ^ W10.z ^ 0;
+ hash1->h4[11] = hash->h4[11] ^ W2.w ^ W10.w ^ 0;
+ hash1->h4[12] = hash->h4[12] ^ W3.x ^ W11.x ^ 512;
+ hash1->h4[13] = hash->h4[13] ^ W3.y ^ W11.y ^ 0;
+ hash1->h4[14] = hash->h4[14] ^ W3.z ^ W11.z ^ 0;
+ hash1->h4[15] = hash->h4[15] ^ W3.w ^ W11.w ^ 0;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -1223,7 +1236,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search11(__global hash_t* hashes)
 {
    uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[10 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[11 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   #ifdef INPUT_BIG_LOCAL
   #define CALL_INPUT_BIG_LOCAL INPUT_BIG_LOCAL
@@ -1291,7 +1305,7 @@ __kernel void search11(__global hash_t* hashes)
 
 #pragma unroll
   for (unsigned u = 0; u < 16; u ++)
-    hash->h4[u] = ENC32E(h[u]);
+    hash1->h4[u] = ENC32E(h[u]);
 
 
   barrier(CLK_GLOBAL_MEM_FENCE);
@@ -1303,7 +1317,8 @@ __kernel void search12(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   uint offset = get_global_offset(0);
-  __global hash_t *hash = &(hashes[gid-offset]);
+  __global hash_t *hash = &(hashes[11 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[12 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   // mixtab
   __local sph_u32 mixtab0[256], mixtab1[256], mixtab2[256], mixtab3[256];
@@ -1379,22 +1394,22 @@ __kernel void search12(__global hash_t* hashes)
   S18 ^= S00;
   S27 ^= S00;
 
-  hash->h4[0] = ENC32E(S01);
-  hash->h4[1] = ENC32E(S02);
-  hash->h4[2] = ENC32E(S03);
-  hash->h4[3] = ENC32E(S04);
-  hash->h4[4] = ENC32E(S09);
-  hash->h4[5] = ENC32E(S10);
-  hash->h4[6] = ENC32E(S11);
-  hash->h4[7] = ENC32E(S12);
-  hash->h4[8] = ENC32E(S18);
-  hash->h4[9] = ENC32E(S19);
-  hash->h4[10] = ENC32E(S20);
-  hash->h4[11] = ENC32E(S21);
-  hash->h4[12] = ENC32E(S27);
-  hash->h4[13] = ENC32E(S28);
-  hash->h4[14] = ENC32E(S29);
-  hash->h4[15] = ENC32E(S30);
+  hash1->h4[0] = ENC32E(S01);
+  hash1->h4[1] = ENC32E(S02);
+  hash1->h4[2] = ENC32E(S03);
+  hash1->h4[3] = ENC32E(S04);
+  hash1->h4[4] = ENC32E(S09);
+  hash1->h4[5] = ENC32E(S10);
+  hash1->h4[6] = ENC32E(S11);
+  hash1->h4[7] = ENC32E(S12);
+  hash1->h4[8] = ENC32E(S18);
+  hash1->h4[9] = ENC32E(S19);
+  hash1->h4[10] = ENC32E(S20);
+  hash1->h4[11] = ENC32E(S21);
+  hash1->h4[12] = ENC32E(S27);
+  hash1->h4[13] = ENC32E(S28);
+  hash1->h4[14] = ENC32E(S29);
+  hash1->h4[15] = ENC32E(S30);
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -1403,12 +1418,12 @@ __kernel void search12(__global hash_t* hashes)
 
 // shabal hash1
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search13(__global hash_t* hashes, __global hash_t* hashes1)
+__kernel void search13(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   uint offset = get_global_offset(0);
-  __global hash_t *hash = &(hashes[gid-offset]);
-  __global hash_t *hash1 = &(hashes1[gid-offset]);
+  __global hash_t *hash = &(hashes[12 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[13 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
 	// shabal
 	uint16 A, B, C, M;
@@ -1490,12 +1505,11 @@ __kernel void search13(__global hash_t* hashes, __global hash_t* hashes1)
 
 // whirlpool hash2
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search14(__global hash_t* hashes, __global hash_t* hashes1)
+__kernel void search14(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  uint offset = get_global_offset(0);
-  __global hash_t *hash = &(hashes[gid-offset]);
-  __global hash_t *hash1 = &(hashes1[gid-offset]);
+  __global hash_t *hash = &(hashes[13 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[14 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   __local sph_u64 LT0[256], LT1[256], LT2[256], LT3[256], LT4[256], LT5[256], LT6[256], LT7[256];
 
@@ -1606,12 +1620,11 @@ __kernel void search14(__global hash_t* hashes, __global hash_t* hashes1)
 
 // sha512 hash3
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
+__kernel void search15(__global hash_t* hashes)
 {
     uint gid = get_global_id(0);
-  uint offset = get_global_offset(0);
-  __global hash_t *hash = &(hashes[gid-offset]);
-  __global hash_t *hash1 = &(hashes1[gid-offset]);
+  __global hash_t *hash = &(hashes[14 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[15 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   sph_u64 W[16];
   sph_u64 SHA512Out[8];
@@ -1643,17 +1656,18 @@ __kernel void search15(__global hash_t* hashes, __global hash_t* hashes1)
 
 // swifftx hash hash1 hash2 hash3
 __attribute__((reqd_work_group_size(8, 32, 1)))
-__kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global uint *g_hash2, __global uint *g_hash3)
+__kernel void search16(__global hash_t *hashes)
 {
     uint gid = get_global_id(1);
     uint offset = get_global_offset(1);
     uint thread = gid - offset;
     uint tid = get_local_id(1);
 
-    __global uint* inout = &g_hash [thread<<4];
-    __global uint* in1   = &g_hash1[thread<<4];
-    __global uint* in2   = &g_hash2[thread<<4];
-    __global uint* in3   = &g_hash3[thread<<4];
+    __global uint* in  = (__global uint* ) &(hashes[12 + X25X_HASH_ARRAY_SIZE * (thread)]);	
+    __global uint* in1 = (__global uint* ) &(hashes[13 + X25X_HASH_ARRAY_SIZE * (thread)]);
+    __global uint* in2 = (__global uint* ) &(hashes[14 + X25X_HASH_ARRAY_SIZE * (thread)]);
+    __global uint* in3 = (__global uint* ) &(hashes[15 + X25X_HASH_ARRAY_SIZE * (thread)]);
+    __global uint* out = (__global uint* ) &(hashes[16 + X25X_HASH_ARRAY_SIZE * (thread)]);
 
   __local uchar S_in[256 * SFT_NSLOT];
   __local unsigned char S_SBox[256];
@@ -1691,11 +1705,11 @@ __kernel void search16(__global uint *g_hash, __global uint *g_hash1, __global u
 }
 
   {
-    __global unsigned char* inptr = (__global unsigned char*)inout;
-    __global unsigned char* outptr = (__global unsigned char*)inout;
+    __global unsigned char* inptr = (__global unsigned char*)in;
     __global unsigned char* in1ptr = (__global unsigned char*)in1;
     __global unsigned char* in2ptr = (__global unsigned char*)in2;
     __global unsigned char* in3ptr = (__global unsigned char*)in3;
+    __global unsigned char* outptr = (__global unsigned char*)out;
     e_ComputeSingleSWIFFTX_2(outptr, inptr, in1ptr, in2ptr, in3ptr, S_in, S_SBox, S_As, S_fftTable, S_multipliers, S_sum, S_intermediate, S_carry, pairs, T_sum);
    }
    barrier(CLK_LOCAL_MEM_FENCE);
@@ -1706,7 +1720,8 @@ __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search17(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[16 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[17 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   sph_u32 s0 = SPH_C32(0x243F6A88);
   sph_u32 s1 = SPH_C32(0x85A308D3);
@@ -1743,24 +1758,24 @@ __kernel void search17(__global hash_t* hashes)
   CORE5(A);
 #undef A
 
-  hash->h4[0] = s0;
-  hash->h4[1] = s1;
-  hash->h4[2] = s2;
-  hash->h4[3] = s3;
-  hash->h4[4] = s4;
-  hash->h4[5] = s5;
-  hash->h4[6] = s6;
-  hash->h4[7] = s7;
+  hash1->h4[0] = s0;
+  hash1->h4[1] = s1;
+  hash1->h4[2] = s2;
+  hash1->h4[3] = s3;
+  hash1->h4[4] = s4;
+  hash1->h4[5] = s5;
+  hash1->h4[6] = s6;
+  hash1->h4[7] = s7;
 
   // padding 0 for x22i
-  hash->h4[0 + 8] = 0;
-  hash->h4[1 + 8] = 0;
-  hash->h4[2 + 8] = 0;
-  hash->h4[3 + 8] = 0;
-  hash->h4[4 + 8] = 0;
-  hash->h4[5 + 8] = 0;
-  hash->h4[6 + 8] = 0;
-  hash->h4[7 + 8] = 0;
+  hash1->h4[0 + 8] = 0;
+  hash1->h4[1 + 8] = 0;
+  hash1->h4[2 + 8] = 0;
+  hash1->h4[3 + 8] = 0;
+  hash1->h4[4 + 8] = 0;
+  hash1->h4[5 + 8] = 0;
+  hash1->h4[6 + 8] = 0;
+  hash1->h4[7 + 8] = 0;
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -1772,7 +1787,9 @@ __kernel void search18(__global uint *d_hash)
   uint gid = get_global_id(0);
   uint offset = get_global_offset(0);
 
-		__global ulong* inout = (__global ulong*)(d_hash + 16 * (gid - offset));
+		__global ulong* in = (__global ulong*)(d_hash + 16 * (17 + X25X_HASH_ARRAY_SIZE * (gid - offset)));
+        __global ulong* out = (__global ulong*)(d_hash + 16 * (18 + X25X_HASH_ARRAY_SIZE * (gid - offset)));
+        
 		volatile ulong buf[3], in2[8];
 #pragma unroll
 		for (int i = 0; i < 3; i++) buf[i] = III[i];
@@ -1792,7 +1809,7 @@ __kernel void search18(__global uint *d_hash)
   volatile ulong A, B, C;
 	volatile ulong X0, X1, X2, X3, X4, X5, X6, X7;
 
-		TIGER_ROUND_BODY(inout, buf);
+		TIGER_ROUND_BODY(in, buf);
 
 		in2[0] = 1;
 #pragma unroll
@@ -1800,11 +1817,11 @@ __kernel void search18(__global uint *d_hash)
 		in2[7] = 0x200;
 		TIGER_ROUND_BODY(in2, buf);
 #pragma unroll
-		for (int i = 0; i < 3; i++) inout[i] = buf[i];
+		for (int i = 0; i < 3; i++) out[i] = buf[i];
 
 		// 0 padding for x22
 #pragma unroll
-		for (int i = 3; i < 8; i++) inout[i] = 0;
+		for (int i = 3; i < 8; i++) out[i] = 0;
 }
 
 // lyra2v2
@@ -1814,7 +1831,7 @@ __kernel void search19(__global uint* hashes, __global uint* lyraStates)
 {
     int gid = get_global_id(0);
     
-    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* ((gid-get_global_offset(0))<<1)));
+    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* ((18 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)))<<1)));
     __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (gid-get_global_offset(0))));
 
     ulong ttr;
@@ -2103,7 +2120,7 @@ __kernel void search21(__global uint* hashes, __global uint* lyraStates)
 {
     int gid = get_global_id(0);
 
-    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* ((gid-get_global_offset(0))<<1)));
+    __global hashly_t *hash = (__global hashly_t *)(hashes + (8* ((19 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)))<<1)));
     __global lyraState_t *lyraState = (__global lyraState_t *)(lyraStates + (32* (get_global_id(0)-get_global_offset(0))));
 
     ulong ttr;
@@ -2128,6 +2145,9 @@ __kernel void search21(__global uint* hashes, __global uint* lyraStates)
     // 3. store result
     hash->hl4[0] = state[0];
     hash->hl4[1] = state[1];
+    hash++;
+    hash->hl4[0] = 0;
+    hash->hl4[1] = 0;
     
     barrier(CLK_LOCAL_MEM_FENCE);
 }
@@ -2138,7 +2158,8 @@ __attribute__((reqd_work_group_size(256, 1, 1)))
 __kernel void search22(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[19 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[20 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   volatile sph_u64 message[8];
   __local sph_u64 out[8 * GOST_WORKSIZE];
@@ -2166,14 +2187,14 @@ __kernel void search22(__global hash_t* hashes)
   GOST_HASH_512(message, out);
   barrier(CLK_LOCAL_MEM_FENCE);
 
-  hash->h8[0] = (GOST_OUT(0));
-  hash->h8[1] = (GOST_OUT(1));
-  hash->h8[2] = (GOST_OUT(2));
-  hash->h8[3] = (GOST_OUT(3));
-  hash->h8[4] = (GOST_OUT(4));
-  hash->h8[5] = (GOST_OUT(5));
-  hash->h8[6] = (GOST_OUT(6));
-  hash->h8[7] = (GOST_OUT(7));
+  hash1->h8[0] = (GOST_OUT(0));
+  hash1->h8[1] = (GOST_OUT(1));
+  hash1->h8[2] = (GOST_OUT(2));
+  hash1->h8[3] = (GOST_OUT(3));
+  hash1->h8[4] = (GOST_OUT(4));
+  hash1->h8[5] = (GOST_OUT(5));
+  hash1->h8[6] = (GOST_OUT(6));
+  hash1->h8[7] = (GOST_OUT(7));
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -2181,10 +2202,12 @@ __kernel void search22(__global hash_t* hashes)
 // sha256
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search23(__global hash_t* hashes, volatile __global uint* output, const ulong target)
+__kernel void search23(__global hash_t* hashes)
+//__kernel void search23(__global hash_t* hashes, volatile __global uint* output, const ulong target)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[20 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);	
+  __global hash_t *hash1 = &(hashes[21 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))]);
 
   uint temp1;
   uint W0 = SWAP32(hash->h4[0x0]);
@@ -2298,81 +2321,322 @@ __kernel void search23(__global hash_t* hashes, volatile __global uint* output, 
   v7 += 0x5BE0CD19;
   uint s7 = v7;
 
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x80000000, 0x428A2F98 );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0, 0x71374491 );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0, 0xB5C0FBCF );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0, 0xE9B5DBA5 );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0, 0x3956C25B );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0, 0x59F111F1 );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0, 0x923F82A4 );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0, 0xAB1C5ED5 );
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0, 0xD807AA98 );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0, 0x12835B01 );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0, 0x243185BE );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0, 0x550C7DC3 );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0, 0x72BE5D74 );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0, 0x80DEB1FE );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0, 0x9BDC06A7 );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 512, 0xC19BF174 );
+  W0 = 0x80000000;
+  W1 = 0;
+  W2 = 0;
+  W3 = 0;
+  W4 = 0;
+  W5 = 0;
+  W6 = 0;
+  W7 = 0;
+  W8 = 0;
+  W9 = 0;
+  W10 = 0;
+  W11 = 0;
+  W12 = 0;
+  W13 = 0;
+  W14 = 0;
+  W15 = 512;
 
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x80000000U, 0xE49B69C1U );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x01400000U, 0xEFBE4786U );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x00205000U, 0x0FC19DC6U );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0x00005088U, 0x240CA1CCU );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0x22000800U, 0x2DE92C6FU );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x22550014U, 0x4A7484AAU );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0x05089742U, 0x5CB0A9DCU );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0xa0000020U, 0x76F988DAU );
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x5a880000U, 0x983E5152U );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x005c9400U, 0xA831C66DU );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x0016d49dU, 0xB00327C8U );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0xfa801f00U, 0xBF597FC7U );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0xd33225d0U, 0xC6E00BF3U );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x11675959U, 0xD5A79147U );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0xf6e6bfdaU, 0x06CA6351U );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0xb30c1549U, 0x14292967U );
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x08b2b050U, 0x27B70A85U );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x9d7c4c27U, 0x2E1B2138U );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x0ce2a393U, 0x4D2C6DFCU );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0x88e6e1eaU, 0x53380D13U );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0xa52b4335U, 0x650A7354U );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x67a16f49U, 0x766A0ABBU );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0xd732016fU, 0x81C2C92EU );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0x4eeb2e91U, 0x92722C85U );
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x5dbf55e5U, 0xA2BFE8A1U );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x8eee2335U, 0xA81A664BU );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0xe2bc5ec2U, 0xC24B8B70U );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0xa83f4394U, 0xC76C51A3U );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0x45ad78f7U, 0xD192E819U );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0x36f3d0cdU, 0xD6990624U );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0xd99c05e8U, 0xF40E3585U );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0xb0511dc7U, 0x106AA070U );
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x69bc7ac4U, 0x19A4C116U );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0xbd11375bU, 0x1E376C08U );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0xe3ba71e5U, 0x2748774CU );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0x3b209ff2U, 0x34B0BCB5U );
-  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, 0x18feee17U, 0x391C0CB3U );
-  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, 0xe25ad9e7U, 0x4ED8AA4AU );
-  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, 0x13375046U, 0x5B9CCA4FU );
-  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, 0x0515089dU, 0x682E6FF3U );
-  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, 0x4f0d0f04U, 0x748F82EEU );
-  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, 0x2627484eU, 0x78A5636FU );
-  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, 0x310128d2U, 0x84C87814U );
-  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, 0xc668b434U, 0x8CC70208U );
-  SHA256_PLAST( v4, v5, v6, v7, v0, v1, v2, v3, 0x420841ccU, 0x90BEFFFAU );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, W0, 0x428A2F98 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, W1, 0x71374491 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, W2, 0xB5C0FBCF );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, W3, 0xE9B5DBA5 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, W4, 0x3956C25B );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, W5, 0x59F111F1 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, W6, 0x923F82A4 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, W7, 0xAB1C5ED5 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, W8, 0xD807AA98 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, W9, 0x12835B01 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, W10, 0x243185BE );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, W11, 0x550C7DC3 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, W12, 0x72BE5D74 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, W13, 0x80DEB1FE );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, W14, 0x9BDC06A7 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, W15, 0xC19BF174 );
 
-  hash->h4[0] = SWAP32(v0 + s0);
-  hash->h4[1] = SWAP32(v1 + s1);
-  hash->h4[2] = SWAP32(v2 + s2);
-  hash->h4[3] = SWAP32(v3 + s3);
-  hash->h4[4] = SWAP32(v4 + s4);
-  hash->h4[5] = SWAP32(v5 + s5);
-  hash->h4[6] = SWAP32(v6 + s6);
-  hash->h4[7] = SWAP32(v7 + s7);
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R0, 0xE49B69C1 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R1, 0xEFBE4786 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R2, 0x0FC19DC6 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R3, 0x240CA1CC );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R4, 0x2DE92C6F );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R5, 0x4A7484AA );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R6, 0x5CB0A9DC );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R7, 0x76F988DA );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R8, 0x983E5152 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R9, 0xA831C66D );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R10, 0xB00327C8 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R11, 0xBF597FC7 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R12, 0xC6E00BF3 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R13, 0xD5A79147 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R14, 0x06CA6351 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R15, 0x14292967 );
 
-  bool result = (hash->h8[3] <= target);
-  if (result)
-    output[output[0xFF]++] = SWAP4(gid);
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R0,  0x27B70A85 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R1,  0x2E1B2138 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R2,  0x4D2C6DFC );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R3,  0x53380D13 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R4,  0x650A7354 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R5,  0x766A0ABB );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R6,  0x81C2C92E );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R7,  0x92722C85 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R8,  0xA2BFE8A1 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R9,  0xA81A664B );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R10, 0xC24B8B70 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R11, 0xC76C51A3 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R12, 0xD192E819 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R13, 0xD6990624 );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R14, 0xF40E3585 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R15, 0x106AA070 );
+
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R0,  0x19A4C116 );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R1,  0x1E376C08 );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R2,  0x2748774C );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R3,  0x34B0BCB5 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R4,  0x391C0CB3 );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R5,  0x4ED8AA4A );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_R6,  0x5B9CCA4F );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_R7,  0x682E6FF3 );
+  SHA256_P( v0, v1, v2, v3, v4, v5, v6, v7, SHA256_R8,  0x748F82EE );
+  SHA256_P( v7, v0, v1, v2, v3, v4, v5, v6, SHA256_R9,  0x78A5636F );
+  SHA256_P( v6, v7, v0, v1, v2, v3, v4, v5, SHA256_R10, 0x84C87814 );
+  SHA256_P( v5, v6, v7, v0, v1, v2, v3, v4, SHA256_R11, 0x8CC70208 );
+  SHA256_P( v4, v5, v6, v7, v0, v1, v2, v3, SHA256_R12, 0x90BEFFFA );
+  SHA256_P( v3, v4, v5, v6, v7, v0, v1, v2, SHA256_R13, 0xA4506CEB );
+  SHA256_P( v2, v3, v4, v5, v6, v7, v0, v1, SHA256_RD14, 0xBEF9A3F7 );
+  SHA256_P( v1, v2, v3, v4, v5, v6, v7, v0, SHA256_RD15, 0xC67178F2 );
+
+  hash1->h4[0] = SWAP4(v0 + s0);
+  hash1->h4[1] = SWAP4(v1 + s1);
+  hash1->h4[2] = SWAP4(v2 + s2);
+  hash1->h4[3] = SWAP4(v3 + s3);
+  hash1->h4[4] = SWAP4(v4 + s4);
+  hash1->h4[5] = SWAP4(v5 + s5);
+  hash1->h4[6] = SWAP4(v6 + s6);
+  hash1->h4[7] = SWAP4(v7 + s7);
+
+  hash1->h4[8] = 0;
+  hash1->h4[9] = 0;
+  hash1->h4[10] = 0;
+  hash1->h4[11] = 0;
+  hash1->h4[12] = 0;
+  hash1->h4[13] = 0;
+  hash1->h4[14] = 0;
+  hash1->h4[15] = 0;
+
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
-#endif // X22I_CL
+// panama
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void search24( __global uint *hashes )
+{
+	uint gid = get_global_id( 0 );
+    __global uint* hash = hashes + 16 * (21 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
+    __global uint* hash1 = hashes + 16 * (22 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
+
+    sph_u32 buffer[32][8];
+    sph_u32 state[17];
+    int i, j;
+    #pragma unroll
+    for(i = 0; i < 32; i++)
+    #pragma unroll
+        for(j = 0; j < 8; j++)
+            buffer[i][j] = 0;
+    #pragma unroll
+    for(i = 0; i < 17; i++)
+        state[i] = 0;
+
+    PANAMA_LVARS
+    unsigned ptr0 = 0;
+#define INW1(i)   sph_dec32le_aligned( hash + (i))
+#define INW2(i)   INW1(i)
+
+    PANAMA_M17(PANAMA_RSTATE);
+    PANAMA_STEP;
+
+#undef INW1
+#undef INW2
+#define INW1(i)   sph_dec32le_aligned(hash + 8 + (i))
+#define INW2(i)   INW1(i)
+    PANAMA_STEP;
+    PANAMA_M17(PANAMA_WSTATE);
+
+#undef INW1
+#undef INW2
+
+#define INW1(i)   (sph_u32) (i == 0)
+#define INW2(i)   INW1(i)
+
+    PANAMA_M17(PANAMA_RSTATE);
+    PANAMA_STEP;
+    PANAMA_M17(PANAMA_WSTATE);
+
+#undef INW1
+#undef INW2
+
+#define INW1(i)     INW_H1(PANAMA_INC ## i)
+#define INW_H1(i)   INW_H2(i)
+#define INW_H2(i)   a ## i
+#define INW2(i)     buffer[ptr4][i]
+
+    PANAMA_M17(PANAMA_RSTATE);
+    #pragma unroll
+    for(i = 0; i < 32; i++) {
+        unsigned ptr4 = (ptr0 + 4) & 31;
+        PANAMA_STEP;
+    }
+    PANAMA_M17(PANAMA_WSTATE);
+
+#undef INW1
+#undef INW_H1
+#undef INW_H2
+#undef INW2
+
+	#pragma unroll
+	for ( int i = 0; i < 8; i++ ) {
+    hash1[ i ] = state[ i + 9 ];
+    hash1[ i + 8] = 0;
+  }
+
+  barrier(CLK_GLOBAL_MEM_FENCE);
+}
+
+// lane
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void search25( __global uint *hashes )
+{
+	uint gid = get_global_id( 0 );
+    __global uint* in = hashes + 16 * (22 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
+    __global uint* out = hashes + 16 * (23 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
+	uint tid = get_local_id(0);
+  __local uint S_lane_T0[256];
+  __local uint S_lane_T1[256];
+  __local uint S_lane_T2[256];
+  __local uint S_lane_T3[256];
+  const int blockSize = min(256, WORKSIZE);
+  if (tid < 256) {
+    #pragma unroll
+      for (int i=0; i<(256/blockSize); i++) {
+         S_lane_T0[tid + i*blockSize] = lane_T0[tid + i*blockSize];
+         S_lane_T1[tid + i*blockSize] = lane_T1[tid + i*blockSize];
+         S_lane_T2[tid + i*blockSize] = lane_T2[tid + i*blockSize];
+         S_lane_T3[tid + i*blockSize] = lane_T3[tid + i*blockSize];
+      }
+  }
+
+	uint m[16];
+	uint h[16] = { 0x9b603481, 0x1d5a931b, 0x69c4e6e0, 0x975e2681,
+					0xb863ba53, 0x8d1be11b, 0x77340080, 0xd42c48a5,
+					0x3a3a1d61, 0x1cf3a1c4, 0xf0a30347, 0x7e56a44a,
+					0x9530ee60, 0xdadb05b6, 0x3ae3ac7c, 0xd732ac6a };
+					
+	volatile uint t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, ta, tb, tc, td, te, tf;
+	volatile uint s00, s01, s02, s03, s04, s05, s06, s07, s08, s09, s0a, s0b, s0c, s0d, s0e, s0f;
+	volatile uint s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s1a, s1b, s1c, s1d, s1e, s1f;
+	volatile uint s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s2a, s2b, s2c, s2d, s2e, s2f;
+	volatile uint s30, s31, s32, s33, s34, s35, s36, s37, s38, s39, s3a, s3b, s3c, s3d, s3e, s3f;
+	volatile uint s40, s41, s42, s43, s44, s45, s46, s47, s48, s49, s4a, s4b, s4c, s4d, s4e, s4f;
+	volatile uint s50, s51, s52, s53, s54, s55, s56, s57, s58, s59, s5a, s5b, s5c, s5d, s5e, s5f;
+	volatile uint s60, s61, s62, s63, s64, s65, s66, s67, s68, s69, s6a, s6b, s6c, s6d, s6e, s6f;
+	volatile uint s70, s71, s72, s73, s74, s75, s76, s77, s78, s79, s7a, s7b, s7c, s7d, s7e, s7f;
+	
+	#pragma unroll
+	for ( int i = 0; i < 16; i++ ) m[ i ] = in[ i ];
+
+	for ( int i = 0; i < 2; i++ )
+	{
+		uint ctrl = i == 0 ? 512 : 0;
+		lane512_compress( m, h, ctrl );
+		
+		if ( i == 0 )
+		{
+			m[ 0 ] = 0;
+			m[ 1 ] = 0x02000000;
+			m[ 2 ] = 0;
+			m[ 3 ] = 0;
+			m[ 4 ] = 0;
+			m[ 5 ] = 0;
+			m[ 6 ] = 0;
+			m[ 7 ] = 0;
+			m[ 8 ] = 0;
+			m[ 9 ] = 0;
+			m[ 10 ] = 0;
+			m[ 11 ] = 0;
+			m[ 12 ] = 0;
+			m[ 13 ] = 0;
+			m[ 14 ] = 0;
+			m[ 15 ] = 0;
+		}
+	}
+	
+	#pragma unroll
+	for ( int i = 0; i < 16; i++ ) out[ i ] = SWAP4( h[ i ] );
+
+  barrier(CLK_GLOBAL_MEM_FENCE);
+}
+
+// x25x shuffle
+
+// NEW simple shuffle algorithm, instead of just reversing
+#define X25X_SHUFFLE_BLOCKS (24 * 64 / 2)
+#define X25X_SHUFFLE_ROUNDS 12
+
+__constant static const ushort x25x_round_const[X25X_SHUFFLE_ROUNDS] = {
+    0x142c, 0x5830, 0x678c, 0xe08c,
+    0x3c67, 0xd50d, 0xb1d8, 0xecb2,
+    0xd7ee, 0x6783, 0xfa6c, 0x4b9c
+};
+
+#define X25X_SHFL_GROUP_SIZE 21
+
+__attribute__((reqd_work_group_size(X25X_SHFL_GROUP_SIZE, 1, 1)))
+__kernel void search26( __global uint *hashes )
+{
+    uint gid = get_global_id( 0 );
+    __global ushort* pblock_pointer = (__global ushort*) (hashes + 16 * (0 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0))));
+    __local ushort block_pointer[X25X_SHUFFLE_BLOCKS * X25X_SHFL_GROUP_SIZE];
+    ushort lid = (ushort) get_local_id( 0 );
+    //#pragma unroll
+    for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
+      (block_pointer)[i * X25X_SHFL_GROUP_SIZE + lid] = (pblock_pointer)[i];
+    }
+	for (int r = 0; r < X25X_SHUFFLE_ROUNDS; r++) {
+		for (ushort i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
+			ushort block_value = block_pointer[(X25X_SHUFFLE_BLOCKS - i - 1) * X25X_SHFL_GROUP_SIZE + lid];
+      ushort round_value = (block_value / X25X_SHUFFLE_BLOCKS);
+      round_value *= X25X_SHUFFLE_BLOCKS;
+      block_value -= round_value;
+      ushort shift = i & 15;
+			block_pointer[i * X25X_SHFL_GROUP_SIZE + lid] ^= block_pointer[(block_value) * X25X_SHFL_GROUP_SIZE + lid] + (x25x_round_const[r] << (shift));
+		}
+	}
+//#pragma unroll
+    for (int i = 0; i < X25X_SHUFFLE_BLOCKS; i++) {
+      (pblock_pointer)[i] = (block_pointer)[i * X25X_SHFL_GROUP_SIZE + lid];
+    }
+
+    barrier(CLK_GLOBAL_MEM_FENCE);
+}
+
+// blake2s
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__kernel void search27(__global uint* hashes, volatile __global uint* output, const ulong target)
+{
+    uint gid = get_global_id( 0 );
+    __global uint* input = hashes + 16 * (0 + X25X_HASH_ARRAY_SIZE * (gid-get_global_offset(0)));
+
+	blake2s_state blake2_ctx;
+
+	gpu_blake2s_init(&blake2_ctx, BLAKE2S_OUTBYTES);
+	gpu_blake2s_update(&blake2_ctx, (__global uchar*) input);
+
+	uint hash[8];
+	gpu_blake2s_final(&blake2_ctx, hash);
+
+	if (hash[7] <= as_uint2(target).y && hash[6] <= as_uint2(target).x) {
+      output[output[0xFF]++] = SWAP32(gid);
+	}
+}
+
+#endif // X25X_CL

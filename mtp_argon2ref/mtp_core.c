@@ -71,14 +71,14 @@ void xor_argon_block(argon_block *dst, const argon_block *src) {
 static void load_argon_block(argon_block *dst, const void *input) {
     unsigned i;
     for (i = 0; i < MTP_ARGON2_QWORDS_IN_argon_block; ++i) {
-        dst->v[i] = load64((const uint8_t *)input + i * sizeof(dst->v[i]));
+        dst->v[i] = mtp_load64((const uint8_t *)input + i * sizeof(dst->v[i]));
     }
 }
 
 void store_argon_block(void *output, const argon_block *src) {
     unsigned i;
     for (i = 0; i < MTP_ARGON2_QWORDS_IN_argon_block; ++i) {
-        store64((uint8_t *)output + i * sizeof(src->v[i]), src->v[i]);
+        mtp_store64((uint8_t *)output + i * sizeof(src->v[i]), src->v[i]);
     }
 }
 
@@ -585,8 +585,8 @@ void mtp_fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_inst
     uint8_t argon_blockhash_bytes[MTP_ARGON2_argon_block_SIZE];
     for (l = 0; l < instance->lanes; ++l) {
 
-        store32(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH, 0);
-        store32(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH + 4, l);
+        mtp_store32(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH, 0);
+        mtp_store32(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH + 4, l);
 
         amtp_blake2b_long(argon_blockhash_bytes, MTP_ARGON2_argon_block_SIZE, argon_blockhash,
                      MTP_ARGON2_PREHASH_SEED_LENGTH);
@@ -597,7 +597,7 @@ void mtp_fill_first_argon_blocks(uint8_t *argon_blockhash, const mtp_argon2_inst
 		load_argon_block(&instance->memory[l * 2 + 0],
 			argon_blockhash_bytes);
 
-        store32(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH, 1);
+        mtp_store32(argon_blockhash + MTP_ARGON2_PREHASH_DIGEST_LENGTH, 1);
 
 
         amtp_blake2b_long(argon_blockhash_bytes, MTP_ARGON2_argon_block_SIZE, argon_blockhash,
@@ -622,25 +622,25 @@ void mtp_initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
 
     amtp_blake2b_init(&BlakeHash, MTP_ARGON2_PREHASH_DIGEST_LENGTH);
 
-    store32(&value, context->lanes);
+    mtp_store32(&value, context->lanes);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
-    store32(&value, context->outlen);
+    mtp_store32(&value, context->outlen);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
-    store32(&value, context->m_cost);
+    mtp_store32(&value, context->m_cost);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
-    store32(&value, context->t_cost);
+    mtp_store32(&value, context->t_cost);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
-    store32(&value, context->version);
+    mtp_store32(&value, context->version);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
-    store32(&value, (uint32_t)type);
+    mtp_store32(&value, (uint32_t)type);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
-    store32(&value, context->pwdlen);
+    mtp_store32(&value, context->pwdlen);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
     if (context->pwd != NULL) {
@@ -655,7 +655,7 @@ void mtp_initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
 
 
 
-    store32(&value, context->saltlen);
+    mtp_store32(&value, context->saltlen);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
     if (context->salt != NULL) {
@@ -664,7 +664,7 @@ void mtp_initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
     }
 
 
-    store32(&value, context->secretlen);
+    mtp_store32(&value, context->secretlen);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
     if (context->secret != NULL) {
@@ -677,7 +677,7 @@ void mtp_initial_hash(uint8_t *argon_blockhash, mtp_argon2_context *context,
         }
     }
 
-    store32(&value, context->adlen);
+    mtp_store32(&value, context->adlen);
     amtp_blake2b_update(&BlakeHash, (const uint8_t *)&value, sizeof(value));
 
     if (context->ad != NULL) {
