@@ -7252,8 +7252,10 @@ static void apply_switcher_options(unsigned long options, struct pool *pool)
         set_memoryclock(i, gpus[i].gpu_memclock);
       if(opt_isset(options, SWITCHER_APPLY_GPU_FAN))
         set_fanspeed(i, gpus[i].min_fan);
+#ifdef HAVE_CURSES
       if(opt_isset(options, SWITCHER_APPLY_GPU_POWERTUNE))
         set_powertune(i, gpus[i].gpu_powertune);
+#endif
       if(opt_isset(options, SWITCHER_APPLY_GPU_VDDC))
         set_vddc(i, gpus[i].gpu_vddc);
     }
