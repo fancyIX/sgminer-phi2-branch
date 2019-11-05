@@ -358,7 +358,7 @@ static inline uint64_t eorswap64(uint64_t u, uint64_t v)
 }
 
 
- static inline  int blake2b_compress4xv2(uint64_t *hash, const uint64_t *hzcash, const uint64_t block[16], const uint32_t len, int last)
+ static inline  int blake2b_compress4xv2(uint64_t *hash, const uint64_t *hzcash, const uint64_t *block, const uint32_t len, int last)
  {
 	 uint64_t m[16];
 	 uint64_t v[16];
@@ -943,10 +943,9 @@ struct mem_blk {
 
 
 static inline void fill_block_withIndex(__global const struct mem_blk *prev_block,__global const struct mem_blk *ref_block,
-__global struct mem_blk *next_block, int with_xor, uint32_t block_header[8], uint32_t index) {
+__global struct mem_blk *next_block, int with_xor, uint32_t block_header[8], uint32_t index,
+__local struct mem_blk *blockR, struct mem_blk *block_tmp) {
 
-	__local struct mem_blk blockR;
-	__local struct mem_blk block_tmp;
 	int tid = get_local_id(0);
 	uint32_t TheIndex[2] = { 0,index };
 	uint2 TheIndex2; 
@@ -970,33 +969,33 @@ __global struct mem_blk *next_block, int with_xor, uint32_t block_header[8], uin
 
 //	copy_block(blockR, ref_block);
 
-		blockR.v[tid]	   = ref_block->v[tid];
-		blockR.v[tid + 32] = ref_block->v[tid + 32];
-		blockR.v[tid + 64] = ref_block->v[tid + 64];
-		blockR.v[tid + 96] = ref_block->v[tid + 96]; 
+		blockR->v[tid]	   = ref_block->v[tid];
+		blockR->v[tid + 32] = ref_block->v[tid + 32];
+		blockR->v[tid + 64] = ref_block->v[tid + 64];
+		blockR->v[tid + 96] = ref_block->v[tid + 96]; 
 
 
 //	xor_block(blockR, prev_block);
-		blockR.v[tid]      ^= prev_block->v[tid]; 
-		blockR.v[tid + 32] ^= prev_block->v[tid + 32]; 
-		blockR.v[tid + 64] ^= prev_block->v[tid + 64]; 
-		blockR.v[tid + 96] ^= prev_block->v[tid + 96]; 
+		blockR->v[tid]      ^= prev_block->v[tid]; 
+		blockR->v[tid + 32] ^= prev_block->v[tid + 32]; 
+		blockR->v[tid + 64] ^= prev_block->v[tid + 64]; 
+		blockR->v[tid + 96] ^= prev_block->v[tid + 96]; 
 
 //	copy_block(block_tmp, blockR);
-		block_tmp.v[tid]      = blockR.v[tid];
-		block_tmp.v[tid + 32] = blockR.v[tid + 32];
-		block_tmp.v[tid + 64] = blockR.v[tid + 64];
-		block_tmp.v[tid + 96] = blockR.v[tid + 96];
+		block_tmp->v[tid]      = blockR->v[tid];
+		block_tmp->v[tid + 32] = blockR->v[tid + 32];
+		block_tmp->v[tid + 64] = blockR->v[tid + 64];
+		block_tmp->v[tid + 96] = blockR->v[tid + 96];
 
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 	if (!tid) 
-		blockR.v[14] = as_ulong(TheIndex2);
+		blockR->v[14] = as_ulong(TheIndex2);
 
 	
 
-	__local uint32_t *bl = (__local uint32_t*)&blockR.v[16];
+	__local uint32_t *bl = (__local uint32_t*)&blockR->v[16];
 
 	if (!tid)
 		for (int i = 0; i<8; i++)
@@ -1012,8 +1011,8 @@ __global struct mem_blk *next_block, int with_xor, uint32_t block_header[8], uin
 		int x = tid & 3;
 
 
-		GBLOCK(blockR.v[y + x], blockR.v[y + 4 + x], blockR.v[y + 8 + x], blockR.v[y + 12 + x]);
-		GBLOCK(blockR.v[y + x], blockR.v[y + 4 + ((1 + x) & 3)], blockR.v[y + 8 + ((2 + x) & 3)], blockR.v[y + 12 + ((3 + x) & 3)]);
+		GBLOCK(blockR->v[y + x], blockR->v[y + 4 + x], blockR->v[y + 8 + x], blockR->v[y + 12 + x]);
+		GBLOCK(blockR->v[y + x], blockR->v[y + 4 + ((1 + x) & 3)], blockR->v[y + 8 + ((2 + x) & 3)], blockR->v[y + 12 + ((3 + x) & 3)]);
 
 	}
 	barrier(CLK_LOCAL_MEM_FENCE);
@@ -1035,17 +1034,17 @@ __global struct mem_blk *next_block, int with_xor, uint32_t block_header[8], uin
 		int a3 = (((x + 3) & 3) >> 1) * 16;
 		int b3 = (x + 3) & 1;
 
-		GBLOCK(blockR.v[y + b + a], blockR.v[y + 32 + b + a], blockR.v[y + 64 + b + a], blockR.v[y + 96 + b + a]);
-		GBLOCK(blockR.v[y + b + a], blockR.v[y + 32 + b1 + a1], blockR.v[y + 64 + b2 + a2], blockR.v[y + 96 + a3 + b3]);
+		GBLOCK(blockR->v[y + b + a], blockR->v[y + 32 + b + a], blockR->v[y + 64 + b + a], blockR->v[y + 96 + b + a]);
+		GBLOCK(blockR->v[y + b + a], blockR->v[y + 32 + b1 + a1], blockR->v[y + 64 + b2 + a2], blockR->v[y + 96 + a3 + b3]);
 	}
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 //	xor_copy_block(next_block, &block_tmp, &blockR);
 
-		next_block->v[tid]      = block_tmp.v[tid] ^      blockR.v[tid];
-		next_block->v[tid + 32] = block_tmp.v[tid + 32] ^ blockR.v[tid + 32];
-		next_block->v[tid + 64] = block_tmp.v[tid + 64] ^ blockR.v[tid + 64];
-		next_block->v[tid + 96] = block_tmp.v[tid + 96] ^ blockR.v[tid + 96];
+		next_block->v[tid]      = block_tmp->v[tid] ^      blockR->v[tid];
+		next_block->v[tid + 32] = block_tmp->v[tid + 32] ^ blockR->v[tid + 32];
+		next_block->v[tid + 64] = block_tmp->v[tid + 64] ^ blockR->v[tid + 64];
+		next_block->v[tid + 96] = block_tmp->v[tid + 96] ^ blockR->v[tid + 96];
 	
 #undef GBLOCK
 }
@@ -1105,6 +1104,9 @@ __kernel void mtp_i(__global uint4  *  DBlock, __global uint4  *  DBlock2, __glo
 	int truc = 0;
 	uint64_t TheBlockIndex;
 
+	__local struct mem_blk blockR;
+	__local struct mem_blk block_tmp;
+
 	#pragma unroll 1
 	for (int i = starting_index; i < segment_length;
 		++i, ++curr_offset, ++prev_offset) {
@@ -1130,7 +1132,7 @@ __kernel void mtp_i(__global uint4  *  DBlock, __global uint4  *  DBlock2, __glo
 		__global struct mem_blk *  curblk = (curr_offset<half_memcost)?                             &memory[curr_offset] :		            &memory2[curr_offset - half_memcost];
 
 //		fill_block_withIndex(memory + prev_offset, memory + (ref_lane << 20) + ref_index, &memory[curr_offset], 0, BH, (uint32_t)TheBlockIndex);
-		fill_block_withIndex(prevblk, refblk, curblk, 0, BH, (uint32_t)TheBlockIndex);
+		fill_block_withIndex(prevblk, refblk, curblk, 0, BH, (uint32_t)TheBlockIndex, &blockR, &block_tmp);
 //	if (get_global_id(0) == 0)
 //		printf("index i = %d \n", i);
 	}
