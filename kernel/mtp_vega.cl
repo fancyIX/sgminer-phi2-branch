@@ -685,30 +685,64 @@ static unsigned warp_id()
 }
 #endif
 
-#define FARLOAD(x) far[warp][(x)*(2+SHR_OFF) + lane]
-#define FARSTORE(x) far[warp][lane*(2+SHR_OFF) + (x)]
-#define SHR_OFF 0
+#define SWAP32(x) as_ulong(as_uint2(x).s10)
+
+#define SUBDIV 2
+#define SUBDIV2 256 //8
+
 #ifdef WORKSIZE
 #define TPB_MTP WORKSIZE
 #else 
-#define TPB_MTP 32
+#define TPB_MTP 64
 #endif
 
 __attribute__((reqd_work_group_size(TPB_MTP, 1, 1)))
-__kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * __restrict__ DBlock, __global const ulong8  * __restrict__ DBlock2,
+__kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * /*__restrict__*/ DBlock, __global const ulong8  * /*__restrict__*/ DBlock2,
 	__global uint4 * Elements, __global uint32_t * __restrict__ SmallestNonce, uint pTarget)
 {
+#define G(r,i,a,b,c,d) \
+   { \
+     v[a] +=   v[b] + (m[blake2b_sigma[r][2*i+0]]); \
+     v[d] = SWAP32(v[d] ^ v[a]); \
+     v[c] += v[d]; \
+	 v[b] ^=v[c]; \
+     v[b] = as_ulong(amd_bitalign(as_uint2(v[b]).s10, as_uint2(v[b]), (24))); \
+     v[a] += v[b] + (m[blake2b_sigma[r][2*i+1]]); \
+	 v[d] ^=v[a]; \
+     v[d] = as_ulong(amd_bitalign(as_uint2(v[d]).s10, as_uint2(v[d]), (16))); \
+     v[c] += v[d]; \
+	 v[b] ^=v[c]; \
+     v[b] = as_ulong(amd_bitalign(as_uint2(v[b]), as_uint2(v[b]).s10, (31))); \
+  } 
+#define ROUND(r)  \
+  { \
+    G(r,0, 0,4,8,12); \
+    G(r,1, 1,5,9,13); \
+    G(r,2, 2,6,10,14); \
+    G(r,3, 3,7,11,15); \
+    G(r,4, 0,5,10,15); \
+    G(r,5, 1,6,11,12); \
+    G(r,6, 2,7,8,13); \
+    G(r,7, 3,4,9,14); \
+  } 
+//uint32_t event_thread = get_global_id(0) - get_global_offset(0);
+	//if (event_thread<128) 
+	//	printf("get_sub_group_size %d get_sub_group_local_id %d  get_num_sub_groups %d\n", get_sub_group_size(), get_sub_group_local_id(), get_num_sub_groups());
 
-	uint32_t NonceNumber = 1;  // old
-	uint32_t ThreadNumber = 1;
-	uint32_t event_thread = get_global_id(0) - get_global_offset(0); //thread / ThreadNumber;
-
+	uint64_t m[16] = { 0 };
+	uint64_t v[16];
 	uint32_t NonceIterator = get_global_id(0);
-	int lane = get_local_id(0) % 2;
-	int warp = get_local_id(0) / 2;;//warp_id();
-	__local  ulong8 far[TPB_MTP / 2][2 * (2 + SHR_OFF)];
-	__local  uint32_t farIndex[TPB_MTP / 2][2];
+	uint TheIndex[2];
+	int lane = get_local_id(0) % SUBDIV2;
+	int warp = get_local_id(0) / SUBDIV2;;//warp_id();
+										  //	int lane = get_sub_group_local_id();
+										  //	int warp = get_sub_group_id();
+
+	int indice = 2*lane; //(lane%SUBDIV + SUBDIV*(lane / SUBDIV)) * (SUBDIV );
+	__local  ulong8 far[TPB_MTP / SUBDIV2][SUBDIV2 * SUBDIV];
+
 	const uint32_t half_memcost = 2 * 1024 * 1024;
+
 	const uint64_t lblakeFinal[8] =
 	{
 		0x6a09e667f2bdc928UL,
@@ -720,97 +754,168 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * _
 		0x1f83d9abfb41bd6bUL,
 		0x5be0cd19137e2179UL,
 	};
-
-	uint8 YLocal;
-
-
-	ulong8 DataChunk[2] = { 0 };
-
-	((uint8 *)DataChunk)[0] = ((__global uint8 *)pData)[0];
-	((uint8 *)DataChunk)[1] = ((__global uint8 *)pData)[1];
-
-	((uint4*)DataChunk)[4] = ((__global uint4*)pData)[4];
-	((uint4*)DataChunk)[5] = ((__global uint4*)Elements)[0];
-
-	((uint16*)DataChunk)[1].hi.s0 = NonceIterator;
-
-	blake2b_compress2_256((uint64_t*)&YLocal, lblakeFinal, (uint64_t*)DataChunk, 100);
+	const uint64_t blakeIV_[8] = {
+		0x6a09e667f3bcc908UL,
+		0xbb67ae8584caa73bUL,
+		0x3c6ef372fe94f82bUL,
+		0xa54ff53a5f1d36f1UL,
+		0x510e527fade682d1UL,
+		0x9b05688c2b3e6c1fUL,
+		0x1f83d9abfb41bd6bUL,
+		0x5be0cd19137e2179UL
+	};
 
 
-	bool init_blocks;
-	uint32_t unmatch_block;
-	//		uint32_t localIndex;
-	init_blocks = false;
-	unmatch_block = 0;
+	ulong4 YLocal;
+	
 
-#pragma unroll 1
-	for (int j = 1; j <= mtp_L; j++)
+	//	ulong8 DataChunk[2] = { 0 };
+
+	((uint8 *)m)[0] = ((__global uint8 *)pData)[0];
+	((uint8 *)m)[1] = ((__global uint8 *)pData)[1];
+
+	((uint4*)m)[4] = ((__global uint4*)pData)[4];
+	((uint4*)m)[5] = ((__global uint4*)Elements)[0];
+
+	((uint16*)m)[1].hi.s0 = NonceIterator;
+
+	//	blake2b_compress2_256((uint64_t*)&YLocal, lblakeFinal, (uint64_t*)DataChunk, 100);
+
+
+	((ulong8*)v)[0] = ((ulong8*)lblakeFinal)[0];
+	v[8] = blakeIV_[0];
+	v[9] = blakeIV_[1];
+	v[10] = blakeIV_[2];
+	v[11] = blakeIV_[3];
+	v[12] = blakeIV_[4];
+	v[12] ^= 100;
+	v[13] = blakeIV_[5];
+	v[14] = ~blakeIV_[6];
+	v[15] = blakeIV_[7];
+
+#pragma unroll 
+	for (int i = 0; i<12; i++)	ROUND(i);
+
+	YLocal = ((ulong4*)lblakeFinal)[0] ^ ((ulong4*)v)[0] ^ ((ulong4*)v)[2];
+
+
+
+#pragma unroll mtp_L
+	for (int j = 0; j < mtp_L; j++)
 	{
 
-//		#pragma unroll
-//		for (int t = 0; t<1; t++) 
-		{
-			ulong4 *D = (ulong4*)&YLocal;
-			FARLOAD(1).hi = D[0];
-		}
-
-		farIndex[warp][lane] = YLocal.s0 & 0x3FFFFF;
-		barrier(CLK_LOCAL_MEM_FENCE);
-
-//		ulong8 DataChunk[2];
+		uint YLocs0 = (as_uint8(YLocal).s0 & 0x3FFFFF);
 		uint32_t len = 0;
 
-		uint16 DataTmp; uint2 * blake_init = (uint2*)&DataTmp;
-		for (int i = 0; i<8; i++)blake_init[i] = as_uint2(lblakeFinal[i]);
+		/*
+		ulong8 DataTmp;
+		DataTmp.s0 = lblakeFinal[0];
+		DataTmp.s1 = lblakeFinal[1];
+		DataTmp.s2 = lblakeFinal[2];
+		DataTmp.s3 = lblakeFinal[3];
+		DataTmp.s4 = lblakeFinal[4];
+		DataTmp.s5 = lblakeFinal[5];
+		DataTmp.s6 = lblakeFinal[6];
+		DataTmp.s7 = lblakeFinal[7];
+		*/
+		ulong8 DataTmp = ((ulong8*)lblakeFinal)[0];
+		//		ulong8 DataTmp = vload8(0U,lblakeFinal);
+#pragma unroll 
+		for (int i = 0; i < 4; ++i)
+			m[i] = ((uint64_t*)&YLocal)[i];
 
-		//			uint8 part;
 
+		//int ind = SUBDIV * (get_sub_group_local_id() / SUBDIV);
+		//TheIndex[0] = sub_group_broadcast(YLocs0, ind);
+		//TheIndex[1] = sub_group_broadcast(YLocs0, 1 + ind);
+		__asm(
+			"v_nop;\n"
+			"v_nop;\n"
+			"v_mov_b32_dpp %[f0], %[src0] quad_perm:[0,0,2,2];\n"
+			"v_mov_b32_dpp %[f1], %[src1] quad_perm:[1,1,3,3];\n"
+			: [f0] "=&v" (TheIndex[0]),
+			  [f1] "=&v" (TheIndex[1])
+			: [src0] "v" (YLocs0),
+			  [src1] "v" (YLocs0)
+		);
 
-#pragma unroll 1
+		#pragma unroll 
 		for (int i = 0; i < 9; i++) {
 			int last = (i == 8);
-//#pragma unroll
-//			for (int t = 0; t<1; t++) 
-			{
-				ulong4 *D = (ulong4*)&YLocal;
-				D[0] = FARLOAD(1).hi;
-			}
-
-
+			//				int indice = (lane%SUBDIV + SUBDIV*(lane / SUBDIV)) * (SUBDIV + SHR_OFF);
 			len += last ? 32 : 128;
+			//			len += (i<8) ? 128 : 32;
 
-			//if(!last)
-			{
+				if (i<8) {
+			#pragma unroll 
+			for (int t = 0; t<SUBDIV; t++) {
 
+					__global const ulong8 * /*__restrict__*/ farP = (TheIndex[t]<half_memcost) ? &DBlock[TheIndex[t] * 16 + 2 * i]
+						: &DBlock2[(TheIndex[t] - half_memcost) * 16 + 2 * i];
 
-				#pragma unroll 
-				for (int t = 0; t<2; t++) {
+					prefetch(&farP[lane%SUBDIV], 1);
 
-					__global const ulong8 * __restrict__ farP = (farIndex[warp][t]<half_memcost) ? &DBlock[farIndex[warp][t] * 16 + 2 * i]
-																			: &DBlock2[(farIndex[warp][t] - half_memcost) * 16 + 2 * i];
+					far[warp][lane%SUBDIV + (t + SUBDIV*(lane / SUBDIV)) * (SUBDIV )] = farP[lane%SUBDIV];
+//					far[warp][2*t + lane%2 + 4*(lane/2)]= farP[lane%SUBDIV];
+//					far[warp][2*t + 2*(lane/2) + lane] = farP[lane%SUBDIV];
 
-					far[warp][lane*(2 + SHR_OFF) + (t)] = (last) ? (ulong8)(0, 0, 0,0,0,0,0,0) :farP[lane];
+//					far[warp][256*t + lane] = farP[lane%SUBDIV];
+					//					far[warp][(t + SUBDIV*(lane / SUBDIV))][lane%SUBDIV] = farP[lane%SUBDIV];
 				}
-
-				barrier(CLK_LOCAL_MEM_FENCE);
+								barrier(CLK_LOCAL_MEM_FENCE);
 			}
 
-			blake2b_compress2b_new( (uint64_t*)&DataTmp, far[warp],(uint64_t*)&YLocal, len, last);
+			vstore4(last ? (ulong4)(0, 0, 0, 0) : far[warp][indice].lo, 1, m);
+			vstore4(last ? (ulong4)(0, 0, 0, 0) : far[warp][indice].hi, 2, m);
+			vstore4(last ? (ulong4)(0, 0, 0, 0) : far[warp][1 + indice].lo, 3, m);
+
+
+			/*
+			vstore8(DataTmp, 0, v);
+
+
+			((ulong4*)m)[1] = (last) ? (ulong4)(0, 0, 0, 0) : far[warp][indice].lo;
+			((ulong4*)m)[2] = (last) ? (ulong4)(0, 0, 0, 0) : far[warp][indice].hi;
+			((ulong4*)m)[3] = (last) ? (ulong4)(0, 0, 0, 0) : far[warp][1 + indice].lo;
+			*/
+
+			((ulong8*)v)[0] = DataTmp;
+			v[8] = blakeIV_[0];
+			v[9] = blakeIV_[1];
+			v[10] = blakeIV_[2];
+			v[11] = blakeIV_[3];
+			v[12] = blakeIV_[4];
+			v[12] ^= len;
+			v[13] = blakeIV_[5];
+			v[14] = (i<8) ? blakeIV_[6] : ~blakeIV_[6];
+			v[15] = blakeIV_[7];
+
+#pragma unroll 
+			for (int k = 0; k<12; k++)	ROUND(k);
+
+			DataTmp ^= ((ulong8*)v)[0] ^ ((ulong8*)v)[1];
+
+
+			//if (last) continue;
+			//			((ulong4*)m)[0] = /*(last) ? (ulong4)(0, 0, 0, 0) :*/ far[warp][1+ indice].hi;
+			vstore4(far[warp][1 + indice].hi, 0, m);
 
 		}
+
+
 
 		YLocal = DataTmp.lo;
 
 	}
 
-	if (YLocal.s7 <= pTarget)
+	if (as_uint8(YLocal).s7 <= pTarget)
 	{
 
 		SmallestNonce[atomic_inc(SmallestNonce + 0xFF)] = NonceIterator;
 	}
-
+#undef G
+#undef ROUND
 }
-
 
 
 
