@@ -825,10 +825,10 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * /
 			m[i] = ((uint64_t*)&YLocal)[i];
 
 
-		//int ind = SUBDIV * (get_sub_group_local_id() / SUBDIV);
-		//TheIndex[0] = sub_group_broadcast(YLocs0, ind);
-		//TheIndex[1] = sub_group_broadcast(YLocs0, 1 + ind);
-		__asm(
+		int ind = SUBDIV * (get_sub_group_local_id() / SUBDIV);
+		TheIndex[0] = sub_group_broadcast(YLocs0, ind);
+		TheIndex[1] = sub_group_broadcast(YLocs0, 1 + ind);
+		/*__asm(
 			"v_nop;\n"
 			"v_nop;\n"
 			"v_mov_b32_dpp %[f0], %[src0] quad_perm:[0,0,2,2];\n"
@@ -837,7 +837,7 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * /
 			  [f1] "=&v" (TheIndex[1])
 			: [src0] "v" (YLocs0),
 			  [src1] "v" (YLocs0)
-		);
+		);*/
 
 		#pragma unroll 
 		for (int i = 0; i < 9; i++) {
