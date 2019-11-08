@@ -825,9 +825,15 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * /
 			m[i] = ((uint64_t*)&YLocal)[i];
 
 
+#if defined(__Polaris__) || defined(__Ellesmere__)
+		TheIndex[lane % 2] = YLocs0;
+		TheIndex[(lane + 1) % 2] = sub_group_broadcast(YLocs0, (lane + 1) % 2 + SUBDIV * (lane / SUBDIV));
+
+#else 
 		int ind = SUBDIV * (get_sub_group_local_id() / SUBDIV);
 		TheIndex[0] = sub_group_broadcast(YLocs0, ind);
 		TheIndex[1] = sub_group_broadcast(YLocs0, 1 + ind);
+#endif
 		/*__asm(
 			"v_nop;\n"
 			"v_nop;\n"
@@ -862,7 +868,6 @@ __kernel void mtp_yloop(__global unsigned int* pData, __global const ulong8  * /
 //					far[warp][256*t + lane] = farP[lane%SUBDIV];
 					//					far[warp][(t + SUBDIV*(lane / SUBDIV))][lane%SUBDIV] = farP[lane%SUBDIV];
 				}
-								barrier(CLK_LOCAL_MEM_FENCE);
 			}
 
 			vstore4(last ? (ulong4)(0, 0, 0, 0) : far[warp][indice].lo, 1, m);
