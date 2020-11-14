@@ -17,6 +17,13 @@ typedef struct __clState {
   cl_kernel mtp_fc; //initialization
   cl_kernel mtp_yloop; // main kernel
 
+  // yescrypt kernels navi
+  cl_kernel yescrypt_gpu_hash_k0;
+	cl_kernel yescrypt_gpu_hash_k1;
+	cl_kernel yescrypt_gpu_hash_k2c_r8;
+	cl_kernel yescrypt_gpu_hash_k2c1_r8;
+	cl_kernel yescrypt_gpu_hash_k5;
+
   size_t n_extra_kernels;
   cl_command_queue commandQueue;
   cl_program program;
@@ -28,6 +35,7 @@ typedef struct __clState {
   cl_mem buffer1;
   cl_mem buffer2;
   cl_mem buffer3;
+  cl_mem buffer4;
   unsigned char cldata[256];
   bool goffset;
   cl_uint vwidth;
