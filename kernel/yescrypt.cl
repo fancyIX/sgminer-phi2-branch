@@ -41,7 +41,7 @@ __kernel void search(__global const uchar* restrict input, __global uint* restri
 
 	__global ulong16 *hashbuffer = (__global ulong16 *)(padcache + (2048 * 128 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS)));
 	__global ulong16 *prevstate = (__global ulong16 *)(buff1 + (64 * 128 * sizeof(ulong)*(get_global_id(0) % MAX_GLOBAL_THREADS)));
-	__global ulong16 *Bdev = (__global ulong16 *)(buff2 + (8 * 128 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS)));
+	__global ulong16 *Bdev = (__global ulong16 *)(buff2 + (128 * sizeof(ulong)* (get_global_id(0) % MAX_GLOBAL_THREADS)));
 
 
 

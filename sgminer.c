@@ -7728,6 +7728,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
   // for Neoscrypt, the diff1targ value is in work->target
   if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_PLUCK
     || work->pool->algorithm.type == ALGO_YESCRYPT || work->pool->algorithm.type == ALGO_YESCRYPT_MULTI
+    || work->pool->algorithm.type == ALGO_YESCRYPT_NAVI
     || work->pool->algorithm.type == ALGO_ARGON2D) {
     diff1targ = ((uint32_t *)work->target)[7];
   }

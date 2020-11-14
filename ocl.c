@@ -517,7 +517,10 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
   // Yescrypt TC
   else if ((cgpu->algorithm.type == ALGO_YESCRYPT ||
-            algorithm->type == ALGO_YESCRYPT_MULTI) && !cgpu->opt_tc) {
+            algorithm->type == ALGO_YESCRYPT_MULTI ||
+            algorithm->type == ALGO_YESCRYPT_NAVI) && !cgpu->opt_tc) {
+              size_t max_pad_size = YESCRYPT_SCRATCHBUF_SIZE;
+              if (algorithm->type == ALGO_YESCRYPT_NAVI) max_pad_size = YESCRYPT_NAVI_SCRATCHBUF_SIZE;
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -541,7 +544,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     glob_thread_count = ((glob_thread_count < cgpu->work_size) ? cgpu->work_size : glob_thread_count);
 
     // if TC * scratchbuf size is too big for memory... reduce to max
-    if ((glob_thread_count * YESCRYPT_SCRATCHBUF_SIZE) >= (uint64_t)cgpu->max_alloc) {
+    if ((glob_thread_count * max_pad_size) >= (uint64_t)cgpu->max_alloc) {
 
       /* Selected intensity will not run on this GPU. Not enough memory.
       * Adapt the memory setting. */
@@ -549,7 +552,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
       switch (type) {
         //raw intensity
       case 2:
-        while ((glob_thread_count * YESCRYPT_SCRATCHBUF_SIZE) > (uint64_t)cgpu->max_alloc) {
+        while ((glob_thread_count * max_pad_size) > (uint64_t)cgpu->max_alloc) {
           --glob_thread_count;
         }
 
@@ -559,7 +562,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
         //x intensity
       case 1:
-        glob_thread_count = cgpu->max_alloc / YESCRYPT_SCRATCHBUF_SIZE;
+        glob_thread_count = cgpu->max_alloc / max_pad_size;
         max_int = glob_thread_count / clState->compute_shaders;
 
         while (max_int && ((clState->compute_shaders * (1UL << max_int)) > glob_thread_count)) {
@@ -577,7 +580,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
         break;
 
       default:
-        glob_thread_count = cgpu->max_alloc / YESCRYPT_SCRATCHBUF_SIZE;
+        glob_thread_count = cgpu->max_alloc / max_pad_size;
         while (max_int && ((1UL << max_int) & glob_thread_count) == 0) {
           --max_int;
         }
@@ -806,6 +809,32 @@ if (algorithm->type == ALGO_MTP) {
 
 //	  clState->devid = cgpu->device_id;
 //	  return clState;
+  } else if (algorithm->type == ALGO_YESCRYPT_NAVI) {
+    clState->yescrypt_gpu_hash_k0 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k0", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k0\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k1 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k1", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k1\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k5 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k5", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k5\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k2c1_r8 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k2c1_r8", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c1_r8\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k2c_r8 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k2c_r8", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c_r8\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
   }
 /// default
 	else {
@@ -856,6 +885,18 @@ if (algorithm->type == ALGO_MTP) {
   else if (algorithm->type == ALGO_PASCAL) readbufsize = 196;
   else if (algorithm->type == ALGO_ETHASH) readbufsize = 32;
 
+if (algorithm->type == ALGO_YESCRYPT_NAVI) {
+      size_t hash1_sz = 2 * 16 * 8 * 1 * sizeof(uint32_t);	// B
+	    size_t hash2_sz = 512 * sizeof(uint32_t);				// S(4way)
+	    size_t hash3_sz = 2 * 2048 * 8 * sizeof(uint32_t);			// V(16way)
+	    size_t hash4_sz = 8 * sizeof(uint32_t);					// sha256
+      bufsize = 32;
+      buf1size = hash1_sz * cgpu->thread_concurrency;
+      buf2size = hash2_sz * cgpu->thread_concurrency;
+      buf3size = hash3_sz * cgpu->thread_concurrency;
+      buf4size = hash4_sz * cgpu->thread_concurrency;
+    }
+
   if (algorithm->rw_buffer_size < 0) {
     // calc buffer size for neoscrypt
     if (algorithm->type == ALGO_NEOSCRYPT) {
@@ -884,7 +925,7 @@ if (algorithm->type == ALGO_MTP) {
       /* The scratch/pad-buffer needs 32kBytes memory per thread. */
       bufsize = YESCRYPT_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
       buf1size = PLUCK_SECBUF_SIZE * cgpu->thread_concurrency;
-      buf2size = 128 * 8 * 8 * cgpu->thread_concurrency;
+      buf2size = 128 * 8 * cgpu->thread_concurrency;
       buf3size= 8 * 8 * 4 * cgpu->thread_concurrency;
       /* This is the input buffer. For yescrypt this is guaranteed to be
       * 80 bytes only. */
@@ -966,6 +1007,7 @@ if (algorithm->type == ALGO_MTP) {
   clState->buffer1 = NULL;
   clState->buffer2 = NULL;
   clState->buffer3 = NULL;
+  clState->buffer4 = NULL;
 
   if (bufsize > 0) {
     applog(LOG_DEBUG, "Creating read/write buffer sized %lu", (unsigned long)bufsize);
@@ -994,6 +1036,31 @@ if (algorithm->type == ALGO_MTP) {
       clState->buffer3 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf3size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer3) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer3), decrease TC or increase LG", status);
+        return NULL;
+      }
+    }
+    else if (algorithm->type == ALGO_YESCRYPT_NAVI) {
+      clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer1) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
+        return NULL;
+      }
+
+      clState->buffer2 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf2size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer2) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer2), decrease TC or increase LG", status);
+        return NULL;
+      }
+
+      clState->buffer3 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf3size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer3) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer3), decrease TC or increase LG", status);
+        return NULL;
+      }
+
+      clState->buffer4 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf4size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer4) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer4), decrease TC or increase LG", status);
         return NULL;
       }
     }
