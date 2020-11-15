@@ -520,7 +520,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
             algorithm->type == ALGO_YESCRYPT_MULTI ||
             algorithm->type == ALGO_YESCRYPT_NAVI) && !cgpu->opt_tc) {
               size_t max_pad_size = YESCRYPT_SCRATCHBUF_SIZE;
-              if (algorithm->type == ALGO_YESCRYPT_NAVI) max_pad_size = YESCRYPT_NAVI_SCRATCHBUF_SIZE;
+              if (algorithm->type == ALGO_YESCRYPT_NAVI || cgpu->algorithm.type == ALGO_YESCRYPT) max_pad_size = YESCRYPT_NAVI_SCRATCHBUF_SIZE;
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -809,7 +809,7 @@ if (algorithm->type == ALGO_MTP) {
 
 //	  clState->devid = cgpu->device_id;
 //	  return clState;
-  } else if (algorithm->type == ALGO_YESCRYPT_NAVI) {
+  } else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
     clState->yescrypt_gpu_hash_k0 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k0", &status);
 	  if (status != CL_SUCCESS) {
 		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k0\" from program. (clCreateKernel)", status);
@@ -885,7 +885,7 @@ if (algorithm->type == ALGO_MTP) {
   else if (algorithm->type == ALGO_PASCAL) readbufsize = 196;
   else if (algorithm->type == ALGO_ETHASH) readbufsize = 32;
 
-if (algorithm->type == ALGO_YESCRYPT_NAVI) {
+if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
       size_t hash1_sz = 2 * 16 * 8 * 1 * sizeof(uint32_t);	// B
 	    size_t hash2_sz = 512 * sizeof(uint32_t);				// S(4way)
 	    size_t hash3_sz = 2 * 2048 * 8 * sizeof(uint32_t);			// V(16way)
@@ -921,7 +921,7 @@ if (algorithm->type == ALGO_YESCRYPT_NAVI) {
       applog(LOG_DEBUG, "pluck buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
       // scrypt/n-scrypt
     }
-    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_MULTI) {
+    else if (algorithm->type == ALGO_YESCRYPT_MULTI) {
       /* The scratch/pad-buffer needs 32kBytes memory per thread. */
       bufsize = YESCRYPT_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
       buf1size = PLUCK_SECBUF_SIZE * cgpu->thread_concurrency;
@@ -1019,7 +1019,7 @@ if (algorithm->type == ALGO_YESCRYPT_NAVI) {
       applog(LOG_WARNING, "Your settings come to %lu", (unsigned long)bufsize);
     }
 
-    if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_MULTI) {
+    if (algorithm->type == ALGO_YESCRYPT_MULTI) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
@@ -1039,7 +1039,7 @@ if (algorithm->type == ALGO_YESCRYPT_NAVI) {
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_YESCRYPT_NAVI) {
+    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);

@@ -1432,7 +1432,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
 
-if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI) {
+if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI && gpu->algorithm.type != ALGO_YESCRYPT) {
   if (gpu->algorithm.type == ALGO_ARGON2D) {
     const uint32_t throughput = gpu->throughput;
 	  const size_t global[] = { 16, throughput };
@@ -1613,6 +1613,58 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
 
 	status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k5, 1, NULL, grid, block, 0, NULL, NULL);
 }
+if (gpu->algorithm.type == ALGO_YESCRYPT) {
+  cl_uint threads = globalThreads[0];
+  size_t worksize = globalThreads[0];
+
+  uint32_t tpb = 64U;
+	size_t grid[1] = {worksize};
+	size_t grid2[2] = {worksize / tpb * 4U, tpb >> 2};
+	size_t grid3[2] = {worksize / tpb * 16U, tpb >> 4};
+	size_t block[1] = {tpb};
+	size_t block2[2] = {4U, tpb >> 2};
+	size_t block3[2] = {16U, tpb >> 4};
+
+status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k0, 1, NULL, grid, block, 0, NULL, NULL);
+    if (unlikely(status != CL_SUCCESS)) {
+      applog(LOG_ERR, "Error %d: Enqueueing kernel yescrypt_gpu_hash_k0 onto command queue. (clEnqueueNDRangeKernel)", status);
+      return -1;
+    }
+	for (uint32_t i = 0; i < 4; i++) {
+		uint32_t offset = i * (worksize >> 2);
+clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
+		status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k1, 2, NULL, grid2, block2, 0, NULL, NULL);
+    if (unlikely(status != CL_SUCCESS)) {
+      applog(LOG_ERR, "Error %d: Enqueueing kernel yescrypt_gpu_hash_k1 onto command queue. (clEnqueueNDRangeKernel)", status);
+      return -1;
+    }
+		for (uint32_t j = 0; j < 4; j++) {
+			uint32_t offset1 = j * (worksize >> 4);
+			uint32_t offset2 = (i * 4 + j) * (worksize >> 4);
+		    clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r8, 3, sizeof(uint32_t), &offset1);
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r8, 4, sizeof(uint32_t), &offset2);
+			status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c_r8, 2, NULL, grid3, block3, 0, NULL, NULL);
+    if (unlikely(status != CL_SUCCESS)) {
+      applog(LOG_ERR, "Error %d: Enqueueing kernel yescrypt_gpu_hash_k2c_r8 onto command queue. (clEnqueueNDRangeKernel)", status);
+      return -1;
+    }
+		    clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r8, 3, sizeof(uint32_t), &offset1);
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r8, 4, sizeof(uint32_t), &offset2);
+			status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c1_r8, 2, NULL, grid3, block3, 0, NULL, NULL);
+		    if (unlikely(status != CL_SUCCESS)) {
+      applog(LOG_ERR, "Error %d: Enqueueing kernel yescrypt_gpu_hash_k2c1_r8 onto command queue. (clEnqueueNDRangeKernel)", status);
+      return -1;
+    }
+    }
+	}
+
+	status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k5, 1, NULL, grid, block, 0, NULL, NULL);
+      if (unlikely(status != CL_SUCCESS)) {
+      applog(LOG_ERR, "Error %d: Enqueueing kernel yescrypt_gpu_hash_k5 onto command queue. (clEnqueueNDRangeKernel)", status);
+      return -1;
+    }
+}
+
   status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_FALSE, 0,
     buffersize, thrdata->res, 0, NULL, NULL);
   if (unlikely(status != CL_SUCCESS)) {
