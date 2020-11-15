@@ -583,7 +583,7 @@ __kernel void yescrypt_gpu_hash_k2c_r8(__global uint* B, __global uint* S, __glo
     uint n, i, j, k;
     uint x0, x1, x2, x3;
     uint2 buf;
-    uint x[r * 2];
+    uint x[8 * 2];
 
     for (k = 0; k < 128; k++)
         shared_mem[(4096 * YES_GID) + (YES_TID * 128 + k) * 16 + get_local_id(0)] = Sdev(k);
@@ -658,7 +658,7 @@ __kernel void yescrypt_gpu_hash_k2c1_r8(__global uint* B, __global uint* S, __gl
     uint j, k;
     uint x0, x1, x2, x3;
     uint2 buf;
-    uint x[r * 2];
+    uint x[8 * 2];
 
     for (k = 0; k < 128; k++)
         shared_mem[(4096 * YES_GID) + (YES_TID * 128 + k) * 16 + get_local_id(0)] = Sdev(k);
