@@ -2405,7 +2405,7 @@ static algorithm_settings_t algos[] = {
 
 #define A_YESCRYPT_NAVI(a) \
   { a, ALGO_YESCRYPT_NAVI, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0,-1,CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE , yescrypt_regenhash, NULL, NULL, queue_yescrypt_navikernel, gen_hash, append_neoscrypt_compiler_options}
-  A_YESCRYPT_NAVI("yescryptf"),
+  A_YESCRYPT_NAVI("yescrypt_navi"),
 #undef A_YESCRYPT_NAVI
 
   // kernels starting from this will have difficulty calculated by using quarkcoin algorithm
