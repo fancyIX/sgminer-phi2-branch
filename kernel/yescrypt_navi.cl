@@ -369,7 +369,6 @@ __kernel void yescrypt_gpu_hash_k5(__global const uint* restrict input, __global
 
     if (SWAP32(buf[7]) <= (target))
 		output[atomic_inc(output + 0xFF)] = (nonce);
-    if (SWAP32(buf[7]) <= (target)) printf("--------nonce=%d", nonce);
 
 }
 
@@ -384,93 +383,6 @@ static inline uint2 mad64(const uint a, const uint b, uint2 c)
     return as_uint2(as_ulong(result) + as_ulong(c));
 }
 
-#define bitselect(a, b, c) ((a) ^ ((c) & ((b) ^ (a))))
-
-#define WarpShuffle(result, a, b, c) \
-{ \
-	uint thread = get_local_id(1) * get_local_size(0) + get_local_id(0); \
-	uint threads = get_local_size(1) * get_local_size(0); \
-	uint buf; \
- \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	buf = shared_mem[threads * 0 + thread]; \
-	shared_mem[threads * 0 + thread] = a; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	result = shared_mem[0 * threads + bitselect(thread, b, c - 1)]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	shared_mem[threads * 0 + thread] = buf; \
- \
-}
-
-#define WarpShuffle2(d0, d1, a0, a1, b0, b1, c) \
-{ \
-	uint thread = get_local_id(1) * get_local_size(0) + get_local_id(0); \
-	uint threads = get_local_size(1) * get_local_size(0); \
-	uint buf0, buf1; \
- \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	buf0 = shared_mem[threads * 0 + thread]; \
-	buf1 = shared_mem[threads * 1 + thread]; \
-	shared_mem[threads * 0 + thread] = a0; \
-	shared_mem[threads * 1 + thread] = a1; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	d0 = shared_mem[0 * threads + bitselect(thread, b0, c - 1)]; \
-	d1 = shared_mem[1 * threads + bitselect(thread, b1, c - 1)]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	shared_mem[threads * 0 + thread] = buf0; \
-	shared_mem[threads * 1 + thread] = buf1; \
-}
-
-#define WarpShuffle3(d0, d1, d2, a0, a1, a2, b0, b1, b2, c) \
-{ \
-	uint thread = get_local_id(1) * get_local_size(0) + get_local_id(0); \
-	uint threads = get_local_size(1) * get_local_size(0); \
-	uint buf0, buf1, buf2; \
- \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	buf0 = shared_mem[threads * 0 + thread]; \
-	buf1 = shared_mem[threads * 1 + thread]; \
-	buf2 = shared_mem[threads * 2 + thread]; \
-	shared_mem[threads * 0 + thread] = a0; \
-	shared_mem[threads * 1 + thread] = a1; \
-	shared_mem[threads * 2 + thread] = a2; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	d0 = shared_mem[0 * threads + bitselect(thread, b0, c - 1)]; \
-	d1 = shared_mem[1 * threads + bitselect(thread, b1, c - 1)]; \
-	d2 = shared_mem[2 * threads + bitselect(thread, b2, c - 1)]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	shared_mem[threads * 0 + thread] = buf0; \
-	shared_mem[threads * 1 + thread] = buf1; \
-	shared_mem[threads * 2 + thread] = buf2; \
-}
-
-#define WarpShuffle4(d0, d1, d2, d3, a0, a1, a2, a3, b0, b1, b2, b3, c) \
-{ \
-	uint thread = get_local_id(1) * get_local_size(0) + get_local_id(0); \
-	uint threads = get_local_size(1) * get_local_size(0); \
-	uint buf0, buf1, buf2, buf3; \
- \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	buf0 = shared_mem[threads * 0 + thread]; \
-	buf1 = shared_mem[threads * 1 + thread]; \
-	buf2 = shared_mem[threads * 2 + thread]; \
-	buf3 = shared_mem[threads * 3 + thread]; \
-	shared_mem[threads * 0 + thread] = a0; \
-	shared_mem[threads * 1 + thread] = a1; \
-	shared_mem[threads * 2 + thread] = a2; \
-	shared_mem[threads * 3 + thread] = a3; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	d0 = shared_mem[0 * threads + bitselect(thread, b0, c - 1)]; \
-	d1 = shared_mem[1 * threads + bitselect(thread, b1, c - 1)]; \
-	d2 = shared_mem[2 * threads + bitselect(thread, b2, c - 1)]; \
-	d3 = shared_mem[3 * threads + bitselect(thread, b3, c - 1)]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	shared_mem[threads * 0 + thread] = buf0; \
-	shared_mem[threads * 1 + thread] = buf1; \
-	shared_mem[threads * 2 + thread] = buf2; \
-	shared_mem[threads * 3 + thread] = buf3; \
-}
-
 #define SALSA(a,b,c,d) { \
     b^=ROTL(a+d,  7);    \
     c^=ROTL(b+a,  9);    \
@@ -483,9 +395,35 @@ static inline uint2 mad64(const uint a, const uint b, uint2 c)
 	t0 = x0; t1 = x1; t2 = x2; t3 = x3; \
 	for (int idx = 0; idx < 4; ++idx) { \
 		SALSA(x0, x1, x2, x3); \
-		WarpShuffle3(x1,x2,x3,x1,x2,x3,get_local_id(0) + 3,get_local_id(0) + 2,get_local_id(0) + 1,4);\
+		__asm ( \
+          "s_nop 0\n" \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[3,0,1,2]\n" \
+	      "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[d2], %[a2] quad_perm:[1,2,3,0]\n" \
+		  "s_nop 0\n" \
+          "s_nop 0" \
+		  : [d0] "=v" (x1), \
+		    [d1] "=v" (x2), \
+			[d2] "=v" (x3) \
+		  : [a0] "0" (x1), \
+			[a1] "1" (x2), \
+			[a2] "2" (x3)); \
 		SALSA(x0, x3, x2, x1); \
-		WarpShuffle3(x1,x2,x3,x1,x2,x3,get_local_id(0) + 1,get_local_id(0) + 2,get_local_id(0) + 3,4);\
+        __asm ( \
+	      "s_nop 0\n" \
+          "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[1,2,3,0]\n" \
+	      "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[d2], %[a2] quad_perm:[3,0,1,2]\n" \
+		  "s_nop 0\n" \
+          "s_nop 0" \
+		  : [d0] "=v" (x1), \
+		    [d1] "=v" (x2), \
+			[d2] "=v" (x3) \
+		  : [a0] "0" (x1), \
+			[a1] "1" (x2), \
+			[a2] "2" (x3)); \
 	} \
 	x0 += t0; x1 += t1; x2 += t2; x3 += t3; \
 }
@@ -527,7 +465,12 @@ __kernel void yescrypt_gpu_hash_k1(__global uint* B, __global uint* S, const uin
 
         if (i > 1) {
             if ((i & (i - 1)) == 0) n = i;
-            WarpShuffle(j, x[4], 0, 4);
+            __asm (
+	            "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d], %[a] quad_perm:[0,0,0,0]\n"
+		        "s_nop 0"
+                : [d] "=v" (j)
+                : [a] "v" (x[4]));
             j &= (n - 1);
             j += i - n;
 
@@ -599,7 +542,12 @@ __kernel void yescrypt_gpu_hash_k2c_r8(__global uint* B, __global uint* S, __glo
 
         if (i > 1) {
             if ((i & (i - 1)) == 0) n = i;
-            WarpShuffle(j, x3, 0, 16);
+	        __asm (
+              "s_nop 0\n"
+		      "v_mov_b32_dpp  %[d], %[a] row_share:0\n"
+		      "s_nop 0"
+		      : [d] "=&v" (j)
+		      : [a] "v" (x3));
             j &= (n - 1);
             j += i - n;
 
@@ -612,10 +560,30 @@ __kernel void yescrypt_gpu_hash_k2c_r8(__global uint* B, __global uint* S, __glo
 #pragma unroll
         for (k = 0; k < r * 2; k++) {
             x3 ^= x[k];
-            WarpShuffle2(buf.x, buf.y, x3, x3, 0, 1, 2);
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
 #pragma unroll
             for (j = 0; j < 6; j++) {
-                WarpShuffle2(x0, x1, buf.x, buf.y, 0, 0, 4);
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=v" (x0),
+                      [d1] "=v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
                 x0 = ((x0 >> 4) & 255) + 0;
                 x1 = ((x1 >> 4) & 255) + 256;
                 buf = mad64(buf.x, buf.y, Shared(x0));
@@ -626,7 +594,28 @@ __kernel void yescrypt_gpu_hash_k2c_r8(__global uint* B, __global uint* S, __glo
 
             x[k] = x3;
         }
-        WarpShuffle4(x0, x1, x2, x3, x3, x3, x3, x3, 0 + (get_local_id(0) & 3), 4 + (get_local_id(0) & 3), 8 + (get_local_id(0) & 3), 12 + (get_local_id(0) & 3), 16);
+        uint l0 = ((0 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        uint l1 = ((4 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        uint l2 = ((8 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        uint l3 = ((12 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        __asm (
+		    "ds_bpermute_b32  %[d0], %[l0], %[a0]\n"
+            "ds_bpermute_b32  %[d1], %[l1], %[a1]\n"
+            "ds_bpermute_b32  %[d2], %[l2], %[a2]\n"
+            "ds_bpermute_b32  %[d3], %[l3], %[a3]\n"
+            "s_waitcnt lgkmcnt(0)"
+            : [d0] "=v" (x0),
+              [d1] "=v" (x1),
+              [d2] "=v" (x2),
+              [d3] "=v" (x3)
+            : [a0] "v" (x3),
+              [a1] "v" (x3),
+              [a2] "v" (x3),
+              [a3] "3" (x3),
+              [l0] "v" (l0),
+              [l1] "v" (l1),
+              [l2] "v" (l2),
+              [l3] "v" (l3));
         SALSA_CORE(x0, x1, x2, x3);
         if (get_local_id(0) < 4) x3 = x0;
         else if (get_local_id(0) < 8) x3 = x1;
@@ -667,7 +656,12 @@ __kernel void yescrypt_gpu_hash_k2c1_r8(__global uint* B, __global uint* S, __gl
 
     for (uint z = 0; z < 684; z++)
     {
-        WarpShuffle(j, x[r * 2 - 1], 0, 16);
+        __asm (
+            "s_nop 0\n"
+            "v_mov_b32_dpp  %[d], %[a] row_share:0\n"
+            "s_nop 0"
+            : [d] "=&v" (j)
+            : [a] "v" (x[r * 2 - 1]));
         j &= (N - 1);
 
 #pragma unroll
@@ -683,10 +677,30 @@ __kernel void yescrypt_gpu_hash_k2c1_r8(__global uint* B, __global uint* S, __gl
 #pragma unroll
         for (k = 0; k < r * 2; k++) {
             x3 ^= x[k];
-            WarpShuffle2(buf.x, buf.y, x3, x3, 0, 1, 2);
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
 #pragma unroll
             for (j = 0; j < 6; j++) {
-                WarpShuffle2(x0, x1, buf.x, buf.y, 0, 0, 4);
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=v" (x0),
+                      [d1] "=v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
                 x0 = ((x0 >> 4) & 255) + 0;
                 x1 = ((x1 >> 4) & 255) + 256;
                 buf = mad64(buf.x, buf.y, Shared(x0));
@@ -697,7 +711,28 @@ __kernel void yescrypt_gpu_hash_k2c1_r8(__global uint* B, __global uint* S, __gl
 
             x[k] = x3;
         }
-        WarpShuffle4(x0, x1, x2, x3, x3, x3, x3, x3, 0 + (get_local_id(0) & 3), 4 + (get_local_id(0) & 3), 8 + (get_local_id(0) & 3), 12 + (get_local_id(0) & 3), 16);
+        uint l0 = ((0 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        uint l1 = ((4 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        uint l2 = ((8 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        uint l3 = ((12 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 1)) * 4) & 255;
+        __asm (
+		    "ds_bpermute_b32  %[d0], %[l0], %[a0]\n"
+            "ds_bpermute_b32  %[d1], %[l1], %[a1]\n"
+            "ds_bpermute_b32  %[d2], %[l2], %[a2]\n"
+            "ds_bpermute_b32  %[d3], %[l3], %[a3]\n"
+            "s_waitcnt lgkmcnt(0)"
+            : [d0] "=v" (x0),
+              [d1] "=v" (x1),
+              [d2] "=v" (x2),
+              [d3] "=v" (x3)
+            : [a0] "v" (x3),
+              [a1] "v" (x3),
+              [a2] "v" (x3),
+              [a3] "3" (x3),
+              [l0] "v" (l0),
+              [l1] "v" (l1),
+              [l2] "v" (l2),
+              [l3] "v" (l3));
         SALSA_CORE(x0, x1, x2, x3);
         if (get_local_id(0) < 4) x3 = x0;
         else if (get_local_id(0) < 8) x3 = x1;
