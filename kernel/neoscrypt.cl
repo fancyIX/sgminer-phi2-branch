@@ -541,13 +541,6 @@ void fastkdf256_v2(const uint thread, const uint nonce, __local uint* s_data,
 	for (int i = 0; i < 8; i++) {
 		((__global uint8 *)(Input + 8U * thread))[i] = output[i];
 	}
-
-	if (get_global_id(0) == 0) {
-		for (int i = 0; i < 8; i++) {
-			if (false) printf(">>> %v8X, ", output[i]);
-		}
-		if (false) printf("\n");
-	}
 }
 
 static inline
@@ -777,8 +770,8 @@ __kernel void neoscrypt_gpu_hash_start(__global uint *c_data, __global uint *inp
 {
 	__local uint s_data[64 * TPB2];
 
-	const uint thread = get_global_id(0);
-	const uint nonce = thread;
+	const uint thread = get_global_id(0) - get_global_offset(0);
+	const uint nonce = get_global_id(0);
 	const uint ZNonce = nonce; //freaking morons !!!
 
 	fastkdf256_v2(thread, ZNonce, s_data, c_data, input_init, Input);
@@ -788,7 +781,7 @@ __attribute__((reqd_work_group_size(8, 8, 1)))
 __kernel void neoscrypt_gpu_hash_salsa1(__global uint8 *W, __global uint8 *Tr2, __global uint8 *Input)
 {
 	const uint thread =  (get_local_size(1) * (get_group_id(0) * 2 + (get_local_id(0) >> 2)) + get_local_id(1));
-	const uint shift = SHIFT * 8U * (thread & 8191);
+	const uint shift = SHIFT * 8U * (thread & (MAX_GLOBAL_THREADS - 1));
 	const uint shiftTr = 8U * thread;
 
 	__local uint shared_mem[64];
@@ -805,12 +798,6 @@ __kernel void neoscrypt_gpu_hash_salsa1(__global uint8 *W, __global uint8 *Tr2, 
 	#pragma nounroll
 	for (int i = 0; i < 128; i++)
 	{
-
-	if (get_global_id(0) < 4 && get_local_id(1) == 0 && i == 0) {
-			if (false) printf("1>>>>%d %v4X, ", (get_local_id(0) & 3), Z[0]);
-		if (false) printf("\n");
-	}
-
 		uint offset = shift + i * 8U;
 		for (int j = 0; j < 4; j++)
 			((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)] = Z[j];
@@ -826,11 +813,6 @@ __kernel void neoscrypt_gpu_hash_salsa1(__global uint8 *W, __global uint8 *Tr2, 
 		for (int j = 0; j < 4; j++)
 			Z[j] ^= ((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)];
 		neoscrypt_salsa(Z, shared_mem);
-
-	if (get_global_id(0) < 4 && get_local_id(1) == 0 && t == 127) {
-			if (false) printf("1<<<<%d %v4X, ", (get_local_id(0) & 3), Z[0]);
-		if (false) printf("\n");
-	}
 	}
 	#pragma unroll
 	for (int i = 0; i < 4; i++)
@@ -846,7 +828,7 @@ __attribute__((reqd_work_group_size(8, 8, 1)))
 __kernel void neoscrypt_gpu_hash_chacha1(__global uint8 *W, __global uint8 *Tr, __global uint8 *Input)
 {
 	const uint thread = (get_local_size(1) * (get_group_id(0) * 2 + (get_local_id(0) >> 2)) + get_local_id(1));
-	const uint shift = SHIFT * 8U * (thread & 8191);
+	const uint shift = SHIFT * 8U * (thread & (MAX_GLOBAL_THREADS - 1));
 	const uint shiftTr = 8U * thread;
 
 	__local uint shared_mem[64];
@@ -863,12 +845,6 @@ __kernel void neoscrypt_gpu_hash_chacha1(__global uint8 *W, __global uint8 *Tr, 
 	#pragma nounroll
 	for (int i = 0; i < 128; i++)
 	{
-
-	if (get_global_id(0) < 4 && get_local_id(1) == 0 && i == 0) {
-			if (false) printf("0>>>>%d %v4X, ", (get_local_id(0) & 3), X[0]);
-		if (false) printf("\n");
-	}
-
 		uint offset = shift + i * 8U;
 		for (int j = 0; j < 4; j++)
 			((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)] = X[j];
@@ -884,11 +860,6 @@ __kernel void neoscrypt_gpu_hash_chacha1(__global uint8 *W, __global uint8 *Tr, 
 		for (int j = 0; j < 4; j++)
 			X[j] ^= ((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)];
 		neoscrypt_chacha(X, shared_mem);
-
-	if (get_global_id(0) < 4 && get_local_id(1) == 0 && t == 127) {
-			if (false) printf("0<<<<%d %v4X, ", (get_local_id(0) & 3), X[0]);
-		if (false) printf("\n");
-	}
 	}
 
 	#pragma unroll
@@ -906,9 +877,9 @@ __kernel void neoscrypt_gpu_hash_ending(__global uint *c_data, __global uint8 *T
 {
 	__local uint s_data[64 * TPB2];
 
-	const uint thread = get_global_id(0);
+	const uint thread = get_global_id(0) - get_global_offset(0);
 	const uint shiftTr = thread * 8U;
-	const uint nonce = thread;
+	const uint nonce = get_global_id(0);
 	const uint ZNonce = nonce;
 
 	uint8 Z[8];
@@ -917,10 +888,6 @@ __kernel void neoscrypt_gpu_hash_ending(__global uint *c_data, __global uint8 *T
 		Z[i] = (Tr2 + shiftTr)[i] ^ (Tr + shiftTr)[i];
 
 	uint outbuf = fastkdf32_v3(thread, ZNonce, (uint*)Z, s_data, c_data);
-
-	if (get_global_id(0) > 112 && get_global_id(0) < 132) {
-		if (false) printf("%d: out=%X", get_global_id(0), outbuf);
-	}
 
 #define NEOSCRYPT_FOUND (0xFF)
 #ifdef cl_khr_global_int32_base_atomics
