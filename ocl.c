@@ -835,6 +835,27 @@ if (algorithm->type == ALGO_MTP) {
 		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c_r8\" from program. (clCreateKernel)", status);
 		  return NULL;
 	  }
+  } else if (algorithm->type == ALGO_NEOSCRYPT) {
+    clState->neoscrypt_gpu_hash_start=clCreateKernel(clState->program, "neoscrypt_gpu_hash_start", &status);
+    if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"neoscrypt_gpu_hash_start\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+		clState->neoscrypt_gpu_hash_salsa1=clCreateKernel(clState->program, "neoscrypt_gpu_hash_salsa1", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"neoscrypt_gpu_hash_salsa1\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+		clState->neoscrypt_gpu_hash_chacha1=clCreateKernel(clState->program, "neoscrypt_gpu_hash_chacha1", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"neoscrypt_gpu_hash_chacha1\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+		clState->neoscrypt_gpu_hash_ending=clCreateKernel(clState->program, "neoscrypt_gpu_hash_ending", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"neoscrypt_gpu_hash_ending\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
   }
 /// default
 	else {
@@ -902,10 +923,12 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
     if (algorithm->type == ALGO_NEOSCRYPT) {
       /* The scratch/pad-buffer needs 32kBytes memory per thread. */
       bufsize = NEOSCRYPT_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
+      buf1size = 32 * 8 * cgpu->thread_concurrency;
+      buf2size = 32 * 8 * cgpu->thread_concurrency;
+      buf3size = 32 * 8 * cgpu->thread_concurrency;
+      buf4size = 16 * 4;
 
-      /* This is the input buffer. For neoscrypt this is guaranteed to be
-       * 80 bytes only. */
-      readbufsize = 80;
+      readbufsize = 64 * 4;
 
       applog(LOG_DEBUG, "Neoscrypt buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
       // scrypt/n-scrypt
@@ -1039,7 +1062,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
+    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI || algorithm->type == ALGO_NEOSCRYPT) {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
