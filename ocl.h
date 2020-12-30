@@ -17,12 +17,18 @@ typedef struct __clState {
   cl_kernel mtp_fc; //initialization
   cl_kernel mtp_yloop; // main kernel
 
-  // yescrypt kernels navi
+  // yescrypt kernels
   cl_kernel yescrypt_gpu_hash_k0;
 	cl_kernel yescrypt_gpu_hash_k1;
 	cl_kernel yescrypt_gpu_hash_k2c_r8;
 	cl_kernel yescrypt_gpu_hash_k2c1_r8;
 	cl_kernel yescrypt_gpu_hash_k5;
+
+  // neoscrypt kernels
+  	cl_kernel neoscrypt_gpu_hash_start;
+		cl_kernel neoscrypt_gpu_hash_salsa1;
+		cl_kernel neoscrypt_gpu_hash_chacha1;
+		cl_kernel neoscrypt_gpu_hash_ending;
 
   size_t n_extra_kernels;
   cl_command_queue commandQueue;

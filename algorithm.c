@@ -317,13 +317,60 @@ static cl_int queue_neoscrypt_kernel(_clState *clState, dev_blk_ctx *blk, __mayb
    * and not accidently by something else the double cast seems wise.
    * The compiler will get rid of it anyway. */
   le_target = (cl_uint)le32toh(((uint32_t *)blk->work->/*device_*/target)[7]);
-  memcpy(clState->cldata, blk->work->data, 80);
-  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
 
-  CL_SET_ARG(clState->CLbuffer0);
-  CL_SET_ARG(clState->outputBuffer);
-  CL_SET_ARG(clState->padbuffer8);
-  CL_SET_ARG(le_target);
+    uint32_t pdata[20];
+    memcpy(pdata, blk->work->data, 80);
+
+    uint32_t PaddedMessage[64];
+		uint32_t input[16], key[16] = { 0 };
+
+		for (int i = 0; i < 19; i++)
+		{
+			PaddedMessage[i] = pdata[i];
+			PaddedMessage[i + 20] = pdata[i];
+			PaddedMessage[i + 40] = pdata[i];
+		}
+		for (int i = 0; i<4; i++)
+			PaddedMessage[i + 60] = pdata[i];
+
+		PaddedMessage[19] = 0;
+		PaddedMessage[39] = 0;
+		PaddedMessage[59] = 0;
+
+        for (int i = 0; i < 16; i++) {
+			input[i] = pdata[i];
+		}
+		for (int i = 0; i < 8; i++) {
+			key[i] = pdata[i];
+		}
+
+		Blake2Shost(input, key);
+
+		status=clEnqueueWriteBuffer(clState->commandQueue, clState->buffer4, CL_TRUE, 0, 16 * 4, input, 0, NULL, NULL);
+    status=clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, CL_TRUE, 0, 64 * 4, PaddedMessage, 0, NULL, NULL);
+		if (status != CL_SUCCESS) {
+			printf("Error %d: clEnqueueWriteBuffer\n", status);
+			return status;
+		}
+
+		clSetKernelArg(clState->neoscrypt_gpu_hash_start, 0, sizeof(clState->CLbuffer0), &(clState->CLbuffer0));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_start, 1, sizeof(clState->buffer4), &(clState->buffer4));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_start, 2, sizeof(clState->buffer3), &(clState->buffer3));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_salsa1, 0, sizeof(clState->padbuffer8), &(clState->padbuffer8));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_salsa1, 1, sizeof(clState->buffer2), &(clState->buffer2));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_salsa1, 2, sizeof(clState->buffer3), &(clState->buffer3));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_chacha1, 0, sizeof(clState->padbuffer8), &(clState->padbuffer8));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_chacha1, 1, sizeof(clState->buffer1), &(clState->buffer1));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_chacha1, 2, sizeof(clState->buffer3), &(clState->buffer3));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_ending, 0, sizeof(clState->CLbuffer0), &(clState->CLbuffer0));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_ending, 1, sizeof(clState->buffer1), &(clState->buffer1));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_ending, 2, sizeof(clState->buffer2), &(clState->buffer2));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_ending, 3, sizeof(clState->outputBuffer), &(clState->outputBuffer));
+		clSetKernelArg(clState->neoscrypt_gpu_hash_ending, 4, sizeof(le_target), &le_target);
+	  if (status != CL_SUCCESS) {
+			printf("Error %d: clSetKernelArg\n", status);
+			return status;
+		}
 
   return status;
 }
@@ -382,7 +429,7 @@ threads = worksize;
     status=clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, CL_TRUE, 0, 80, clState->cldata, 0, NULL, NULL);
 	if (status != CL_SUCCESS) {
       printf("status %d: clEnqueueWriteBuffer\n", status);
-      exit(1);
+      return status;
 	}
 
     clSetKernelArg(clState->yescrypt_gpu_hash_k0, 0, sizeof(clState->padbuffer8), &(clState->padbuffer8));

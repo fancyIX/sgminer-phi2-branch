@@ -9,4 +9,6 @@
 extern void neoscrypt_regenhash(struct work *work);
 extern void neoscrypt(const unsigned char *input, unsigned char *output, unsigned int profile);
 
+void Blake2Shost(uint32_t * inout, const uint32_t * inkey);
+
 #endif /* NEOSCRYPT_H */
