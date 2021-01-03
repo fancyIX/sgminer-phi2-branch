@@ -524,6 +524,7 @@ void fastkdf256_v2(const uint thread, const uint nonce, __local uint* s_data,
 	}
 
 	uint8 output[8];
+	#pragma unroll
 	for (int i = 0; i<64; i++) {
 		const uint a = (qbuf + i) & 0x3f, b = (qbuf + i + 1) & 0x3f;
 		((uint*)output)[i] = SHFRC32S(B[a], B[b], bitbuf);
@@ -664,29 +665,6 @@ uint fastkdf32_v3(uint thread, const uint nonce, uint* const salt, __local uint*
 	return output;
 }
 
-#define NEO_TID ((get_local_size(0) >> 1) * get_local_id(1) + (get_local_id(0) & 3))
-
-#define WarpShuffle(result, a,  b,  c) \
-	shared_mem[32 * (get_local_id(0) >> 2) + NEO_TID] = a; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	result = shared_mem[32 * (get_local_id(0) >> 2) + (NEO_TID&~(c - 1)) + (b&(c - 1))]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-
-#define WarpShuffle3(a1,  a2,  a3,  b1,  b2,  b3,  c) \
-	shared_mem[32 * (get_local_id(0) >> 2) + NEO_TID] = a1; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	a1 = shared_mem[32 * (get_local_id(0) >> 2) + (NEO_TID&~(c - 1)) + (b1&(c - 1))]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	shared_mem[32 * (get_local_id(0) >> 2) + NEO_TID] = a2; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	a2 = shared_mem[32 * (get_local_id(0) >> 2) + (NEO_TID&~(c - 1)) + (b2&(c - 1))]; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	shared_mem[32 * (get_local_id(0) >> 2) + NEO_TID] = a3; \
-	barrier(CLK_LOCAL_MEM_FENCE); \
-	a3 = shared_mem[32 * (get_local_id(0) >> 2) + (NEO_TID&~(c - 1)) + (b3&(c - 1))]; \
-	barrier(CLK_LOCAL_MEM_FENCE);
-
-
 #define SALSA(a,b,c,d) { \
 	t = rotate((uint)(a+d), (uint)( 7U)); b ^= t; \
 	t = rotate((uint)(b+a), (uint)( 9U)); c ^= t; \
@@ -697,12 +675,38 @@ uint fastkdf32_v3(uint thread, const uint nonce, uint* const salt, __local uint*
 #define SALSA_CORE(state) { \
 	uint t; \
 	SALSA(state.x, state.y, state.z, state.w); \
-	WarpShuffle3(state.y, state.z, state.w, (get_local_id(0) & 3) + 3, (get_local_id(0) & 3) + 2, (get_local_id(0) & 3) + 1,4); \
+		__asm ( \
+          "s_nop 0\n" \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[3,0,1,2]\n" \
+	      "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[d2], %[a2] quad_perm:[1,2,3,0]\n" \
+		  "s_nop 0\n" \
+          "s_nop 0" \
+		  : [d0] "=v" (state.y), \
+		    [d1] "=v" (state.z), \
+			[d2] "=v" (state.w) \
+		  : [a0] "0" (state.y), \
+			[a1] "1" (state.z), \
+			[a2] "2" (state.w)); \
 	SALSA(state.x, state.w, state.z, state.y); \
-	WarpShuffle3(state.y, state.z, state.w, (get_local_id(0) & 3) + 1, (get_local_id(0) & 3) + 2, (get_local_id(0) & 3) + 3,4); \
+		__asm ( \
+          "s_nop 0\n" \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[1,2,3,0]\n" \
+	      "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[d2], %[a2] quad_perm:[3,0,1,2]\n" \
+		  "s_nop 0\n" \
+          "s_nop 0" \
+		  : [d0] "=v" (state.y), \
+		    [d1] "=v" (state.z), \
+			[d2] "=v" (state.w) \
+		  : [a0] "0" (state.y), \
+			[a1] "1" (state.z), \
+			[a2] "2" (state.w)); \
 }
 
-uint4 salsa_small_scalar_rnd(const uint4 X, __local uint *shared_mem)
+uint4 salsa_small_scalar_rnd(const uint4 X)
 {
 	uint4 state = X;
 
@@ -714,14 +718,14 @@ uint4 salsa_small_scalar_rnd(const uint4 X, __local uint *shared_mem)
 	return (X + state);
 }
 
-void inline neoscrypt_salsa(uint4 XV[4], __local uint *shared_mem)
+void inline neoscrypt_salsa(uint4 XV[4])
 {
 	uint4 temp;
 
-	XV[0] = salsa_small_scalar_rnd(XV[0] ^ XV[3], shared_mem);
-	temp = salsa_small_scalar_rnd(XV[1] ^ XV[0], shared_mem);
-	XV[1] = salsa_small_scalar_rnd(XV[2] ^ temp, shared_mem);
-	XV[3] = salsa_small_scalar_rnd(XV[3] ^ XV[1], shared_mem);
+	XV[0] = salsa_small_scalar_rnd(XV[0] ^ XV[3]);
+	temp = salsa_small_scalar_rnd(XV[1] ^ XV[0]);
+	XV[1] = salsa_small_scalar_rnd(XV[2] ^ temp);
+	XV[3] = salsa_small_scalar_rnd(XV[3] ^ XV[1]);
 	XV[2] = temp;
 }
 
@@ -734,12 +738,38 @@ void inline neoscrypt_salsa(uint4 XV[4], __local uint *shared_mem)
 
 #define CHACHA_CORE_PARALLEL(state)	{ \
 	CHACHA_STEP(state.x, state.y, state.z, state.w); \
-	WarpShuffle3(state.y, state.z, state.w, (get_local_id(0) & 3) + 1, (get_local_id(0) & 3) + 2, (get_local_id(0) & 3) + 3,4); \
+		__asm ( \
+          "s_nop 0\n" \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[1,2,3,0]\n" \
+	      "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[d2], %[a2] quad_perm:[3,0,1,2]\n" \
+		  "s_nop 0\n" \
+          "s_nop 0" \
+		  : [d0] "=v" (state.y), \
+		    [d1] "=v" (state.z), \
+			[d2] "=v" (state.w) \
+		  : [a0] "0" (state.y), \
+			[a1] "1" (state.z), \
+			[a2] "2" (state.w)); \
 	CHACHA_STEP(state.x, state.y, state.z, state.w); \
-	WarpShuffle3(state.y, state.z, state.w, (get_local_id(0) & 3) + 3, (get_local_id(0) & 3) + 2, (get_local_id(0) & 3) + 1,4); \
+		__asm ( \
+          "s_nop 0\n" \
+	      "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[3,0,1,2]\n" \
+	      "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[d2], %[a2] quad_perm:[1,2,3,0]\n" \
+		  "s_nop 0\n" \
+          "s_nop 0" \
+		  : [d0] "=v" (state.y), \
+		    [d1] "=v" (state.z), \
+			[d2] "=v" (state.w) \
+		  : [a0] "0" (state.y), \
+			[a1] "1" (state.z), \
+			[a2] "2" (state.w)); \
 }
 
-uint4 inline chacha_small_parallel_rnd(const uint4 X, __local uint *shared_mem)
+uint4 inline chacha_small_parallel_rnd(const uint4 X)
 {
 	uint4 state = X;
 
@@ -750,14 +780,14 @@ uint4 inline chacha_small_parallel_rnd(const uint4 X, __local uint *shared_mem)
 	return (X + state);
 }
 
-void inline neoscrypt_chacha(uint4 XV[4], __local uint *shared_mem)
+void inline neoscrypt_chacha(uint4 XV[4])
 {
 	uint4 temp;
 
-	XV[0] = chacha_small_parallel_rnd(XV[0] ^ XV[3], shared_mem);
-	temp = chacha_small_parallel_rnd(XV[1] ^ XV[0], shared_mem);
-	XV[1] = chacha_small_parallel_rnd(XV[2] ^ temp, shared_mem);
-	XV[3] = chacha_small_parallel_rnd(XV[3] ^ XV[1], shared_mem);
+	XV[0] = chacha_small_parallel_rnd(XV[0] ^ XV[3]);
+	temp = chacha_small_parallel_rnd(XV[1] ^ XV[0]);
+	XV[1] = chacha_small_parallel_rnd(XV[2] ^ temp);
+	XV[3] = chacha_small_parallel_rnd(XV[3] ^ XV[1]);
 	XV[2] = temp;
 }
 
@@ -784,9 +814,8 @@ __kernel void neoscrypt_gpu_hash_salsa1(__global uint8 *W, __global uint8 *Tr2, 
 	const uint shift = SHIFT * 8U * (thread & (MAX_GLOBAL_THREADS - 1));
 	const uint shiftTr = 8U * thread;
 
-	__local uint shared_mem[64];
-
 	uint4 Z[4];
+	#pragma unroll
 	for (int i = 0; i < 4; i++)
 	{
 		Z[i].x = *(((__global uint*)&(Input + shiftTr)[i * 2]) + ((0 + (get_local_id(0) & 3)) & 3) * 4 + (get_local_id(0) & 3));
@@ -799,20 +828,27 @@ __kernel void neoscrypt_gpu_hash_salsa1(__global uint8 *W, __global uint8 *Tr2, 
 	for (int i = 0; i < 128; i++)
 	{
 		uint offset = MAX_GLOBAL_THREADS * i * 8U + 8U * (thread & (MAX_GLOBAL_THREADS - 1)); //shift + i * 8U;
+		#pragma unroll
 		for (int j = 0; j < 4; j++)
 			((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)] = Z[j];
-		neoscrypt_salsa(Z, shared_mem);
+		neoscrypt_salsa(Z);
 	}
 
 	#pragma nounroll
 	for (int t = 0; t < 128; t++)
 	{
 		uint offset;
-		WarpShuffle(offset, Z[3].x, 0, 4);
+            __asm (
+	            "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d], %[a] quad_perm:[0,0,0,0]\n"
+		        "s_nop 0"
+                : [d] "=v" (offset)
+                : [a] "v" (Z[3].x));
 		offset = MAX_GLOBAL_THREADS * (offset & 0x7F) * 8U + 8U * (thread & (MAX_GLOBAL_THREADS - 1)); //shift + (offset & 0x7F) * 8U;
+		#pragma unroll
 		for (int j = 0; j < 4; j++)
 			Z[j] ^= ((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)];
-		neoscrypt_salsa(Z, shared_mem);
+		neoscrypt_salsa(Z);
 	}
 	#pragma unroll
 	for (int i = 0; i < 4; i++)
@@ -831,9 +867,8 @@ __kernel void neoscrypt_gpu_hash_chacha1(__global uint8 *W, __global uint8 *Tr, 
 	const uint shift = SHIFT * 8U * (thread & (MAX_GLOBAL_THREADS - 1));
 	const uint shiftTr = 8U * thread;
 
-	__local uint shared_mem[64];
-
 	uint4 X[4];
+	#pragma unroll
 	for (int i = 0; i < 4; i++)
 	{
 		X[i].x = *((__global uint*)&(Input + shiftTr)[i * 2] + 0 * 4 + (get_local_id(0) & 3));
@@ -846,20 +881,27 @@ __kernel void neoscrypt_gpu_hash_chacha1(__global uint8 *W, __global uint8 *Tr, 
 	for (int i = 0; i < 128; i++)
 	{
 		uint offset = MAX_GLOBAL_THREADS * i * 8U + 8U * (thread & (MAX_GLOBAL_THREADS - 1)); //shift + i * 8U;
+		#pragma unroll
 		for (int j = 0; j < 4; j++)
 			((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)] = X[j];
-		neoscrypt_chacha(X, shared_mem);
+		neoscrypt_chacha(X);
 	}
 
 	#pragma nounroll
 	for (int t = 0; t < 128; t++)
 	{
 		uint offset;
-		WarpShuffle(offset, X[3].x, 0, 4);
+            __asm (
+	            "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d], %[a] quad_perm:[0,0,0,0]\n"
+		        "s_nop 0"
+                : [d] "=v" (offset)
+                : [a] "v" (X[3].x));
 		offset = MAX_GLOBAL_THREADS * (offset & 0x7F) * 8U + 8U * (thread & (MAX_GLOBAL_THREADS - 1)); //shift + (offset & 0x7F) * 8U;
+		#pragma unroll
 		for (int j = 0; j < 4; j++)
 			X[j] ^= ((__global uint4*)(W + offset))[j * 4 + (get_local_id(0) & 3)];
-		neoscrypt_chacha(X, shared_mem);
+		neoscrypt_chacha(X);
 	}
 
 	#pragma unroll
