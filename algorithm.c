@@ -2425,6 +2425,11 @@ static algorithm_settings_t algos[] = {
   A_NEOSCRYPT("neoscrypt"),
 #undef A_NEOSCRYPT
 
+#define A_NEOSCRYPT_XAYA(a) \
+  { a, ALGO_NEOSCRYPT_XAYA, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, neoscrypt_regenhash, NULL, NULL, queue_neoscrypt_kernel, gen_hash, append_neoscrypt_compiler_options }
+  A_NEOSCRYPT_XAYA("neoscrypt-xaya"),
+#undef A_NEOSCRYPT_XAYA
+
 #define A_PLUCK(a) \
   { a, ALGO_PLUCK, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, pluck_regenhash, NULL, NULL, queue_pluck_kernel, gen_hash, append_neoscrypt_compiler_options }
   A_PLUCK("pluck"),

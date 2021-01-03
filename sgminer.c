@@ -2082,7 +2082,7 @@ static double get_work_blockdiff(const struct work *work)
     return 0;//work->network_diff;
   }
   // Neoscrypt has the data reversed
-  if (work->pool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
     diff64 = bswap_64(((uint64_t)(be32toh(*((uint32_t *)(work->data + 72))) & 0xFFFFFF00)) << 8);
     numerator = (double)work->pool->algorithm.diff_numerator;
   }
@@ -3148,7 +3148,7 @@ static bool submit_upstream_work(struct work *work, CURL *curl, char *curl_err_s
 
     /* build hex string - Make sure to restrict to 80 bytes for Neoscrypt */
     int datasize = 128;
-    if (work->pool->algorithm.type == ALGO_NEOSCRYPT) datasize = 80;
+    if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) datasize = 80;
     else if (work->pool->algorithm.type == ALGO_CRE) datasize = 168;
     else if (work->pool->algorithm.type == ALGO_DECRED) {
       datasize = 192;
@@ -3509,7 +3509,7 @@ static void calc_diff(struct work *work, double known)
 
     applog(LOG_DEBUG, "calc_diff() algorithm = %s", work->pool->algorithm.name);
     // Neoscrypt
-    if (work->pool->algorithm.type == ALGO_NEOSCRYPT) {
+    if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
       dcut64 = (double)*((uint64_t *)(work->target + 22));
     }
     else {
@@ -5831,7 +5831,7 @@ static void *stratum_sthread(void *userdata)
       applog(LOG_DEBUG, "stratum_sthread() algorithm = %s", pool->algorithm.name);
 
       // Neoscrypt is little endian
-      if (pool->algorithm.type == ALGO_NEOSCRYPT) {
+      if (pool->algorithm.type == ALGO_NEOSCRYPT || pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
         nonce = htobe32(*((uint32_t *)(work->data + 76)));
         //*((uint32_t *)nonce2) = htole32(work->nonce2);
       }
@@ -6659,6 +6659,33 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     ((uint32_t *)work->data)[18] = be32toh(temp);
     ((uint32_t *)work->data)[20] = 0x80000000;
     ((uint32_t *)work->data)[31] = 0x00000280;
+  } else if (pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
+    /* Incoming data is in little endian. */
+    memcpy(merkle_root, merkle_sha, 32);
+
+    uint32_t temp = pool->merkle_offset / sizeof(uint32_t), i;
+    /* Put version (4 byte) + prev_hash (4 byte* 8) but big endian encoded
+    * into work. */
+    for (i = 0; i < temp; ++i) {
+      ((uint32_t *)work->data)[i] = be32toh(((uint32_t *)pool->header_bin)[i]);
+    }
+
+    /* Now add the merkle_root (4 byte* 8), but it is encoded in little endian. */
+    temp += 8;
+
+    for (j = 0; i < temp; ++i, ++j) {
+      ((uint32_t *)work->data)[i] = bswap_32(le32toh(((uint32_t *)merkle_root)[j]));
+    }
+
+    /* Add the time encoded in big endianess. */
+    hex2bin((unsigned char *)&temp, pool->swork.ntime, 4);
+
+    /* Add the nbits (big endianess). */
+    ((uint32_t *)work->data)[17] = be32toh(temp);
+    hex2bin((unsigned char *)&temp, pool->swork.nbit, 4);
+    ((uint32_t *)work->data)[18] = be32toh(temp);
+    ((uint32_t *)work->data)[20] = 0x80000000;
+    ((uint32_t *)work->data)[31] = 0x00000280;
   } else  if (pool->algorithm.type == ALGO_MTP) {
 	  /* Incoming data is in little endian. */
 	  memcpy(merkle_root, merkle_sha, 32);
@@ -6764,7 +6791,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
   }
 
   // For Neoscrypt use set_target_neoscrypt() function
-  if (pool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (pool->algorithm.type == ALGO_NEOSCRYPT || pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
     set_target_neoscrypt(work->target, work->sdiff, work->thr_id);
   } else if (pool->algorithm.type == ALGO_MTP){
 	  memcpy(work->target, pool->Target, 32);
@@ -7042,7 +7069,7 @@ static unsigned long compare_pool_settings(struct pool *oldpool, struct pool *ne
 
   //thread-concurrency
   // neoscrypt - if not specified set TC to 0 so that TC will be calculated by intensity settings
-  if (newpool->algorithm.type == ALGO_NEOSCRYPT) {
+  if (newpool->algorithm.type == ALGO_NEOSCRYPT || newpool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
     opt2 = ((empty_string(newpool->thread_concurrency))?"0":get_pool_setting(newpool->thread_concurrency, default_profile.thread_concurrency));
   }
   // otherwise use pool/profile setting or default to default profile setting
@@ -7188,7 +7215,7 @@ static void apply_switcher_options(unsigned long options, struct pool *pool)
   if(opt_isset(options, SWITCHER_APPLY_TC))
   {
     // neoscrypt - if not specified set TC to 0 so that TC will be calculated by intensity settings
-    if (pool->algorithm.type == ALGO_NEOSCRYPT) {
+    if (pool->algorithm.type == ALGO_NEOSCRYPT || pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
       opt = ((empty_string(pool->thread_concurrency))?"0":get_pool_setting(pool->thread_concurrency, default_profile.thread_concurrency));
     }
     // otherwise use pool/profile setting or default to default profile setting
@@ -7726,7 +7753,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
   rebuild_nonce(work, nonce);
 
   // for Neoscrypt, the diff1targ value is in work->target
-  if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_PLUCK
+  if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA || work->pool->algorithm.type == ALGO_PLUCK
     || work->pool->algorithm.type == ALGO_YESCRYPT || work->pool->algorithm.type == ALGO_YESCRYPT_MULTI
     || work->pool->algorithm.type == ALGO_YESCRYPT_NAVI
     || work->pool->algorithm.type == ALGO_ARGON2D) {
@@ -7888,7 +7915,7 @@ static void hash_sole_work(struct thr_info *mythr)
     } else if (drv->working_diff > work->work_difficulty)
       drv->working_diff = work->work_difficulty;
 
-    if (work->pool->algorithm.type == ALGO_NEOSCRYPT) {
+    if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
       set_target_neoscrypt(work->device_target, work->device_diff, work->thr_id);
     } else {
       if (work->pool->algorithm.type == ALGO_ETHASH)
