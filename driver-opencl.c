@@ -1432,7 +1432,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
 
-if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI && gpu->algorithm.type != ALGO_YESCRYPT && gpu->algorithm.type != ALGO_NEOSCRYPT) {
+if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI && gpu->algorithm.type != ALGO_YESCRYPT && gpu->algorithm.type != ALGO_NEOSCRYPT && gpu->algorithm.type != ALGO_NEOSCRYPT_XAYA) {
   if (gpu->algorithm.type == ALGO_ARGON2D) {
     const uint32_t throughput = gpu->throughput;
 	  const size_t global[] = { 16, throughput };
@@ -1672,7 +1672,7 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
       return -1;
     }
 }
-if (gpu->algorithm.type == ALGO_NEOSCRYPT) {
+if (gpu->algorithm.type == ALGO_NEOSCRYPT || gpu->algorithm.type == ALGO_NEOSCRYPT_XAYA) {
     cl_uint threads = globalThreads[0];
   size_t worksize = globalThreads[0];
 

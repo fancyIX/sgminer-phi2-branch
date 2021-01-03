@@ -347,7 +347,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
   }
 
   // neoscrypt TC
-  if (cgpu->algorithm.type == ALGO_NEOSCRYPT && !cgpu->opt_tc) {
+  if ((cgpu->algorithm.type == ALGO_NEOSCRYPT || cgpu->algorithm.type == ALGO_NEOSCRYPT_XAYA) && !cgpu->opt_tc) {
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -835,7 +835,7 @@ if (algorithm->type == ALGO_MTP) {
 		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c_r8\" from program. (clCreateKernel)", status);
 		  return NULL;
 	  }
-  } else if (algorithm->type == ALGO_NEOSCRYPT) {
+  } else if (algorithm->type == ALGO_NEOSCRYPT || algorithm->type == ALGO_NEOSCRYPT_XAYA) {
     clState->neoscrypt_gpu_hash_start=clCreateKernel(clState->program, "neoscrypt_gpu_hash_start", &status);
     if (status != CL_SUCCESS) {
 		  applog(LOG_ERR, "Error %d: Creating Kernel \"neoscrypt_gpu_hash_start\" from program. (clCreateKernel)", status);
@@ -920,7 +920,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
 
   if (algorithm->rw_buffer_size < 0) {
     // calc buffer size for neoscrypt
-    if (algorithm->type == ALGO_NEOSCRYPT) {
+    if (algorithm->type == ALGO_NEOSCRYPT || algorithm->type == ALGO_NEOSCRYPT_XAYA) {
       /* The scratch/pad-buffer needs 32kBytes memory per thread. */
       bufsize = NEOSCRYPT_SCRATCHBUF_SIZE * cgpu->thread_concurrency;
       buf1size = 32 * 8 * cgpu->thread_concurrency;
@@ -1062,7 +1062,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI || algorithm->type == ALGO_NEOSCRYPT) {
+    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI || algorithm->type == ALGO_NEOSCRYPT || algorithm->type == ALGO_NEOSCRYPT_XAYA) {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
