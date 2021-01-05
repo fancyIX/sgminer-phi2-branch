@@ -1432,7 +1432,9 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
 
-if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI && gpu->algorithm.type != ALGO_YESCRYPT && gpu->algorithm.type != ALGO_NEOSCRYPT && gpu->algorithm.type != ALGO_NEOSCRYPT_XAYA) {
+if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI && gpu->algorithm.type != ALGO_YESCRYPT
+    && gpu->algorithm.type != ALGO_NEOSCRYPT && gpu->algorithm.type != ALGO_NEOSCRYPT_XAYA
+    && gpu->algorithm.type != ALGO_NEOSCRYPT_NAVI && gpu->algorithm.type != ALGO_NEOSCRYPT_XAYA_NAVI) {
   if (gpu->algorithm.type == ALGO_ARGON2D) {
     const uint32_t throughput = gpu->throughput;
 	  const size_t global[] = { 16, throughput };
@@ -1688,6 +1690,51 @@ if (gpu->algorithm.type == ALGO_NEOSCRYPT || gpu->algorithm.type == ALGO_NEOSCRY
 		grid3[0] = (threads * 4 + threadsperblock - 1) / threadsperblock * 4;
 		grid3[1] = threadsperblock >> 2;
 		block3[0] = 8;
+		block3[1] = threadsperblock >> 2;
+
+    size_t offset2[1];
+		offset2[0] = *p_global_work_offset;
+		size_t offset3[2];
+		offset3[0] = (*p_global_work_offset) / 2;
+		offset3[1] = 0;
+
+    status=clEnqueueNDRangeKernel(clState->commandQueue, clState->neoscrypt_gpu_hash_start, 1, offset2, grid2, block2, 0, NULL, NULL);
+		if (status != CL_SUCCESS) {
+		    printf("Error %d: clEnqueueNDRangeKernel neoscrypt_gpu_hash_start\n", status);
+		    return -1;
+	    }
+        status=clEnqueueNDRangeKernel(clState->commandQueue, clState->neoscrypt_gpu_hash_salsa1, 2, offset3, grid3, block3, 0, NULL, NULL);
+		if (status != CL_SUCCESS) {
+		    printf("Error %d: clEnqueueNDRangeKernel neoscrypt_gpu_hash_salsa1\n", status);
+		    return -1;
+	    }
+        status=clEnqueueNDRangeKernel(clState->commandQueue, clState->neoscrypt_gpu_hash_chacha1, 2, offset3, grid3, block3, 0, NULL, NULL);
+		if (status != CL_SUCCESS) {
+		    printf("Error %d: clEnqueueNDRangeKernel neoscrypt_gpu_hash_chacha1\n", status);
+		    return -1;
+	    }
+        status=clEnqueueNDRangeKernel(clState->commandQueue, clState->neoscrypt_gpu_hash_ending, 1, offset2, grid2, block2, 0, NULL, NULL);
+		if (status != CL_SUCCESS) {
+		    printf("Error %d: clEnqueueNDRangeKernel neoscrypt_gpu_hash_ending\n", status);
+		    return -1;
+	    }
+}
+if (gpu->algorithm.type == ALGO_NEOSCRYPT_NAVI || gpu->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI) {
+    cl_uint threads = globalThreads[0];
+  size_t worksize = globalThreads[0];
+
+		const int threadsperblock2 = 64;
+		size_t grid2[1];
+		size_t block2[1];
+		grid2[0] = ((threads + threadsperblock2 - 1) / threadsperblock2) * threadsperblock2;
+		block2[0] = threadsperblock2;
+
+		const int threadsperblock = 32;
+		size_t grid3[2];
+		size_t block3[2];
+		grid3[0] = (threads * 4 + threadsperblock - 1) / threadsperblock * 4;
+		grid3[1] = threadsperblock >> 2;
+		block3[0] = 4;
 		block3[1] = threadsperblock >> 2;
 
     size_t offset2[1];
