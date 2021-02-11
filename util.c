@@ -1825,11 +1825,11 @@ static bool parse_notify(struct pool *pool, json_t *val)
   int merkles, i = 0;
   json_t *arr;
 
-  bool has_roots = json_array_size(val) == 10 && (pool->algorithm.type == ALGO_PHI2 || pool->algorithm.type == ALGO_LYRA2ZZ);
+  bool has_roots = json_array_size(val) == 10 && (pool->algorithm.type == ALGO_PHI2 || pool->algorithm.type == ALGO_PHI2_NAVI || pool->algorithm.type == ALGO_LYRA2ZZ);
 
   job_id = json_array_string(val, i++);
   prev_hash = json_array_string(val, i++);
-  if (has_roots && pool->algorithm.type == ALGO_PHI2)
+  if (has_roots && (pool->algorithm.type == ALGO_PHI2 || pool->algorithm.type == ALGO_PHI2_NAVI))
     roots = json_array_string(val, i++);
   coinbase1 = json_array_string(val, i++);
   coinbase2 = json_array_string(val, i++);

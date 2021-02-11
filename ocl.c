@@ -609,10 +609,13 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
             cgpu->algorithm.type == ALGO_X22I ||
             cgpu->algorithm.type == ALGO_X25X ||
             cgpu->algorithm.type == ALGO_LYRA2Z ||
+            cgpu->algorithm.type == ALGO_LYRA2Z_NAVI ||
             cgpu->algorithm.type == ALGO_LYRA2ZZ ||
             cgpu->algorithm.type == ALGO_LYRA2H ||
             cgpu->algorithm.type == ALGO_PHI2 ||
-            cgpu->algorithm.type == ALGO_ALLIUM) && !cgpu->opt_tc) {
+            cgpu->algorithm.type == ALGO_PHI2_NAVI ||
+            cgpu->algorithm.type == ALGO_ALLIUM ||
+            cgpu->algorithm.type == ALGO_ALLIUM_NAVI) && !cgpu->opt_tc) {
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -620,7 +623,7 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
     size_t scratchbuf_size;
     if (cgpu->algorithm.type == ALGO_LYRA2REV2 || cgpu->algorithm.type == ALGO_LYRA2REV3) {
       scratchbuf_size = LYRA_SCRATCHBUF_SIZE;
-    } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2ZZ || cgpu->algorithm.type == ALGO_ALLIUM) {
+    } else if (cgpu->algorithm.type == ALGO_LYRA2Z || cgpu->algorithm.type == ALGO_LYRA2Z_NAVI || cgpu->algorithm.type == ALGO_LYRA2ZZ || cgpu->algorithm.type == ALGO_ALLIUM || cgpu->algorithm.type == ALGO_ALLIUM_NAVI) {
       scratchbuf_size = PHI2_SCRATCHBUF_SIZE / 2; // LYRA2Z_SCRATCHBUF_SIZE * 8;
     } else if (cgpu->algorithm.type == ALGO_LYRA2H) {
       scratchbuf_size = LYRA2H_SCRATCHBUF_SIZE;
@@ -968,7 +971,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
       applog(LOG_DEBUG, "lyra2REv2/3 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)buf1size);
       // scrypt/n-scrypt
     }
-    else if (algorithm->type == ALGO_LYRA2Z) {
+    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_LYRA2Z_NAVI) {
       buf1size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states
       bufsize = 4 * 8 * cgpu->thread_concurrency;
       // scrypt/n-scrypt
@@ -988,7 +991,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
       applog(LOG_DEBUG, "Scrypt buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
     }
   }
-  else if (algorithm->type == ALGO_PHI2) {
+  else if (algorithm->type == ALGO_PHI2 || algorithm->type == ALGO_PHI2_NAVI) {
     buf3size = 8 * 4  * 8 * cgpu->thread_concurrency; //lyra2 states
     buf2size = 1 * cgpu->thread_concurrency;
     bufsize = 8 * 8 * cgpu->thread_concurrency; 
@@ -997,7 +1000,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
 
     applog(LOG_DEBUG, "phi2 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
   }
-  else if (algorithm->type == ALGO_ALLIUM) {
+  else if (algorithm->type == ALGO_ALLIUM || algorithm->type == ALGO_ALLIUM_NAVI) {
     buf1size = 8 * 4  * 4 * cgpu->thread_concurrency; //lyra2 states
     bufsize = 4 * 8 * cgpu->thread_concurrency; 
 
@@ -1096,7 +1099,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_LYRA2ZZ || algorithm->type == ALGO_ALLIUM || algorithm->type == ALGO_LYRA2H) {
+    else if (algorithm->type == ALGO_LYRA2Z || algorithm->type == ALGO_LYRA2Z_NAVI || algorithm->type == ALGO_LYRA2ZZ || algorithm->type == ALGO_ALLIUM || algorithm->type == ALGO_ALLIUM_NAVI || algorithm->type == ALGO_LYRA2H) {
       // need additionnal buffers
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
@@ -1104,7 +1107,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_PHI2) {
+    else if (algorithm->type == ALGO_PHI2 || algorithm->type == ALGO_PHI2_NAVI) {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, bufsize, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);

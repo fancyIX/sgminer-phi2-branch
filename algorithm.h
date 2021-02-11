@@ -15,6 +15,7 @@ typedef enum {
   ALGO_MTP,
   ALGO_UNK,
   ALGO_ALLIUM,
+  ALGO_ALLIUM_NAVI,
   ALGO_CRE,
   ALGO_SCRYPT,
   ALGO_NSCRYPT,
@@ -41,6 +42,7 @@ typedef enum {
   ALGO_LYRA2REV2,
   ALGO_LYRA2REV3,
   ALGO_LYRA2Z,
+  ALGO_LYRA2Z_NAVI,
   ALGO_LYRA2ZZ,
   ALGO_LYRA2H,
   ALGO_PLUCK,
@@ -56,6 +58,7 @@ typedef enum {
   ALGO_LBRY,
   ALGO_PHI,
   ALGO_PHI2,
+  ALGO_PHI2_NAVI,
   ALGO_SIBCOIN,
   ALGO_ARGON2D
 } algorithm_type_t;

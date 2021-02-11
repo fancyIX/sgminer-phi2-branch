@@ -1451,8 +1451,8 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
   }
 
   for (i = 0; i < clState->n_extra_kernels; i++) {
-    if (gpu->algorithm.type == ALGO_PHI2 && i == 1) {
-      if (clState->prebuilt) {
+    if ((gpu->algorithm.type == ALGO_PHI2 || gpu->algorithm.type == ALGO_PHI2_NAVI) && i == 1) {
+      if (clState->prebuilt || gpu->algorithm.type == ALGO_PHI2_NAVI) {
         const size_t off2[] = { 0, 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, 4, globalThreads[0] };
 	      const size_t expand[] = { 4, 4, 16 };
@@ -1464,15 +1464,15 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       }
       
-    } else if (gpu->algorithm.type == ALGO_PHI2 && (i == 0 || i == 2)) {
+    } else if ((gpu->algorithm.type == ALGO_PHI2 || gpu->algorithm.type == ALGO_PHI2_NAVI) && (i == 0 || i == 2)) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
       globalThreads2[0] = globalThreads[0] * 2;
       localThreads2[0] = localThreads[0];
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
         globalThreads2, localThreads2, 0, NULL, NULL);
-    } else if (gpu->algorithm.type == ALGO_LYRA2Z && i == 1) {
-      if (clState->prebuilt) {
+    } else if ((gpu->algorithm.type == ALGO_LYRA2Z || gpu->algorithm.type == ALGO_LYRA2Z_NAVI) && i == 1) {
+      if (clState->prebuilt || gpu->algorithm.type == ALGO_LYRA2Z_NAVI) {
         const size_t off2[] = { 0, 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, 4, globalThreads[0] / 2 };
 	      const size_t expand[] = { 4, 4, 16 };
@@ -1495,8 +1495,8 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
 	      const size_t expand[] = { 4, 5 };
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       }
-    } else if (gpu->algorithm.type == ALGO_ALLIUM && (i == 2 || i == 6)) {
-      if (clState->prebuilt) {
+    } else if ((gpu->algorithm.type == ALGO_ALLIUM || gpu->algorithm.type == ALGO_ALLIUM_NAVI) && (i == 2 || i == 6)) {
+      if (clState->prebuilt || gpu->algorithm.type == ALGO_ALLIUM_NAVI) {
         const size_t off2[] = { 0, 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, 4, globalThreads[0] / 2 };
 	      const size_t expand[] = { 4, 4, 16 };
