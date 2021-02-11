@@ -2306,7 +2306,7 @@ static bool getwork_decode(json_t *res_val, struct work *work)
   size_t worklen = 128;
   if (work->pool->algorithm.type == ALGO_CRE) worklen = 168;
   else if (work->pool->algorithm.type == ALGO_DECRED) worklen = 192;
-  else if (work->pool->algorithm.type == ALGO_PHI2) worklen = 144;
+  else if (work->pool->algorithm.type == ALGO_PHI2 || work->pool->algorithm.type == ALGO_PHI2_NAVI) worklen = 144;
   if (unlikely(!jobj_binary(res_val, "data", work->data, worklen, true))) {
     if (opt_morenotices)
       applog(LOG_ERR, "%s: JSON inval data", isnull(get_pool_name(work->pool), ""));
@@ -6738,7 +6738,7 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
     ((uint32_t *)work->data)[48] = be32toh(temp);
     ((uint32_t *)work->data)[49] = 0;
   }
-  else if (pool->algorithm.type == ALGO_PHI2) {
+  else if (pool->algorithm.type == ALGO_PHI2 || pool->algorithm.type == ALGO_PHI2_NAVI) {
     data32 = (uint32_t *)merkle_sha;
     swap32 = (uint32_t *)merkle_root;
     flip32(swap32, data32);
