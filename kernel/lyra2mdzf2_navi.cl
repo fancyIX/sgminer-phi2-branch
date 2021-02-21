@@ -333,30 +333,17 @@
 #define broadcast_zero(s) \
     p0 = (s[0] & 7); \
 	p1 = (s[0] & 7); \
-	p2 = (s[0] & 7); \
-	p3 = (s[0] & 7); \
 	__asm ( \
 		  "s_nop 0\n" \
-		  "v_mov_b32_dpp  %[dp0], %[p0] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[dp1], %[p1] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[dp2], %[p2] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[dp3], %[p3] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[dp1], %[dp1] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[dp2], %[dp2] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[dp3], %[dp3] row_ror:12\n" \
+		  "v_mov_b32_dpp  %[dp0], %[p0] dpp8:[0,0,2,2,0,0,2,2]\n" \
+		  "s_nop 0\n" \
+		  "v_mov_b32_dpp  %[dp1], %[dp0] row_ror:8\n" \
 		  "s_nop 0" \
 		  : [dp0] "=v" (p0), \
-		    [dp1] "=v" (p1), \
-		    [dp2] "=v" (p2), \
-			[dp3] "=v" (p3) \
-		  : [p0] "0" (p0), \
-		    [p1] "1" (p1), \
-			[p2] "2" (p2), \
-			[p3] "3" (p3)); \
-	if ((get_local_id(1) & 3) == 1) modify = p1; \
-	if ((get_local_id(1) & 3) == 2) modify = p2; \
-	if ((get_local_id(1) & 3) == 3) modify = p3; \
-	if ((get_local_id(1) & 3) == 0) modify = p0; \
+		    [dp1] "=v" (p1) \
+		  : [p0] "0" (p0)); \
+	if ((get_local_id(1) & 2) == 0) modify = p0; \
+	if ((get_local_id(1) & 2) == 2) modify = p1; \
 
 #define real_matrw_read(sII, bigMat, matrw, off) \
 		if (matrw == 0) sII[0] = bigMat[24 * 0 + off * 3]; \
