@@ -636,6 +636,33 @@ static cl_int queue_sph_kernel(struct __clState *clState, struct _dev_blk_ctx *b
   return status;
 }
 
+static cl_int queue_groestlcoin_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+  if (!(clState->prebuilt)) {
+    return queue_sph_kernel(clState, blk, threads);
+  }
+  cl_kernel *kernel = &clState->kernel;
+  unsigned int num = 0;
+  cl_ulong le_target;
+  cl_int status = 0;
+
+  clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, 32, NULL, &status);
+  if (status != CL_SUCCESS && !clState->buffer1) {
+    applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
+    return NULL;
+  }
+
+  flip80(clState->cldata, blk->work->data);
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->buffer1, true, 0, 32, blk->work->device_target, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
+
+  CL_SET_ARG(clState->CLbuffer0);
+  CL_SET_ARG(clState->outputBuffer);
+  CL_SET_ARG(clState->buffer1);
+
+  return status;
+}
+
 static cl_int queue_darkcoin_mod_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
   cl_kernel *kernel;
@@ -2529,11 +2556,11 @@ static algorithm_settings_t algos[] = {
   { "mtp_vega"   , ALGO_MTP   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, 0,0, mtp_regenhash   , NULL, NULL, queue_mtp_kernel   , gen_hash, NULL },
 
   // kernels starting from this will have difficulty calculated by using fuguecoin algorithm
-#define A_FUGUE(a, b, c) \
-  { a, ALGO_FUGUE, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 0, 0, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, b, NULL, NULL, queue_sph_kernel, c, NULL }
-  A_FUGUE("fuguecoin", fuguecoin_regenhash, sha256),
-  A_FUGUE("groestlcoin", groestlcoin_regenhash, sha256),
-  A_FUGUE("diamond", groestlcoin_regenhash, gen_hash),
+#define A_FUGUE(a, b, c, qf) \
+  { a, ALGO_FUGUE, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 0, 0, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, b, NULL, NULL, qf, c, NULL }
+  A_FUGUE("fuguecoin", fuguecoin_regenhash, sha256, queue_sph_kernel),
+  A_FUGUE("groestlcoin", groestlcoin_regenhash, sha256, queue_groestlcoin_kernel),
+  A_FUGUE("diamond", groestlcoin_regenhash, gen_hash, queue_sph_kernel),
 #undef A_FUGUE
 
   { "whirlcoin", ALGO_WHIRL, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 3, 8 * 16 * 4194304, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, whirlcoin_regenhash, NULL, NULL, queue_whirlcoin_kernel, sha256, NULL },
