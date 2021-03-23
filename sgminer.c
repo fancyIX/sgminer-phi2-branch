@@ -88,7 +88,29 @@ bool opt_realquiet;
 bool opt_loginput;
 bool opt_compact;
 bool opt_incognito;
+#define SIG_CANCEL_SIGNAL SIGUSR1
+#define PTHREAD_CANCEL_ENABLE 1
+#define PTHREAD_CANCEL_DISABLE 0
+#define PTHREAD_CANCEL_ASYNCHRONOUS 1
+typedef long pthread_t;
 
+static int pthread_setcancelstate(int state, int *oldstate) {
+    sigset_t   new, old;
+    int ret;
+    sigemptyset (&new);
+    sigaddset (&new, SIG_CANCEL_SIGNAL);
+
+    ret = pthread_sigmask(state == PTHREAD_CANCEL_ENABLE ? SIG_BLOCK : SIG_UNBLOCK, &new , &old);
+    if(oldstate != NULL)
+    {
+        *oldstate =sigismember(&old,SIG_CANCEL_SIGNAL) == 0 ? PTHREAD_CANCEL_DISABLE : PTHREAD_CANCEL_ENABLE;
+    }
+    return ret;
+}
+
+static inline int pthread_cancel(pthread_t thread) {
+    return pthread_kill(thread, SIG_CANCEL_SIGNAL);
+}
 // remote config options...
 int opt_remoteconf_retry = 3; // number of retries
 int opt_remoteconf_wait = 10; // wait in secs between retries
@@ -5133,7 +5155,7 @@ retry:
 
 static void *input_thread(void __maybe_unused *userdata)
 {
-  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  /*pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);wo gai de pthread_test()*/
 
   RenameThread("Input");
 
@@ -5170,7 +5192,7 @@ static void *api_thread(void *userdata)
   struct thr_info *mythr = (struct thr_info *)userdata;
 
   pthread_detach(pthread_self());
-  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  /*pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);wo gai */
 
   RenameThread("API");
 
@@ -7967,7 +7989,7 @@ static void hash_sole_work(struct thr_info *mythr)
       thread_reportout(mythr);
 
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-      pthread_testcancel();
+      /*pthread_testcancel();*/
 
       /* tv_end is == &getwork_start */
       cgtime(&getwork_start);
@@ -8344,7 +8366,7 @@ static void *watchpool_thread(void __maybe_unused *userdata)
 {
   int intervals = 0;
 
-  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  /*pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);wo gai de */
 
   RenameThread("Watchpool");
 
@@ -8446,7 +8468,7 @@ static void *watchdog_thread(void __maybe_unused *userdata)
   const unsigned int interval = WATCHDOG_INTERVAL;
   struct timeval zero_tv;
 
-  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  /*pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);wo gai de */
 
   RenameThread("Watchdog");
 

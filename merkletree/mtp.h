@@ -15,7 +15,7 @@
 
 #include "merkle-tree.hpp"
 
-#include <immintrin.h>
+#include "sse2neon.h"
 #include "mtp_argon2ref/mtp_core.h"
 #include "mtp_argon2ref/mtp_argon2.h"
 #include "mtp_argon2ref/mtp_thread.h"

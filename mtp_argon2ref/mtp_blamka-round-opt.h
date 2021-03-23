@@ -20,9 +20,9 @@
 
 #include "mtp_argon2ref/mtp_blake2-impl.h"
 
-#include <emmintrin.h>
+#include "sse2neon.h"
 #if defined(__SSSE3__)
-#include <tmmintrin.h> /* for _mm_shuffle_epi8 and _mm_alignr_epi8 */
+#include "sse2neon.h"/* for _mm_shuffle_epi8 and _mm_alignr_epi8 */
 #endif
 
 #if defined(__XOP__) && (defined(__GNUC__) || defined(__clang__))

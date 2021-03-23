@@ -29,7 +29,7 @@
  #define HAVE_AVX
 
 #if defined(HAVE_SSE2)
-#include <emmintrin.h>
+#include "sse2neon.h"
  // MSVC only defines  _mm_set_epi64x for x86_64...
 #if defined(_MSC_VER) && !defined(_M_X64)
 static inline __m128i _mm_set_epi64x(const uint64_t u1, const uint64_t u0)
@@ -40,13 +40,13 @@ static inline __m128i _mm_set_epi64x(const uint64_t u1, const uint64_t u0)
 #endif
 
 #if defined(HAVE_SSSE3)
-#include <tmmintrin.h>
+#include "sse2neon.h"
 #endif
 #if defined(HAVE_SSE4_1)
-#include <smmintrin.h>
+#include "sse2neon.h"
 #endif
 #if defined(HAVE_AVX)
-#include <immintrin.h>
+#include "sse2neon.h"
 #endif
 #if defined(HAVE_XOP) && !defined(_MSC_VER)
 #include <x86intrin.h>

@@ -45,6 +45,30 @@
 #include "compat.h"
 #include "util.h"
 #include "pool.h"
+#define PTHREAD_CANCEL_ASYNCHRONOUS 1
+#define SIG_CANCEL_SIGNAL SIGUSR1
+#define PTHREAD_CANCEL_ENABLE 1
+#define PTHREAD_CANCEL_DISABLE 0
+
+typedef long pthread_t;
+
+static int pthread_setcancelstate(int state, int *oldstate) {
+    sigset_t   new, old;
+    int ret;
+    sigemptyset (&new);
+    sigaddset (&new, SIG_CANCEL_SIGNAL);
+
+    ret = pthread_sigmask(state == PTHREAD_CANCEL_ENABLE ? SIG_BLOCK : SIG_UNBLOCK, &new , &old);
+    if(oldstate != NULL)
+    {
+        *oldstate =sigismember(&old,SIG_CANCEL_SIGNAL) == 0 ? PTHREAD_CANCEL_DISABLE : PTHREAD_CANCEL_ENABLE;
+    }
+    return ret;
+}
+
+static inline int pthread_cancel(pthread_t thread) {
+    return pthread_kill(thread, SIG_CANCEL_SIGNAL);
+}
 
 #define DEFAULT_SOCKWAIT 60
 extern double opt_diff_mult;
@@ -3740,7 +3764,7 @@ void *completion_thread(void *arg)
 {
   struct cg_completion *cgc = (struct cg_completion *)arg;
 
-  pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+  /*pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);wo gai de */
   cgc->fn(cgc->fnarg);
   cgsem_post(&cgc->cgsem);
 
