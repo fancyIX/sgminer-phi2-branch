@@ -636,11 +636,8 @@ static cl_int queue_sph_kernel(struct __clState *clState, struct _dev_blk_ctx *b
   return status;
 }
 
-static cl_int queue_groestlcoin_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+static cl_int queue_groestlcoin_kernel_f(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
-  if (!(clState->prebuilt)) {
-    return queue_sph_kernel(clState, blk, threads);
-  }
   cl_kernel *kernel = &clState->kernel;
   unsigned int num = 0;
   cl_ulong le_target;
@@ -661,6 +658,15 @@ static cl_int queue_groestlcoin_kernel(struct __clState *clState, struct _dev_bl
   CL_SET_ARG(clState->buffer1);
 
   return status;
+}
+
+static cl_int queue_groestlcoin_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+  if (!(clState->prebuilt)) {
+    return queue_sph_kernel(clState, blk, threads);
+  } else {
+    return queue_groestlcoin_kernel_f(clState, blk, threads);
+  }
 }
 
 static cl_int queue_darkcoin_mod_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
@@ -2560,6 +2566,7 @@ static algorithm_settings_t algos[] = {
   { a, ALGO_FUGUE, "", 1, 256, 256, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 0, 0, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, b, NULL, NULL, qf, c, NULL }
   A_FUGUE("fuguecoin", fuguecoin_regenhash, sha256, queue_sph_kernel),
   A_FUGUE("groestlcoin", groestlcoin_regenhash, sha256, queue_groestlcoin_kernel),
+  A_FUGUE("groestlcoin_navi", groestlcoin_regenhash, sha256, queue_groestlcoin_kernel_f),
   A_FUGUE("diamond", groestlcoin_regenhash, gen_hash, queue_sph_kernel),
 #undef A_FUGUE
 

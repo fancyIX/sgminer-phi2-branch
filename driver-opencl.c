@@ -1420,7 +1420,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 
   set_threads_hashes(clState->vwidth, clState->compute_shaders, &hashes, globalThreads, localThreads[0],
     &gpu->intensity, &gpu->xintensity, &gpu->rawintensity, &gpu->algorithm, &gpu->throughput);
-  if ((strcmp(gpu->algorithm.name, "groestlcoin") == 0) && clState->prebuilt) {
+  if (((strcmp(gpu->algorithm.name, "groestlcoin") == 0) && clState->prebuilt) || strcmp(gpu->algorithm.name, "groestlcoin_navi") == 0) {
     hashes /= 4;
   }
   if (hashes > gpu->max_hashes)
@@ -1435,7 +1435,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
   size_t temp_goffset = 0;
   if (clState->goffset)
     p_global_work_offset = (size_t *)&work->blk.nonce;
-  if ((strcmp(gpu->algorithm.name, "groestlcoin") == 0) && clState->prebuilt) {
+  if (((strcmp(gpu->algorithm.name, "groestlcoin") == 0) && clState->prebuilt) || strcmp(gpu->algorithm.name, "groestlcoin_navi") == 0) {
     temp_goffset = work->blk.nonce * 4;
     p_global_work_offset = &temp_goffset;
   }
