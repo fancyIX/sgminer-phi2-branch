@@ -28,8 +28,7 @@
  *
  * ===========================(LICENSE END)=============================
  *
- * @author   djm34
- * @author   fancyIX 2018
+ * @author   fancyIX 2021
  */
 /*
  * This file is mostly the same as lyra2rev2.cl: differences:
@@ -79,33 +78,8 @@
 }
 
 
-#if defined(__GCNMINC__)
-uint2 __attribute__((overloadable)) amd_bitalign(uint2 src0, uint2 src1, uint src2)
-{
-	uint dstx = 0;
-	uint dsty = 0;
-    __asm ("v_alignbit_b32 %[dstx], %[src0x], %[src1x], %[src2x]\n"
-          "v_alignbit_b32 %[dsty], %[src0y], %[src1y], %[src2y]"
-          : [dstx] "=&v" (dstx), [dsty] "=&v" (dsty)
-          : [src0x] "v" (src0.x), [src1x] "v" (src1.x), [src2x] "v" (src2),
-		    [src0y] "v" (src0.y), [src1y] "v" (src1.y), [src2y] "v" (src2));
-	return (uint2) (dstx, dsty);
-}
-uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint src2)
-{
-	uint dstx = 0;
-	uint dsty = 0;
-    __asm ("v_alignbyte_b32 %[dstx], %[src0x], %[src1x], %[src2x]\n"
-          "v_alignbyte_b32 %[dsty], %[src0y], %[src1y], %[src2y]"
-          : [dstx] "=&v" (dstx), [dsty] "=&v" (dsty)
-          : [src0x] "v" (src0.x), [src1x] "v" (src1.x), [src2x] "v" (src2),
-		    [src0y] "v" (src0.y), [src1y] "v" (src1.y), [src2y] "v" (src2));
-	return (uint2) (dstx, dsty);
-}
-#else
 #pragma OPENCL EXTENSION cl_amd_media_ops : enable
 #pragma OPENCL EXTENSION cl_amd_media_ops2 : enable
-#endif
 
 #define ROTR64(x2, y) as_ulong(y < 32 ? (y % 8 == 0 ? (((amd_bytealign(x2.s10, x2, y / 8)))) : (((amd_bitalign(x2.s10, x2, y))))) : (((amd_bitalign(x2, x2.s10, (y - 32))))))
 #define ROTR64_24(x2) as_ulong(amd_bytealign(x2.s10, x2, 3))
@@ -129,22 +103,22 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 #ifdef __gfx803__
 #define ADD32_DPP(a, b) \
     __asm ( \
-	    "v_add_u32  %[aa], vcc, %[bb], %[aa]\n" \
+	    "v_add_u32  %[daa], vcc, %[bb], %[aa]\n" \
 		"s_lshl_b64 vcc, vcc, 1\n" \
 		"s_and_b64 vcc, vcc, s[100:101]\n" \
-		"v_addc_u32_e32 %[aa], vcc, 0, %[aa], vcc\n" \
-		: [aa] "=&v" (a) \
+		"v_addc_u32_e32 %[daa], vcc, 0, %[daa], vcc\n" \
+		: [daa] "=&v" (a) \
 		: [aa] "0" (a), \
 		  [bb] "v" (b) \
 		: "vcc");
 #else
 #define ADD32_DPP(a, b) \
     __asm ( \
-	    "v_add_co_u32  %[aa], vcc, %[bb], %[aa]\n" \
+	    "v_add_co_u32  %[daa], vcc, %[bb], %[aa]\n" \
 		"s_lshl_b64 vcc, vcc, 1\n" \
 		"s_and_b64 vcc, vcc, s[100:101]\n" \
-		"v_addc_co_u32 %[aa], vcc, 0, %[aa], vcc\n" \
-		: [aa] "=&v" (a) \
+		"v_addc_co_u32 %[daa], vcc, 0, %[daa], vcc\n" \
+		: [daa] "=&v" (a) \
 		: [aa] "0" (a), \
 		  [bb] "v" (b) \
 		: "vcc");
@@ -157,7 +131,7 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[p], %[pp] quad_perm:[1,0,3,2]\n" \
 		  "s_nop 1" \
-		  : [p] "=&v" (s) \
+		  : [p] "=v" (s) \
 		  : [pp] "v" (ss)); \
 	}
 
@@ -166,11 +140,11 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	{ \
 		__asm ( \
 	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[pp], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "v_mov_b32_dpp  %[dpp], %[pp] quad_perm:[1,0,3,2]\n" \
 		  "s_nop 1\n" \
-		  "v_alignbyte_b32 %[p], %[pp], %[p], 3" \
-		  : [pp] "=&v" (ss), \
-		    [p] "=&v" (s) \
+		  "v_alignbyte_b32 %[dp], %[dpp], %[p], 3" \
+		  : [dpp] "=v" (ss), \
+		    [dp] "=v" (s) \
 		  : [pp] "0" (ss), \
 		    [p] "1" (s)); \
 	}
@@ -180,11 +154,11 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	{ \
 		__asm ( \
 	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[pp], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "v_mov_b32_dpp  %[dpp], %[pp] quad_perm:[1,0,3,2]\n" \
 		  "s_nop 1\n" \
-		  "v_alignbyte_b32 %[p], %[pp], %[p], 2" \
-		  : [pp] "=&v" (ss), \
-		    [p] "=&v" (s) \
+		  "v_alignbyte_b32 %[dp], %[dpp], %[p], 2" \
+		  : [dpp] "=v" (ss), \
+		    [dp] "=v" (s) \
 		  : [pp] "0" (ss), \
 		    [p] "1" (s)); \
 	}
@@ -194,11 +168,11 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	{ \
 		__asm ( \
 	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[pp], %[pp] quad_perm:[1,0,3,2]\n" \
+		  "v_mov_b32_dpp  %[dpp], %[pp] quad_perm:[1,0,3,2]\n" \
 		  "s_nop 1\n" \
-		  "v_alignbit_b32 %[p], %[p], %[pp], 31" \
-		  : [pp] "=&v" (ss), \
-		    [p] "=&v" (s) \
+		  "v_alignbit_b32 %[dp], %[p], %[dpp], 31" \
+		  : [dpp] "=v" (ss), \
+		    [dp] "=v" (s) \
 		  : [pp] "0" (ss), \
 		    [p] "1" (s)); \
 	}
@@ -214,13 +188,13 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 #define shflldpp(state) \
 	__asm ( \
 	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p10], %[p10] row_ror:12\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[p30], %[p30] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[dp10], %[p10] row_ror:12\n" \
+		  "v_mov_b32_dpp  %[dp20], %[p20] row_ror:8\n" \
+		  "v_mov_b32_dpp  %[dp30], %[p30] row_ror:4\n" \
 		  "s_nop 1" \
-		  : [p10] "=&v" (state[1]), \
-			[p20] "=&v" (state[2]), \
-			[p30] "=&v" (state[3]) \
+		  : [dp10] "=v" (state[1]), \
+			[dp20] "=v" (state[2]), \
+			[dp30] "=v" (state[3]) \
 		  : [p10] "0" (state[1]), \
 			[p20] "1" (state[2]), \
 			[p30] "2" (state[3]));
@@ -228,13 +202,13 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 #define shflrdpp(state) \
 	__asm ( \
 	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p10], %[p10] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[p30], %[p30] row_ror:12\n" \
+		  "v_mov_b32_dpp  %[dp10], %[p10] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[dp20], %[p20] row_ror:8\n" \
+		  "v_mov_b32_dpp  %[dp30], %[p30] row_ror:12\n" \
 		  "s_nop 1" \
-		  : [p10] "=&v" (state[1]), \
-			[p20] "=&v" (state[2]), \
-			[p30] "=&v" (state[3]) \
+		  : [dp10] "=v" (state[1]), \
+			[dp20] "=v" (state[2]), \
+			[dp30] "=v" (state[3]) \
 		  : [p10] "0" (state[1]), \
 			[p20] "1" (state[2]), \
 			[p30] "2" (state[3]));
@@ -252,13 +226,13 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	s2 = state[2]; \
 	__asm ( \
 		  "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p10], %[p10] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p20], %[p20] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p30], %[p30] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[dp10], %[p10] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[dp20], %[p20] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[dp30], %[p30] row_ror:4\n" \
 		  "s_nop 1" \
-		  : [p10] "=&v" (s0), \
-			[p20] "=&v" (s1), \
-			[p30] "=&v" (s2) \
+		  : [dp10] "=v" (s0), \
+			[dp20] "=v" (s1), \
+			[dp30] "=v" (s2) \
 		  : [p10] "0" (s0), \
 			[p20] "1" (s1), \
 			[p30] "2" (s2)); \
@@ -381,18 +355,18 @@ uint2 __attribute__((overloadable)) amd_bytealign(uint2 src0, uint2 src1, uint s
 	p3 = (s[0] & 7); \
 	__asm ( \
 		  "s_nop 0\n" \
-		  "v_mov_b32_dpp  %[p0], %[p0] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[p1], %[p1] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[p2], %[p2] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[p3], %[p3] quad_perm:[0,0,2,2]\n" \
-		  "v_mov_b32_dpp  %[p1], %[p1] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[p2], %[p2] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[p3], %[p3] row_ror:12\n" \
+		  "v_mov_b32_dpp  %[dp0], %[p0] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[dp1], %[p1] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[dp2], %[p2] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[dp3], %[p3] quad_perm:[0,0,2,2]\n" \
+		  "v_mov_b32_dpp  %[dp1], %[dp1] row_ror:4\n" \
+		  "v_mov_b32_dpp  %[dp2], %[dp2] row_ror:8\n" \
+		  "v_mov_b32_dpp  %[dp3], %[dp3] row_ror:12\n" \
 		  "s_nop 0" \
-		  : [p0] "=&v" (p0), \
-		    [p1] "=&v" (p1), \
-		    [p2] "=&v" (p2), \
-			[p3] "=&v" (p3) \
+		  : [dp0] "=&v" (p0), \
+		    [dp1] "=&v" (p1), \
+		    [dp2] "=&v" (p2), \
+			[dp3] "=&v" (p3) \
 		  : [p0] "0" (p0), \
 		    [p1] "1" (p1), \
 			[p2] "2" (p2), \
