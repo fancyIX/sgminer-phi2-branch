@@ -289,6 +289,7 @@ __kernel void search3(__global uchar* sharedDataBuf)
 
   const int player = get_local_id(1) & 1;
 
+  uint zero = 0;
   uint state[4];
   uint si[3];
   uint sII[3];
@@ -384,6 +385,8 @@ __kernel void search3(__global uchar* sharedDataBuf)
   state_xor_modify(modify, 5, 0, mindex, state, notepad);
   state_xor_modify(modify, 6, 0, mindex, state, notepad);
   state_xor_modify(modify, 7, 0, mindex, state, notepad);
+
+  zero = 1;
 /**/
 
   //-------------------------------------
@@ -559,6 +562,7 @@ __kernel void search7(__global uchar* sharedDataBuf)
 
   const int player = get_local_id(1) & 1;
 
+  uint zero = 0;
   uint state[4];
   uint si[3];
   uint sII[3];
@@ -654,6 +658,8 @@ __kernel void search7(__global uchar* sharedDataBuf)
   state_xor_modify(modify, 5, 0, mindex, state, notepad);
   state_xor_modify(modify, 6, 0, mindex, state, notepad);
   state_xor_modify(modify, 7, 0, mindex, state, notepad);
+  
+  zero = 1;
 /**/
 
   //-------------------------------------

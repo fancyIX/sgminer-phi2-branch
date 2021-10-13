@@ -100,20 +100,18 @@
     __asm ( \
 	    "v_add_co_u32  %[daa], vcc_lo, %[bb], %[aa]\n" \
 		"s_lshl_b32 vcc_lo, vcc_lo, 4\n" \
-		"s_and_b32 vcc_lo, vcc_lo, 0xF0F0F0F0\n" \
-		"v_add_co_ci_u32 %[daa], vcc_lo, 0, %[daa], vcc_lo\n" \
+		"v_add_co_ci_u32_dpp %[daa], vcc_lo, %[z], %[daa], vcc_lo quad_perm:[0,1,2,3] bank_mask:0xa\n" \
 		: [daa] "=v" (a) \
 		: [aa] "0" (a), \
-		  [bb] "v" (b) \
+		  [bb] "v" (b), \
+		  [z] "v" (zero) \
 		: "vcc");
 
 #define SWAP32_DPP(s) \
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[p], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
-		  "s_nop 1" \
 		  : [p] "=v" (s) \
 		  : [pp] "v" (ss)); \
 	}
@@ -122,9 +120,7 @@
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dpp], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
-		  "s_nop 1\n" \
 		  "v_alignbyte_b32 %[dp], %[dpp], %[p], 3" \
 		  : [dpp] "=v" (ss), \
 		    [dp] "=v" (s) \
@@ -136,9 +132,7 @@
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dpp], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
-		  "s_nop 1\n" \
 		  "v_alignbyte_b32 %[dp], %[dpp], %[p], 2" \
 		  : [dpp] "=v" (ss), \
 		    [dp] "=v" (s) \
@@ -150,9 +144,7 @@
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dpp], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
-		  "s_nop 1\n" \
 		  "v_alignbit_b32 %[dp], %[p], %[dpp], 31" \
 		  : [dpp] "=v" (ss), \
 		    [dp] "=v" (s) \
@@ -170,11 +162,9 @@
 
 #define shflldpp(state) \
 	__asm ( \
-	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[1,2,3,0]\n" \
 		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[2,3,0,1]\n" \
 		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[3,0,1,2]\n" \
-		  "s_nop 1" \
 		  : [dp10] "=v" (state[1]), \
 			[dp20] "=v" (state[2]), \
 			[dp30] "=v" (state[3]) \
@@ -184,11 +174,9 @@
 
 #define shflrdpp(state) \
 	__asm ( \
-	      "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[3,0,1,2]\n" \
 		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[2,3,0,1]\n" \
 		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[1,2,3,0]\n" \
-		  "s_nop 1" \
 		  : [dp10] "=v" (state[1]), \
 			[dp20] "=v" (state[2]), \
 			[dp30] "=v" (state[3]) \
@@ -208,11 +196,9 @@
 	s1 = state[1]; \
 	s2 = state[2]; \
 	__asm ( \
-		  "s_nop 1\n" \
 		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[3,0,1,2]\n" \
 		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[3,0,1,2]\n" \
 		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[3,0,1,2]\n" \
-		  "s_nop 1" \
 		  : [dp10] "=v" (s0), \
 			[dp20] "=v" (s1), \
 			[dp30] "=v" (s2) \
@@ -334,9 +320,7 @@
 #define broadcast_zero(s) \
     p0 = (s[0] & 7); \
 	__asm ( \
-		  "s_nop 0\n" \
 		  "v_mov_b32_dpp  %[dp0], %[p0] dpp8:[0,0,0,0,0,0,0,0]\n" \
-		  "s_nop 0" \
 		  : [dp0] "=v" (p0) \
 		  : [p0] "0" (p0)); \
 	if ((get_local_id(0) & 2) == 0) modify = p0; \
