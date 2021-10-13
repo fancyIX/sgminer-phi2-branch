@@ -95,24 +95,23 @@
 #define LYRA_ROUNDS 8
 #define HYPERMATRIX_COUNT (LYRA_ROUNDS * STATE_BLOCK_COUNT)
 
+
 #define ADD32_DPP(a, b) \
     __asm ( \
 	    "v_add_co_u32  %[daa], vcc_lo, %[bb], %[aa]\n" \
-		"s_lshl_b32 vcc_lo, vcc_lo, 1\n" \
-		"s_and_b32 vcc_lo, vcc_lo, 0xAAAAAAAA\n" \
-		"v_add_co_ci_u32 %[daa], vcc_lo, 0, %[daa], vcc_lo\n" \
+		"s_lshl_b32 vcc_lo, vcc_lo, 4\n" \
+		"v_add_co_ci_u32_dpp %[daa], vcc_lo, %[z], %[daa], vcc_lo quad_perm:[0,1,2,3] bank_mask:0xa\n" \
 		: [daa] "=v" (a) \
 		: [aa] "0" (a), \
-		  [bb] "v" (b) \
+		  [bb] "v" (b), \
+		  [z] "v" (zero) \
 		: "vcc");
 
 #define SWAP32_DPP(s) \
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[p], %[pp] quad_perm:[1,0,3,2]\n" \
-		  "s_nop 1" \
+		  "v_mov_b32_dpp  %[p], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
 		  : [p] "=v" (s) \
 		  : [pp] "v" (ss)); \
 	}
@@ -121,9 +120,7 @@
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dpp], %[pp] quad_perm:[1,0,3,2]\n" \
-		  "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dpp], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
 		  "v_alignbyte_b32 %[dp], %[dpp], %[p], 3" \
 		  : [dpp] "=v" (ss), \
 		    [dp] "=v" (s) \
@@ -135,9 +132,7 @@
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dpp], %[pp] quad_perm:[1,0,3,2]\n" \
-		  "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dpp], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
 		  "v_alignbyte_b32 %[dp], %[dpp], %[p], 2" \
 		  : [dpp] "=v" (ss), \
 		    [dp] "=v" (s) \
@@ -149,9 +144,7 @@
     ss = s; \
 	{ \
 		__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dpp], %[pp] quad_perm:[1,0,3,2]\n" \
-		  "s_nop 1\n" \
+		  "v_mov_b32_dpp  %[dpp], %[pp] dpp8:[4,5,6,7,0,1,2,3]\n" \
 		  "v_alignbit_b32 %[dp], %[p], %[dpp], 31" \
 		  : [dpp] "=v" (ss), \
 		    [dp] "=v" (s) \
@@ -169,11 +162,9 @@
 
 #define shflldpp(state) \
 	__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dp10], %[p10] row_ror:12\n" \
-		  "v_mov_b32_dpp  %[dp20], %[p20] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[dp30], %[p30] row_ror:4\n" \
-		  "s_nop 1" \
+		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[1,2,3,0]\n" \
+		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[3,0,1,2]\n" \
 		  : [dp10] "=v" (state[1]), \
 			[dp20] "=v" (state[2]), \
 			[dp30] "=v" (state[3]) \
@@ -183,11 +174,9 @@
 
 #define shflrdpp(state) \
 	__asm ( \
-	      "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dp10], %[p10] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[dp20], %[p20] row_ror:8\n" \
-		  "v_mov_b32_dpp  %[dp30], %[p30] row_ror:12\n" \
-		  "s_nop 1" \
+		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[3,0,1,2]\n" \
+		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[2,3,0,1]\n" \
+		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[1,2,3,0]\n" \
 		  : [dp10] "=v" (state[1]), \
 			[dp20] "=v" (state[2]), \
 			[dp30] "=v" (state[3]) \
@@ -207,29 +196,27 @@
 	s1 = state[1]; \
 	s2 = state[2]; \
 	__asm ( \
-		  "s_nop 1\n" \
-		  "v_mov_b32_dpp  %[dp10], %[p10] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[dp20], %[p20] row_ror:4\n" \
-		  "v_mov_b32_dpp  %[dp30], %[p30] row_ror:4\n" \
-		  "s_nop 1" \
+		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[3,0,1,2]\n" \
+		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[3,0,1,2]\n" \
+		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[3,0,1,2]\n" \
 		  : [dp10] "=v" (s0), \
 			[dp20] "=v" (s1), \
 			[dp30] "=v" (s2) \
 		  : [p10] "0" (s0), \
 			[p20] "1" (s1), \
 			[p30] "2" (s2)); \
-	if ((get_local_id(1) & 3) == 1) sII[0] ^= (s0); \
-	if ((get_local_id(1) & 3) == 1) sII[1] ^= (s1); \
-	if ((get_local_id(1) & 3) == 1) sII[2] ^= (s2); \
-	if ((get_local_id(1) & 3) == 2) sII[0] ^= (s0); \
-	if ((get_local_id(1) & 3) == 2) sII[1] ^= (s1); \
-	if ((get_local_id(1) & 3) == 2) sII[2] ^= (s2); \
-	if ((get_local_id(1) & 3) == 3) sII[0] ^= (s0); \
-	if ((get_local_id(1) & 3) == 3) sII[1] ^= (s1); \
-	if ((get_local_id(1) & 3) == 3) sII[2] ^= (s2); \
-	if ((get_local_id(1) & 3) == 0) sII[0] ^= (s2); \
-	if ((get_local_id(1) & 3) == 0) sII[1] ^= (s0); \
-	if ((get_local_id(1) & 3) == 0) sII[2] ^= (s1); \
+	if ((get_local_id(0) & 3) == 1) sII[0] ^= (s0); \
+	if ((get_local_id(0) & 3) == 1) sII[1] ^= (s1); \
+	if ((get_local_id(0) & 3) == 1) sII[2] ^= (s2); \
+	if ((get_local_id(0) & 3) == 2) sII[0] ^= (s0); \
+	if ((get_local_id(0) & 3) == 2) sII[1] ^= (s1); \
+	if ((get_local_id(0) & 3) == 2) sII[2] ^= (s2); \
+	if ((get_local_id(0) & 3) == 3) sII[0] ^= (s0); \
+	if ((get_local_id(0) & 3) == 3) sII[1] ^= (s1); \
+	if ((get_local_id(0) & 3) == 3) sII[2] ^= (s2); \
+	if ((get_local_id(0) & 3) == 0) sII[0] ^= (s2); \
+	if ((get_local_id(0) & 3) == 0) sII[1] ^= (s0); \
+	if ((get_local_id(0) & 3) == 0) sII[2] ^= (s1); \
 
 #define write_state(notepad, state, row, col) \
   notepad[24 * row + col * 3] = state[0]; \
@@ -332,18 +319,12 @@
 
 #define broadcast_zero(s) \
     p0 = (s[0] & 7); \
-	p1 = (s[0] & 7); \
 	__asm ( \
-		  "s_nop 0\n" \
-		  "v_mov_b32_dpp  %[dp0], %[p0] dpp8:[0,0,2,2,0,0,2,2]\n" \
-		  "s_nop 0\n" \
-		  "v_mov_b32_dpp  %[dp1], %[dp0] row_ror:8\n" \
-		  "s_nop 0" \
-		  : [dp0] "=v" (p0), \
-		    [dp1] "=v" (p1) \
+		  "v_mov_b32_dpp  %[dp0], %[p0] dpp8:[0,0,0,0,0,0,0,0]\n" \
+		  : [dp0] "=v" (p0) \
 		  : [p0] "0" (p0)); \
-	if ((get_local_id(1) & 2) == 0) modify = p0; \
-	if ((get_local_id(1) & 2) == 2) modify = p1; \
+	if ((get_local_id(0) & 2) == 0) modify = p0; \
+	if ((get_local_id(0) & 2) == 2) modify = p0; \
 
 #define real_matrw_read(sII, bigMat, matrw, off) \
 		if (matrw == 0) sII[0] = bigMat[24 * 0 + off * 3]; \

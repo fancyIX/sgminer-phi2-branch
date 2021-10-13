@@ -276,17 +276,17 @@ __kernel void search1(__global uint* hashes, __global uchar* sharedDataBuf)
 __attribute__((amdgpu_waves_per_eu(1,1)))
 __attribute__((amdgpu_num_vgpr(256)))
 __attribute__((amdgpu_num_sgpr(100)))
-__attribute__((reqd_work_group_size(4, 4, 16)))
+__attribute__((reqd_work_group_size(4, 2, 16)))
 __kernel void search2(__global uchar* sharedDataBuf)
 {
 uint gid = get_global_id(2);
-  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4 * 4 * 2) * (gid-get_global_offset(2))));
-  __global lyraState_t *lyraState2 = (__global lyraState_t *)(sharedDataBuf + ((8 * 4 * 4) + (8 * 4 * 4 * 2) * (gid-get_global_offset(2))));
+  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4 * 4) * (gid-get_global_offset(2))));
 
   uint notepad[192];
 
-  const int player = get_local_id(1);
+  const int player = get_local_id(1) & 1;
 
+  uint zero = 0;
   uint state[4];
   uint si[3];
   uint sII[3];
@@ -299,26 +299,26 @@ uint gid = get_global_id(2);
 	uint ss3;
   uint ss;
   uint carry;
-  const uint mindex = (LOCAL_LINEAR & 1) == 0 ? 0 : 1;
+  const uint mindex = (player & 1) == 0 ? 0 : 1;
 
   //-------------------------------------
   // Load Lyra state
-  if (LOCAL_LINEAR == 0) state[0] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 0]));
-  if (LOCAL_LINEAR == 0) state[1] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 1]));
-  if (LOCAL_LINEAR == 0) state[2] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 2]));
-  if (LOCAL_LINEAR == 0) state[3] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 3]));
-  if (LOCAL_LINEAR == 1) state[0] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 0 + 1]));
-  if (LOCAL_LINEAR == 1) state[1] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 1 + 1]));
-  if (LOCAL_LINEAR == 1) state[2] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 2 + 1]));
-  if (LOCAL_LINEAR == 1) state[3] = ((uint)(lyraState->h4[2 * player + 2 * 4 * 3 + 1]));
-  if (LOCAL_LINEAR == 2) state[0] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 0]));
-  if (LOCAL_LINEAR == 2) state[1] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 1]));
-  if (LOCAL_LINEAR == 2) state[2] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 2]));
-  if (LOCAL_LINEAR == 2) state[3] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 3]));
-  if (LOCAL_LINEAR == 3) state[0] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 0 + 1]));
-  if (LOCAL_LINEAR == 3) state[1] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 1 + 1]));
-  if (LOCAL_LINEAR == 3) state[2] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 2 + 1]));
-  if (LOCAL_LINEAR == 3) state[3] = ((uint)(lyraState2->h4[2 * player + 2 * 4 * 3 + 1]));
+  if (LOCAL_LINEAR == 0) state[0] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 0 + player]));
+  if (LOCAL_LINEAR == 0) state[1] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 1 + player]));
+  if (LOCAL_LINEAR == 0) state[2] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 2 + player]));
+  if (LOCAL_LINEAR == 0) state[3] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 3 + player]));
+  if (LOCAL_LINEAR == 1) state[0] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 0 + player]));
+  if (LOCAL_LINEAR == 1) state[1] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 1 + player]));
+  if (LOCAL_LINEAR == 1) state[2] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 2 + player]));
+  if (LOCAL_LINEAR == 1) state[3] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 3 + player]));
+  if (LOCAL_LINEAR == 2) state[0] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 0 + player]));
+  if (LOCAL_LINEAR == 2) state[1] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 1 + player]));
+  if (LOCAL_LINEAR == 2) state[2] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 2 + player]));
+  if (LOCAL_LINEAR == 2) state[3] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 3 + player]));
+  if (LOCAL_LINEAR == 3) state[0] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 0 + player]));
+  if (LOCAL_LINEAR == 3) state[1] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 1 + player]));
+  if (LOCAL_LINEAR == 3) state[2] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 2 + player]));
+  if (LOCAL_LINEAR == 3) state[3] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 3 + player]));
 
   write_state(notepad, state, 0, 7);
   round_lyra_4way_sw(state);
@@ -490,24 +490,26 @@ uint gid = get_global_id(2);
   state_xor_modify(modify, 6, 0, mindex, state, notepad);
   state_xor_modify(modify, 7, 0, mindex, state, notepad);
 
+  zero = 1;
+
 //-------------------------------------
   // save lyra state
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * player + 2 * 4 * 0] = state[0];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * player + 2 * 4 * 1] = state[1];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * player + 2 * 4 * 2] = state[2];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * player + 2 * 4 * 3] = state[3];
-  if (LOCAL_LINEAR == 2) lyraState2->h4[2 * player + 2 * 4 * 0] = state[0];
-  if (LOCAL_LINEAR == 2) lyraState2->h4[2 * player + 2 * 4 * 1] = state[1];
-  if (LOCAL_LINEAR == 2) lyraState2->h4[2 * player + 2 * 4 * 2] = state[2];
-  if (LOCAL_LINEAR == 2) lyraState2->h4[2 * player + 2 * 4 * 3] = state[3];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * player + 2 * 4 * 0 + 1] = state[0];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * player + 2 * 4 * 1 + 1] = state[1];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * player + 2 * 4 * 2 + 1] = state[2];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * player + 2 * 4 * 3 + 1] = state[3];
-  if (LOCAL_LINEAR == 3) lyraState2->h4[2 * player + 2 * 4 * 0 + 1] = state[0];
-  if (LOCAL_LINEAR == 3) lyraState2->h4[2 * player + 2 * 4 * 1 + 1] = state[1];
-  if (LOCAL_LINEAR == 3) lyraState2->h4[2 * player + 2 * 4 * 2 + 1] = state[2];
-  if (LOCAL_LINEAR == 3) lyraState2->h4[2 * player + 2 * 4 * 3 + 1] = state[3];
+  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 0 + player] = state[0];
+  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 1 + player] = state[1];
+  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 2 + player] = state[2];
+  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 3 + player] = state[3];
+  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 0 + player] = state[0];
+  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 1 + player] = state[1];
+  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 2 + player] = state[2];
+  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 3 + player] = state[3];
+  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 0 + player] = state[0];
+  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 1 + player] = state[1];
+  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 2 + player] = state[2];
+  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 3 + player] = state[3];
+  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 0 + player] = state[0];
+  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 1 + player] = state[1];
+  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 2 + player] = state[2];
+  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 3 + player] = state[3];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
