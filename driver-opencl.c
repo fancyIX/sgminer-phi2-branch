@@ -1504,10 +1504,15 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       }
     } else if ((gpu->algorithm.type == ALGO_ALLIUM || gpu->algorithm.type == ALGO_ALLIUM_NAVI) && (i == 2 || i == 6)) {
-      if (clState->prebuilt || gpu->algorithm.type == ALGO_ALLIUM_NAVI) {
+      if (clState->prebuilt) {
         const size_t off2[] = { 0, 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, 4, globalThreads[0] / 2 };
 	      const size_t expand[] = { 4, 4, 16 };
+        status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 3, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
+      } else if (gpu->algorithm.type == ALGO_ALLIUM_NAVI) {
+        const size_t off2[] = { 0, 0, *p_global_work_offset };
+	      const size_t gws[] = { 4, 2, globalThreads[0] };
+	      const size_t expand[] = { 4, 2, 16 };
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 3, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       } else {
         const size_t off2[] = { 0, *p_global_work_offset };
