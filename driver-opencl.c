@@ -1527,7 +1527,7 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
       } else {
         const size_t off2[] = { 0, *p_global_work_offset };
 	      const size_t gws[] = { 4, globalThreads[0] };
-	      const size_t expand[] = { 4, 5 };
+	      const size_t expand[] = { 4, 4 };
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, off2, gws, expand, 0, NULL, NULL); // lyra 4w monolithic
       }
     } else if ((gpu->algorithm.type == ALGO_X22I || gpu->algorithm.type == ALGO_X25X) && (i == 18 || i == 20)) {

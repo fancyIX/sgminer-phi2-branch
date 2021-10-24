@@ -101,6 +101,15 @@ ulong ROTR64(const ulong x2, const uint y)
 
 // Usually just #define G(a,b,c,d)...; I have no time to read the Lyra paper
 // but that looks like some kind of block cipher I guess.
+
+
+
+#define cipher_G_m(s) \
+	s[0] += s[1]; s[3] ^= s[0]; s[3] = SWAP32(s[3]); \
+	s[2] += s[3]; s[1] ^= s[2]; s[1] = ROTR64(s[1], 24); \
+	s[0] += s[1]; s[3] ^= s[0]; s[3] = ROTR64(s[3], 16); \
+	s[2] += s[3]; s[1] ^= s[2]; s[1] = ROTR64(s[1], 63);
+
 void cipher_G(ulong *s) {
 	s[0] += s[1]; s[3] ^= s[0]; s[3] = SWAP32(s[3]);
 	s[2] += s[3]; s[1] ^= s[2]; s[1] = ROTR64(s[1], 24);
@@ -108,32 +117,121 @@ void cipher_G(ulong *s) {
 	s[2] += s[3]; s[1] ^= s[2]; s[1] = ROTR64(s[1], 63);
 }
 
-// pad counts 4 entries each hash team of 4
-void round_lyra_4way(ulong *state, __local ulong *pad) {
-	// The first half of the round is super nice to us 4-way kernels because we mangle
-	// our own column so it's just as in the legacy kernel, except we are parallel.
-	cipher_G(state);
-	// Now we mangle diagonals ~ shift rows
-	// That's a problem for us in CL because we don't have SIMD lane shuffle yet (AMD you dumb fuck)
-	// Not a problem for private miners: there's an op for that.
-	// But maybe only for GCN>3? IDK.
-	// Anyway, each element of my state besides 0 should go somewhere!
-	for(int shuffle = 1; shuffle < 4; shuffle++) {
-		pad[get_local_id(0)] = state[shuffle];
-		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
-		state[shuffle] = pad[(get_local_id(0) + shuffle) % 4]; // maybe also precompute those offsets
-	}	
-	cipher_G(state);
-	// And we also have to put everything back in place :-(
-	for(int shuffle = 1; shuffle < 4; shuffle++) {
-		pad[get_local_id(0)] = state[shuffle];
-		barrier(CLK_LOCAL_MEM_FENCE); // nop, we're lockstep
-		int offset = shuffle % 2? 2 : 0;
-		offset += shuffle;
-		state[shuffle] = pad[(get_local_id(0) + offset) % 4]; // maybe also precompute those offsets
-	}
+void shflldpp(ulong *state) {
+	uint2 s1 = as_uint2(state[1]);
+	uint2 s2 = as_uint2(state[2]);
+	uint2 s3 = as_uint2(state[3]);
+	__asm (
+	      "s_nop 0\n"
+		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[1,2,3,0]\n"
+	      "v_mov_b32_dpp  %[dp11], %[p11] quad_perm:[1,2,3,0]\n"
+		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[2,3,0,1]\n"
+		  "v_mov_b32_dpp  %[dp21], %[p21] quad_perm:[2,3,0,1]\n"
+		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[3,0,1,2]\n"
+		  "v_mov_b32_dpp  %[dp31], %[p31] quad_perm:[3,0,1,2]\n"
+		  "s_nop 0"
+		  : [dp10] "=&v" (s1.x),
+		    [dp11] "=&v" (s1.y),
+			[dp20] "=&v" (s2.x),
+			[dp21] "=&v" (s2.y),
+			[dp30] "=&v" (s3.x),
+			[dp31] "=&v" (s3.y)
+		  : [p10] "0" (s1.x),
+		    [p11] "1" (s1.y),
+			[p20] "2" (s2.x),
+			[p21] "3" (s2.y),
+			[p30] "4" (s3.x),
+			[p31] "5" (s3.y));
+	state[1] = as_ulong(s1);
+	state[2] = as_ulong(s2);
+	state[3] = as_ulong(s3);
 }
 
+void shflrdpp(ulong *state) {
+	uint2 s1 = as_uint2(state[1]);
+	uint2 s2 = as_uint2(state[2]);
+	uint2 s3 = as_uint2(state[3]);
+	__asm (
+	      "s_nop 0\n"
+		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[3,0,1,2]\n"
+	      "v_mov_b32_dpp  %[dp11], %[p11] quad_perm:[3,0,1,2]\n"
+		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[2,3,0,1]\n"
+		  "v_mov_b32_dpp  %[dp21], %[p21] quad_perm:[2,3,0,1]\n"
+		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[1,2,3,0]\n"
+		  "v_mov_b32_dpp  %[dp31], %[p31] quad_perm:[1,2,3,0]\n"
+		  "s_nop 0"
+		  : [dp10] "=&v" (s1.x),
+		    [dp11] "=&v" (s1.y),
+			[dp20] "=&v" (s2.x),
+			[dp21] "=&v" (s2.y),
+			[dp30] "=&v" (s3.x),
+			[dp31] "=&v" (s3.y)
+		  : [p10] "0" (s1.x),
+		    [p11] "1" (s1.y),
+			[p20] "2" (s2.x),
+			[p21] "3" (s2.y),
+			[p30] "4" (s3.x),
+			[p31] "5" (s3.y));
+	state[1] = as_ulong(s1);
+	state[2] = as_ulong(s2);
+	state[3] = as_ulong(s3);
+}
+
+
+// pad counts 4 entries each hash team of 4
+#define round_lyra_4way_sw(state, pad) do {  \
+	cipher_G(state);  \
+	shflldpp(state); \
+	cipher_G(state); \
+	shflrdpp(state); \
+} while (0);
+
+void xorrot_one_dpp(ulong *modify, __local ulong *groupPad, ulong *src) {
+	uint2 p0 = as_uint2(src[0]);
+	uint2 p1 = as_uint2(src[1]);
+	uint2 p2 = as_uint2(src[2]);
+	__asm (
+	      "s_nop 0\n"
+		  "v_mov_b32_dpp  %[dp10], %[p10] quad_perm:[3,0,1,2]\n"
+	      "v_mov_b32_dpp  %[dp11], %[p11] quad_perm:[3,0,1,2]\n"
+		  "v_mov_b32_dpp  %[dp20], %[p20] quad_perm:[3,0,1,2]\n"
+		  "v_mov_b32_dpp  %[dp21], %[p21] quad_perm:[3,0,1,2]\n"
+		  "v_mov_b32_dpp  %[dp30], %[p30] quad_perm:[3,0,1,2]\n"
+		  "v_mov_b32_dpp  %[dp31], %[p31] quad_perm:[3,0,1,2]\n"
+		  "s_nop 0"
+		  : [dp10] "=&v" (p0.x),
+		    [dp11] "=&v" (p0.y),
+			[dp20] "=&v" (p1.x),
+			[dp21] "=&v" (p1.y),
+			[dp30] "=&v" (p2.x),
+			[dp31] "=&v" (p2.y)
+		  : [p10] "0" (p0.x),
+		    [p11] "1" (p0.y),
+			[p20] "2" (p1.x),
+			[p21] "3" (p1.y),
+			[p30] "4" (p2.x),
+			[p31] "5" (p2.y));
+	if (get_local_id(0) != 0) {
+		modify[0] ^= as_ulong(p0);
+		modify[1] ^= as_ulong(p1);
+		modify[2] ^= as_ulong(p2);
+	} else {
+		modify[0] ^= as_ulong(p2);
+		modify[1] ^= as_ulong(p0);
+		modify[2] ^= as_ulong(p1);
+    }
+}
+
+
+uint broadcast_zero(uint s) {
+	uint p = s;
+	__asm (
+		  "ds_swizzle_b32  %[dp], %[p] offset:0x8000\n"
+		  "s_waitcnt lgkmcnt(0)"
+		  : [dp] "=&v" (p)
+		  : [p] "0" (p));
+	return p;
+}
 
 /** Legacy kernel: "reduce duplex f". What it really does:
 init hypermatrix[1] from [0], starting at bigMat, already offset per hash
@@ -149,7 +247,7 @@ void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat)
 			state[row] ^= si[row];
 			src += REG_ROW_COUNT; // read sequentially huge chunks of memory!
 		}
-		round_lyra_4way(state, xchange);
+		round_lyra_4way_sw(state, xchange);
 		for (int row = 0; row < 3; row++) {
 			si[row] ^= state[row];
 			bigMat[dst + row * REG_ROW_COUNT] = si[row]; // zigzag. Less nice.
@@ -160,20 +258,6 @@ void make_hyper_one(ulong *state, __local ulong *xchange, __local ulong *bigMat)
 	}
 }
 
-/** Consider your s'' as a sequence of ulongs instead of a matrix. Rotate it back
-and xor with true state. */
-void xorrot_one(ulong *modify, __local ulong *groupPad, ulong *src) {
-	
-	ushort dst = LOCAL_LINEAR; // my slot
-	short off = get_local_id(0) < 3? 1 : (20 - 3);
-	groupPad[dst + off] = src[0];
-	dst += 20;
-	groupPad[dst + off] = src[1];
-	dst += 20;
-	off = get_local_id(0) < 3? 1 : (-40 - 3);
-	groupPad[dst + off] = src[2];
-	for(uint cp = 0; cp < 3; cp++) modify[cp] ^= groupPad[LOCAL_LINEAR + cp * 20];
-}
 
 
 /** Legacy kernel: reduce duplex row (from) setup.
@@ -194,7 +278,7 @@ void make_next_hyper(uint matin, uint matrw, uint matout,
 			sII[row] = bigMat[hymod + row * REG_ROW_COUNT];
 			state[row] ^= si[row] + sII[row];
 		}
-		round_lyra_4way(state, groupPad + get_local_id(1) * 4);
+		round_lyra_4way_sw(state, groupPad + get_local_id(1) * 4);
 		for (int row = 0; row < 3; row++) {
 			si[row] ^= state[row];
 			bigMat[hydst + row * REG_ROW_COUNT] = si[row];
@@ -205,7 +289,7 @@ void make_next_hyper(uint matin, uint matrw, uint matout,
 		// Private miners again shuffle those with the ISA instruction which provides
 		// far more performance (1 op instead of 4, and shuffle masks are constants
 		// whereas LDS isn't). So, we send forward 1 our state, rows interleaved.
-		xorrot_one(sII, groupPad, state);
+		xorrot_one_dpp(sII, groupPad, state);
 		for(uint cp = 0; cp < 3; cp++) bigMat[hymod + cp * REG_ROW_COUNT] = sII[cp];
 		hyc += STATE_BLOCK_COUNT;
 		hymod += STATE_BLOCK_COUNT;
@@ -236,8 +320,8 @@ void hyper_xor(uint matin, uint matrw, uint matout,
 			si[row] += sII[row];
 			state[row] ^= si[row];
 		}
-		round_lyra_4way(state, groupPad + get_local_id(1) * 4);
-		xorrot_one(sII, groupPad, state);
+		round_lyra_4way_sw(state, groupPad + get_local_id(1) * 4);
+		xorrot_one_dpp(sII, groupPad, state);
 		// Oh noes! An 'if' inside a loop!
 		// That's particularly bad: it's a 'dynamic' (or 'varying') branch
 		// which means it's potentially divergent and it's basically random.

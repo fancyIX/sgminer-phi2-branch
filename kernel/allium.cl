@@ -277,17 +277,17 @@ __kernel void search2(__global uint* hashes, __global uchar* sharedDataBuf)
 /// lyra2 algo p2 
 
 
-__attribute__((reqd_work_group_size(4, 5, 1)))
+__attribute__((reqd_work_group_size(4, 4, 1)))
 __kernel void search3(__global uchar* sharedDataBuf)
 {
   uint gid = get_global_id(1);
   __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(1))));
 
-  __local ulong roundPad[12 * 5];
+  __local ulong roundPad[12 * 4];
   __local ulong *xchange = roundPad + get_local_id(1) * 4;
 
   //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
-  __local ulong notepadLDS[192 * 4 * 5];
+  __local ulong notepadLDS[192 * 4 * 4];
   __local ulong *notepad = notepadLDS + LOCAL_LINEAR;
   const int player = get_local_id(0);
 
@@ -304,7 +304,7 @@ __kernel void search3(__global uchar* sharedDataBuf)
   for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
     dst -= STATE_BLOCK_COUNT; // but blocks backwards
     for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
-    round_lyra_4way(state, xchange);
+    round_lyra_4way_sw(state, xchange);
   }
   make_hyper_one(state, xchange, notepad);
   make_next_hyper(1, 0, 2, state, roundPad, notepad);
@@ -482,17 +482,17 @@ __kernel void search6(__global uint* hashes, __global uchar* sharedDataBuf)
 /// lyra2 algo p2 
 
 
-__attribute__((reqd_work_group_size(4, 5, 1)))
+__attribute__((reqd_work_group_size(4, 4, 1)))
 __kernel void search7(__global uchar* sharedDataBuf)
 {
   uint gid = get_global_id(1);
   __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(1))));
 
-  __local ulong roundPad[12 * 5];
+  __local ulong roundPad[12 * 4];
   __local ulong *xchange = roundPad + get_local_id(1) * 4;
 
   //__global ulong *notepad = buffer + get_local_id(0) + 4 * SLOT;
-  __local ulong notepadLDS[192 * 4 * 5];
+  __local ulong notepadLDS[192 * 4 * 4];
   __local ulong *notepad = notepadLDS + LOCAL_LINEAR;
   const int player = get_local_id(0);
 
@@ -509,7 +509,7 @@ __kernel void search7(__global uchar* sharedDataBuf)
   for (int loop = 0; loop < LYRA_ROUNDS; loop++) { // write columns and rows 'in order'
     dst -= STATE_BLOCK_COUNT; // but blocks backwards
     for(int cp = 0; cp < 3; cp++) dst[cp * REG_ROW_COUNT] = state[cp];
-    round_lyra_4way(state, xchange);
+    round_lyra_4way_sw(state, xchange);
   }
   make_hyper_one(state, xchange, notepad);
   make_next_hyper(1, 0, 2, state, roundPad, notepad);
