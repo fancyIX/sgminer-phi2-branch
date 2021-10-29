@@ -749,24 +749,30 @@ static cl_int queue_allium_kernel(struct __clState *clState, struct _dev_blk_ctx
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(threads);
   //CL_SET_ARG(clState->buffer2);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(threads);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(threads);
   // cubehash - search5
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
   // lyra2_cuda_hash_64 - search6 7 8
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(threads);
   //CL_SET_ARG(clState->buffer2);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(threads);
   num = 0;
   CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
   CL_SET_ARG(clState->buffer1);
+  CL_SET_ARG(threads);
   // skein - search9
   CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
   // groestl - search10

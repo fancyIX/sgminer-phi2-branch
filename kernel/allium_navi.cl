@@ -229,12 +229,13 @@ barrier(CLK_LOCAL_MEM_FENCE);
 /// lyra2 p1 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search2(__global uint* hashes, __global uchar* sharedDataBuf)
+__kernel void search2(__global uint* hashes, __global uchar* sharedDataBuf, uint threads)
 {
     int gid = get_global_id(0);
 
+    uint thread = gid - get_global_offset(0);
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
+    __global ulong4 *lyraState = (__global ulong4 *)(sharedDataBuf);
 
     ulong ttr;
 
@@ -258,18 +259,10 @@ __kernel void search2(__global uint* hashes, __global uchar* sharedDataBuf)
         roundLyra(state);
     }
 
-    // state0
-    lyraState->hl16[0] = state[0];
-    lyraState->hl16[1] = state[1];
-    // state1
-    lyraState->hl16[2] = state[2];
-    lyraState->hl16[3] = state[3];
-    // state2
-    lyraState->hl16[4] = state[4];
-    lyraState->hl16[5] = state[5];
-    // state3
-    lyraState->hl16[6] = state[6];
-    lyraState->hl16[7] = state[7];
+    lyraState[threads * 0 + thread] = ((ulong4 *)state)[0];
+    lyraState[threads * 1 + thread] = ((ulong4 *)state)[1];
+    lyraState[threads * 2 + thread] = ((ulong4 *)state)[2];
+    lyraState[threads * 3 + thread] = ((ulong4 *)state)[3];
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -280,10 +273,11 @@ __attribute__((amdgpu_waves_per_eu(1,1)))
 __attribute__((amdgpu_num_vgpr(256)))
 __attribute__((amdgpu_num_sgpr(200)))
 __attribute__((reqd_work_group_size(4, 2, 16)))
-__kernel void search3(__global uchar* sharedDataBuf)
+__kernel void search3(__global uchar* sharedDataBuf, uint threads)
 {
   uint gid = get_global_id(2);
-  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4 * 4) * (gid-get_global_offset(2))));
+  uint thread = gid-get_global_offset(2);
+  __global uint *lyraState = (__global uint *)(sharedDataBuf);
 
   uint notepad[192];
 
@@ -306,22 +300,22 @@ __kernel void search3(__global uchar* sharedDataBuf)
 
   //-------------------------------------
   // Load Lyra state
-  if (LOCAL_LINEAR == 0) state[0] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 0) state[1] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 0) state[2] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 0) state[3] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 3 + player]));
-  if (LOCAL_LINEAR == 1) state[0] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 1) state[1] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 1) state[2] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 1) state[3] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 3 + player]));
-  if (LOCAL_LINEAR == 2) state[0] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 2) state[1] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 2) state[2] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 2) state[3] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 3 + player]));
-  if (LOCAL_LINEAR == 3) state[0] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 3) state[1] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 3) state[2] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 3) state[3] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 3 + player]));
+  if (LOCAL_LINEAR == 0) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 0) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 0) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 0) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 1) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 1) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 1) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 1) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 2) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 2) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 2) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 2) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 3) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 3) + player]));
+  if (LOCAL_LINEAR == 3) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 3) + player]));
+  if (LOCAL_LINEAR == 3) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 3) + player]));
+  if (LOCAL_LINEAR == 3) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 3) + player]));
 
   write_state(notepad, state, 0, 7);
   round_lyra_4way_sw(state);
@@ -391,22 +385,22 @@ __kernel void search3(__global uchar* sharedDataBuf)
 
   //-------------------------------------
   // save lyra state
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 3 + player] = state[3];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 3 + player] = state[3];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 3 + player] = state[3];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 3 + player] = state[3];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((0 * threads + thread) * 4 + 0) + player] = state[0];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((1 * threads + thread) * 4 + 0) + player] = state[1];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((2 * threads + thread) * 4 + 0) + player] = state[2];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((3 * threads + thread) * 4 + 0) + player] = state[3];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((0 * threads + thread) * 4 + 1) + player] = state[0];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((1 * threads + thread) * 4 + 1) + player] = state[1];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((2 * threads + thread) * 4 + 1) + player] = state[2];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((3 * threads + thread) * 4 + 1) + player] = state[3];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((0 * threads + thread) * 4 + 2) + player] = state[0];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((1 * threads + thread) * 4 + 2) + player] = state[1];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((2 * threads + thread) * 4 + 2) + player] = state[2];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((3 * threads + thread) * 4 + 2) + player] = state[3];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((0 * threads + thread) * 4 + 3) + player] = state[0];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((1 * threads + thread) * 4 + 3) + player] = state[1];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((2 * threads + thread) * 4 + 3) + player] = state[2];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((3 * threads + thread) * 4 + 3) + player] = state[3];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -414,25 +408,22 @@ __kernel void search3(__global uchar* sharedDataBuf)
 // lyra2 p3
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search4(__global uint* hashes, __global uchar* sharedDataBuf)
+__kernel void search4(__global uint* hashes, __global uchar* sharedDataBuf, uint threads)
 {
     int gid = get_global_id(0);
 
+    uint thread = gid - get_global_offset(0);
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
+    __global ulong4 *lyraState = (__global ulong4 *)(sharedDataBuf);
 
     ulong ttr;
 
     ulong2 state[8];
     // 1. load lyra State
-    state[0] = lyraState->hl16[0];
-    state[1] = lyraState->hl16[1];
-    state[2] = lyraState->hl16[2];
-    state[3] = lyraState->hl16[3];
-    state[4] = lyraState->hl16[4];
-    state[5] = lyraState->hl16[5];
-    state[6] = lyraState->hl16[6];
-    state[7] = lyraState->hl16[7];
+    ((ulong4 *)state)[0] = lyraState[threads * 0 + thread];
+    ((ulong4 *)state)[1] = lyraState[threads * 1 + thread];
+    ((ulong4 *)state)[2] = lyraState[threads * 2 + thread];
+    ((ulong4 *)state)[3] = lyraState[threads * 3 + thread];
 
     // 2. rounds
     for (int i = 0; i < 12; ++i)
@@ -502,12 +493,13 @@ __kernel void search5(__global hash2_t* hashes)
 /// lyra2 p1 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search6(__global uint* hashes, __global uchar* sharedDataBuf)
+__kernel void search6(__global uint* hashes, __global uchar* sharedDataBuf, uint threads)
 {
     int gid = get_global_id(0);
 
+    uint thread = gid - get_global_offset(0);
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
+    __global ulong4 *lyraState = (__global ulong4 *)(sharedDataBuf);
 
     ulong ttr;
 
@@ -531,18 +523,10 @@ __kernel void search6(__global uint* hashes, __global uchar* sharedDataBuf)
         roundLyra(state);
     }
 
-    // state0
-    lyraState->hl16[0] = state[0];
-    lyraState->hl16[1] = state[1];
-    // state1
-    lyraState->hl16[2] = state[2];
-    lyraState->hl16[3] = state[3];
-    // state2
-    lyraState->hl16[4] = state[4];
-    lyraState->hl16[5] = state[5];
-    // state3
-    lyraState->hl16[6] = state[6];
-    lyraState->hl16[7] = state[7];
+    lyraState[threads * 0 + thread] = ((ulong4 *)state)[0];
+    lyraState[threads * 1 + thread] = ((ulong4 *)state)[1];
+    lyraState[threads * 2 + thread] = ((ulong4 *)state)[2];
+    lyraState[threads * 3 + thread] = ((ulong4 *)state)[3];
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -553,10 +537,11 @@ __attribute__((amdgpu_waves_per_eu(1,1)))
 __attribute__((amdgpu_num_vgpr(256)))
 __attribute__((amdgpu_num_sgpr(200)))
 __attribute__((reqd_work_group_size(4, 2, 16)))
-__kernel void search7(__global uchar* sharedDataBuf)
+__kernel void search7(__global uchar* sharedDataBuf, uint threads)
 {
   uint gid = get_global_id(2);
-  __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4 * 4) * (gid-get_global_offset(2))));
+  uint thread = gid-get_global_offset(2);
+  __global uint *lyraState = (__global uint *)(sharedDataBuf);
 
   uint notepad[192];
 
@@ -579,22 +564,22 @@ __kernel void search7(__global uchar* sharedDataBuf)
 
   //-------------------------------------
   // Load Lyra state
-  if (LOCAL_LINEAR == 0) state[0] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 0) state[1] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 0) state[2] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 0) state[3] = ((uint)(lyraState->h4[2 * 0 + 2 * 4 * 3 + player]));
-  if (LOCAL_LINEAR == 1) state[0] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 1) state[1] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 1) state[2] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 1) state[3] = ((uint)(lyraState->h4[2 * 1 + 2 * 4 * 3 + player]));
-  if (LOCAL_LINEAR == 2) state[0] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 2) state[1] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 2) state[2] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 2) state[3] = ((uint)(lyraState->h4[2 * 2 + 2 * 4 * 3 + player]));
-  if (LOCAL_LINEAR == 3) state[0] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 0 + player]));
-  if (LOCAL_LINEAR == 3) state[1] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 1 + player]));
-  if (LOCAL_LINEAR == 3) state[2] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 2 + player]));
-  if (LOCAL_LINEAR == 3) state[3] = ((uint)(lyraState->h4[2 * 3 + 2 * 4 * 3 + player]));
+  if (LOCAL_LINEAR == 0) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 0) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 0) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 0) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 0) + player]));
+  if (LOCAL_LINEAR == 1) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 1) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 1) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 1) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 1) + player]));
+  if (LOCAL_LINEAR == 2) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 2) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 2) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 2) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 2) + player]));
+  if (LOCAL_LINEAR == 3) state[0] = ((uint)(lyraState[2 *((0 * threads + thread) * 4 + 3) + player]));
+  if (LOCAL_LINEAR == 3) state[1] = ((uint)(lyraState[2 *((1 * threads + thread) * 4 + 3) + player]));
+  if (LOCAL_LINEAR == 3) state[2] = ((uint)(lyraState[2 *((2 * threads + thread) * 4 + 3) + player]));
+  if (LOCAL_LINEAR == 3) state[3] = ((uint)(lyraState[2 *((3 * threads + thread) * 4 + 3) + player]));
 
   write_state(notepad, state, 0, 7);
   round_lyra_4way_sw(state);
@@ -664,22 +649,22 @@ __kernel void search7(__global uchar* sharedDataBuf)
 
   //-------------------------------------
   // save lyra state
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 0) lyraState->h4[2 * 0 + 2 * 4 * 3 + player] = state[3];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 1) lyraState->h4[2 * 1 + 2 * 4 * 3 + player] = state[3];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 2) lyraState->h4[2 * 2 + 2 * 4 * 3 + player] = state[3];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 0 + player] = state[0];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 1 + player] = state[1];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 2 + player] = state[2];
-  if (LOCAL_LINEAR == 3) lyraState->h4[2 * 3 + 2 * 4 * 3 + player] = state[3];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((0 * threads + thread) * 4 + 0) + player] = state[0];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((1 * threads + thread) * 4 + 0) + player] = state[1];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((2 * threads + thread) * 4 + 0) + player] = state[2];
+  if (LOCAL_LINEAR == 0) lyraState[2 *((3 * threads + thread) * 4 + 0) + player] = state[3];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((0 * threads + thread) * 4 + 1) + player] = state[0];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((1 * threads + thread) * 4 + 1) + player] = state[1];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((2 * threads + thread) * 4 + 1) + player] = state[2];
+  if (LOCAL_LINEAR == 1) lyraState[2 *((3 * threads + thread) * 4 + 1) + player] = state[3];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((0 * threads + thread) * 4 + 2) + player] = state[0];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((1 * threads + thread) * 4 + 2) + player] = state[1];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((2 * threads + thread) * 4 + 2) + player] = state[2];
+  if (LOCAL_LINEAR == 2) lyraState[2 *((3 * threads + thread) * 4 + 2) + player] = state[3];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((0 * threads + thread) * 4 + 3) + player] = state[0];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((1 * threads + thread) * 4 + 3) + player] = state[1];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((2 * threads + thread) * 4 + 3) + player] = state[2];
+  if (LOCAL_LINEAR == 3) lyraState[2 *((3 * threads + thread) * 4 + 3) + player] = state[3];
 
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
@@ -687,25 +672,22 @@ __kernel void search7(__global uchar* sharedDataBuf)
 // lyra2 p3
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search8(__global uint* hashes, __global uchar* sharedDataBuf)
+__kernel void search8(__global uint* hashes, __global uchar* sharedDataBuf, uint threads)
 {
     int gid = get_global_id(0);
 
+    uint thread = gid - get_global_offset(0);
     __global hash2_t *hash = (__global hash2_t *)(hashes + (8* (gid-get_global_offset(0))));
-    __global lyraState_t *lyraState = (__global lyraState_t *)(sharedDataBuf + ((8 * 4  * 4) * (gid-get_global_offset(0))));
+    __global ulong4 *lyraState = (__global ulong4 *)(sharedDataBuf);
 
     ulong ttr;
 
     ulong2 state[8];
     // 1. load lyra State
-    state[0] = lyraState->hl16[0];
-    state[1] = lyraState->hl16[1];
-    state[2] = lyraState->hl16[2];
-    state[3] = lyraState->hl16[3];
-    state[4] = lyraState->hl16[4];
-    state[5] = lyraState->hl16[5];
-    state[6] = lyraState->hl16[6];
-    state[7] = lyraState->hl16[7];
+    ((ulong4 *)state)[0] = lyraState[threads * 0 + thread];
+    ((ulong4 *)state)[1] = lyraState[threads * 1 + thread];
+    ((ulong4 *)state)[2] = lyraState[threads * 2 + thread];
+    ((ulong4 *)state)[3] = lyraState[threads * 3 + thread];
 
     // 2. rounds
     for (int i = 0; i < 12; ++i)
