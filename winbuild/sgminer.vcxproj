@@ -291,6 +291,8 @@
     <ClCompile Include="..\algorithm\lyra2h.c" />
     <ClCompile Include="..\algorithm\mtp_algo.c" />
     <ClCompile Include="..\algorithm\allium.c" />
+    <ClCompile Include="..\algorithm\keccak_tiny.c" />
+    <ClCompile Include="..\algorithm\heavyhash-gate.c" />
     <ClCompile Include="..\algorithm\neoscrypt.c" />
     <ClCompile Include="..\algorithm\pascal.c" />
     <ClCompile Include="..\algorithm\phi.c" />
@@ -407,6 +409,8 @@
     <ClInclude Include="..\algorithm\lyra2h.h" />
     <ClInclude Include="..\algorithm\mtp_algo.h" />
     <ClInclude Include="..\algorithm\allium.h" />
+    <ClCompile Include="..\algorithm\keccak_tiny.h" />
+    <ClCompile Include="..\algorithm\heavyhash-gate.h" />
     <ClInclude Include="..\algorithm\neoscrypt.h" />
     <ClInclude Include="..\algorithm\pascal.h" />
     <ClInclude Include="..\algorithm\phi.h" />

@@ -57,6 +57,8 @@
 #include "algorithm/x25x.h"
 #include "algorithm/argon2d/argon2d.h"
 #include "algorithm/mtp_algo.h"
+#include "algorithm/heavyhash-gate.h"
+#include "algorithm/keccak_tiny.h"
 
 #include "compat.h"
 
@@ -1847,6 +1849,42 @@ static cl_int queue_blake_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_un
   return status;
 }
 
+static cl_int queue_heavyhash_kernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads) {
+  cl_kernel *kernel = &clState->kernel;
+  unsigned int num = 0;
+  cl_int status = 0;
+  cl_ulong le_target;
+
+  le_target = *(cl_ulong *)(blk->work->device_target + 24);
+  flip80(clState->cldata, blk->work->data);
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
+
+    uint32_t edata[20];
+    uint32_t seed[8];
+
+    uint16_t matrix[64][64];
+    struct xoshiro_state state;
+
+    memcpy(edata, clState->cldata, 80);
+
+    kt_sha3_256(seed, 32, edata+1, 32);
+
+    for (int i = 0; i < 4; ++i) {
+        state.s[i] = le64dec(seed + 2*i);
+    }
+
+    generate_matrix(matrix, &state);
+
+    status = clEnqueueWriteBuffer(clState->commandQueue, clState->padbuffer8, true, 0, 64 * 64 * 2, matrix, 0, NULL, NULL);
+
+  CL_SET_ARG(clState->CLbuffer0);
+  CL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->outputBuffer);
+  CL_SET_ARG(le_target);
+
+  return status;
+}
+
 extern pthread_mutex_t eth_nonce_lock;
 extern uint32_t eth_nonce;
 static const int eth_future_epochs = 6;
@@ -2563,6 +2601,7 @@ static algorithm_settings_t algos[] = {
   { "allium_navi", ALGO_ALLIUM_NAVI, "", 1, 128, 128, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 2 * 8 * 4194304, 0, allium_regenhash, blake256_midstate, blake256_prepare_work, queue_allium_kernel, gen_hash, NULL },
   { "mtp"   , ALGO_MTP   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, 0,0, mtp_regenhash   , NULL, NULL, queue_mtp_kernel   , gen_hash, NULL },
   { "mtp_vega"   , ALGO_MTP   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 1, 0,0, mtp_regenhash   , NULL, NULL, queue_mtp_kernel   , gen_hash, NULL },
+  { "heavyhash"   , ALGO_HEAVYHASH   , "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 0, 0,0, heavyhash_regenhash   , NULL, NULL, queue_heavyhash_kernel   , gen_hash, NULL },
 
   // kernels starting from this will have difficulty calculated by using fuguecoin algorithm
 #define A_FUGUE(a, b, c, qf) \

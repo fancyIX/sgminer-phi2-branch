@@ -1024,6 +1024,10 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
     bufsize = (size_t)cgpu->throughput * AR2D_MEM_PER_BATCH;
     readbufsize = 80;
   }
+  else if (algorithm->type == ALGO_HEAVYHASH) {
+    bufsize = 64 * 64 * 2;
+    readbufsize = 80;
+  }
   else {
     bufsize = (size_t)algorithm->rw_buffer_size;
     applog(LOG_DEBUG, "Buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
