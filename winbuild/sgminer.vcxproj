@@ -409,8 +409,8 @@
     <ClInclude Include="..\algorithm\lyra2h.h" />
     <ClInclude Include="..\algorithm\mtp_algo.h" />
     <ClInclude Include="..\algorithm\allium.h" />
-    <ClCompile Include="..\algorithm\keccak_tiny.h" />
-    <ClCompile Include="..\algorithm\heavyhash-gate.h" />
+    <ClInclude Include="..\algorithm\keccak_tiny.h" />
+    <ClInclude Include="..\algorithm\heavyhash-gate.h" />
     <ClInclude Include="..\algorithm\neoscrypt.h" />
     <ClInclude Include="..\algorithm\pascal.h" />
     <ClInclude Include="..\algorithm\phi.h" />

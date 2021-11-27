@@ -11,7 +11,8 @@
 #include <math.h>
 #include <stdbool.h>
 
-#define bswap_32( a ) __builtin_bswap32( a )
+#define bswap_32(x) ((((x) << 24) & 0xff000000u) | (((x) << 8) & 0x00ff0000u) \
+	| (((x) >> 8) & 0x0000ff00u) | (((x) >> 24) & 0x000000ffu))
 
 static inline void mm128_bswap32_80( void *d, void *s )
 {
@@ -169,7 +170,7 @@ int heavyhash_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t 
     uint16_t matrix[64][64];
     struct xoshiro_state state;
 
-    kt_sha3_256(seed, 32, data+1, 32);
+    kt_sha3_256((uint8_t *)seed, 32, (uint8_t *)(data+1), 32);
 
     for (int i = 0; i < 4; ++i) {
         state.s[i] = le64dec(seed + 2*i);
@@ -178,7 +179,7 @@ int heavyhash_test(unsigned char *pdata, const unsigned char *ptarget, uint32_t 
     generate_matrix(matrix, &state);
 
     data[19] = htobe32(nonce);
-    heavyhash(matrix, data, 80, ohash);
+	heavyhash(matrix, (uint8_t *)data, 80, (uint8_t *)ohash);
     
 	tmp_hash7 = be32toh(ohash[7]);
 
@@ -202,7 +203,7 @@ void heavyhash_regenhash(struct work *work)
     uint16_t matrix[64][64];
     struct xoshiro_state state;
 
-    kt_sha3_256(seed, 32, data+1, 32);
+    kt_sha3_256((uint8_t *)seed, 32, (uint8_t*) (data+1), 32);
 
     for (int i = 0; i < 4; ++i) {
         state.s[i] = le64dec(seed + 2*i);
@@ -211,7 +212,7 @@ void heavyhash_regenhash(struct work *work)
     generate_matrix(matrix, &state);
 
     data[19] = htobe32(*nonce);
-    heavyhash(matrix, data, 80, ohash);
+	heavyhash(matrix, (uint8_t *)data, 80, (uint8_t *)ohash);
 }
 
 bool scanhash_heavyhash(struct thr_info *thr, const unsigned char *pmidstate,
@@ -232,7 +233,7 @@ bool scanhash_heavyhash(struct thr_info *thr, const unsigned char *pmidstate,
 
     mm128_bswap32_80( edata, pdata );
 
-    kt_sha3_256(seed, 32, edata+1, 32);
+    kt_sha3_256((uint8_t *) seed, 32, (uint8_t *) (edata+1), 32);
 
     for (int i = 0; i < 4; ++i) {
         state.s[i] = le64dec(seed + 2*i);
@@ -243,7 +244,7 @@ bool scanhash_heavyhash(struct thr_info *thr, const unsigned char *pmidstate,
     do
     {
         edata[19] = n;
-        heavyhash(matrix, edata, 80, hash);
+		heavyhash(matrix, (uint8_t *)edata, 80, (uint8_t *)hash);
         /*if ( unlikely( valid_hash( hash, ptarget )) )
         {
             pdata[19] = bswap_32(n);

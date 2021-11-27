@@ -1867,7 +1867,7 @@ static cl_int queue_heavyhash_kernel(_clState *clState, dev_blk_ctx *blk, __mayb
 
     memcpy(edata, clState->cldata, 80);
 
-    kt_sha3_256(seed, 32, edata+1, 32);
+	kt_sha3_256((uint8_t *)seed, 32, (uint8_t *)(edata + 1), 32);
 
     for (int i = 0; i < 4; ++i) {
         state.s[i] = le64dec(seed + 2*i);
