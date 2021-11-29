@@ -1025,7 +1025,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
     readbufsize = 80;
   }
   else if (algorithm->type == ALGO_HEAVYHASH) {
-    bufsize = 64 * 64 * 2;
+    bufsize = 64 * 64 * 4;
     readbufsize = 80;
   }
   else {

@@ -36,8 +36,16 @@ typedef union {
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search(__global uint *header, __global ushort* matrix, __global uint* output, const ulong target)
+__kernel void search(__global uint *header, __global uint* gmatrix, __global uint* output, const ulong target)
 {
+    __local ulong2 matrix[1024];
+
+    uint tid = get_local_id(0);
+    __global ulong2 *cp = (__global ulong2 *) gmatrix;
+    for (int i = 0; i < (1024 / WORKSIZE); i++) {
+		matrix[tid + i * WORKSIZE] = cp[tid + i * WORKSIZE];
+	}
+
     uint gid = get_global_id(0);
     hash_t hash;
 
@@ -51,8 +59,8 @@ __kernel void search(__global uint *header, __global ushort* matrix, __global ui
     uchar hash_second[32];
     uchar hash_xored[32];
 
-    ushort vector[64];
-    ushort product[64];
+    uint vector[64];
+    uint product[64];
 
     ((uchar *) pdata)[80] = 0x06;
     ((uchar *) pdata)[135] = 0x80;
@@ -69,9 +77,28 @@ __kernel void search(__global uint *header, __global ushort* matrix, __global ui
     }
 
     for (int i = 0; i < 64; ++i) {
-        ushort sum = 0;
-        for (int j = 0; j < 64; ++j) {
-            sum += matrix[i * 64 + j] * vector[j];
+        uint sum = 0;
+        for (int k = 0; k < 4; k++) {
+            ulong2 buf0 = matrix[i * 16 + k * 4 + 0];
+            ulong2 buf1 = matrix[i * 16 + k * 4 + 1];
+            ulong2 buf2 = matrix[i * 16 + k * 4 + 2];
+            ulong2 buf3 = matrix[i * 16 + k * 4 + 3];
+            uint *m0 = (uint *)&buf0;
+            for (int j = 0; j < 4; j++) {
+                sum += m0[j] * vector[(k * 4 + 0) * 4 + j];
+            }
+            uint *m1 = (uint *)&buf1;
+            for (int j = 0; j < 4; j++) {
+                sum += m1[j] * vector[(k * 4 + 1) * 4 + j];
+            }
+            uint *m2 = (uint *)&buf2;
+            for (int j = 0; j < 4; j++) {
+                sum += m2[j] * vector[(k * 4 + 2) * 4 + j];
+            }
+            uint *m3 = (uint *)&buf3;
+            for (int j = 0; j < 4; j++) {
+                sum += m3[j] * vector[(k * 4 + 3) * 4 + j];
+            }
         }
         product[i] = (sum >> 10);
     }
