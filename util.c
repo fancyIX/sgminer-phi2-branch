@@ -2527,7 +2527,7 @@ bool subscribe_extranonce(struct pool *pool)
   res_val = json_object_get(val, "result");
   err_val = json_object_get(val, "error");
 
-  if (!res_val || json_is_false(res_val) || (err_val && !json_is_null(err_val)))  {
+  if (!res_val || json_is_false(res_val) || (err_val && !json_is_null(err_val) && !json_is_false(err_val)))  {
     char *ss;
 
     if (err_val) {

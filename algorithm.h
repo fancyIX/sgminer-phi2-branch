@@ -13,6 +13,7 @@
 
 typedef enum {
   ALGO_MTP,
+  ALGO_HEAVYHASH,
   ALGO_UNK,
   ALGO_ALLIUM,
   ALGO_ALLIUM_NAVI,
