@@ -53,7 +53,7 @@ __kernel void search(__global uint *header, __constant uint* gmatrix, __global u
     uchar hash_xored[32];
 
     __local uint vector[64 * WORKSIZE];
-    __local uint product[64 * WORKSIZE];
+    uint product[64];
 
     ((uchar *) pdata)[80] = 0x06;
     ((uchar *) pdata)[135] = 0x80;
@@ -95,11 +95,11 @@ __kernel void search(__global uint *header, __constant uint* gmatrix, __global u
                 sum += m3[j] * vector[((k * 4 + 3) * 4 + j) * WORKSIZE + tid];
             }
         }
-        product[(i) * WORKSIZE + tid] = (sum >> 10);
+        product[(i)] = (sum >> 10);
     }
 
     for (int i = 0; i < 32; ++i) {
-        hash_second[i] = (product[(2*i) * WORKSIZE + tid] << 4) | (product[(2*i+1) * WORKSIZE + tid]);
+        hash_second[i] = (product[(2*i)] << 4) | (product[(2*i+1)]);
     }
 
     for (int i = 0; i < 32; ++i) {
