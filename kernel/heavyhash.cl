@@ -70,9 +70,6 @@ __kernel void search(__global uint *header, __constant uint* gmatrix, __global u
 
     for (int i = 0; i < 64; ++i) {
         uint sum = 0;
-#ifdef __gfx900__
-        #pragma nounroll
-#endif
         for (int k = 0; k < 4; k++) {
             ulong2 buf0 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 0];
             ulong2 buf1 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 1];
