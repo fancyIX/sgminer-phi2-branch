@@ -36,16 +36,9 @@ typedef union {
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search(__global uint *header, __global uint* gmatrix, __global uint* output, const ulong target)
+__kernel void search(__global uint *header, __constant uint* gmatrix, __global uint* output, const ulong target)
 {
-    __local ulong2 matrix[1024];
-
     uint tid = get_local_id(0);
-    __global ulong2 *cp = (__global ulong2 *) gmatrix;
-    for (int i = 0; i < (1024 / WORKSIZE); i++) {
-		matrix[tid + i * WORKSIZE] = cp[tid + i * WORKSIZE];
-	}
-
     uint gid = get_global_id(0);
     hash_t hash;
 
@@ -59,7 +52,7 @@ __kernel void search(__global uint *header, __global uint* gmatrix, __global uin
     uchar hash_second[32];
     uchar hash_xored[32];
 
-    uint vector[64];
+    __local uint vector[64 * WORKSIZE];
     uint product[64];
 
     ((uchar *) pdata)[80] = 0x06;
@@ -70,44 +63,40 @@ __kernel void search(__global uint *header, __global uint* gmatrix, __global uin
     for (int i = 0; i < 4; i++) {
         ((ulong *)hash_first)[i] = ((ulong *) pdata)[i];
     }
-
     for (int i = 0; i < 32; ++i) {
-        vector[2*i] = (hash_first[i] >> 4);
-        vector[2*i+1] = hash_first[i] & 0xF;
+        vector[(2*i) * WORKSIZE + tid] = (hash_first[i] >> 4);
+        vector[(2*i+1) * WORKSIZE + tid] = hash_first[i] & 0xF;
     }
 
     for (int i = 0; i < 64; ++i) {
         uint sum = 0;
-#ifdef __gfx900__
-        #pragma nounroll
-#endif
         for (int k = 0; k < 4; k++) {
-            ulong2 buf0 = matrix[i * 16 + k * 4 + 0];
-            ulong2 buf1 = matrix[i * 16 + k * 4 + 1];
-            ulong2 buf2 = matrix[i * 16 + k * 4 + 2];
-            ulong2 buf3 = matrix[i * 16 + k * 4 + 3];
+            ulong2 buf0 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 0];
+            ulong2 buf1 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 1];
+            ulong2 buf2 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 2];
+            ulong2 buf3 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 3];
             uint *m0 = (uint *)&buf0;
             for (int j = 0; j < 4; j++) {
-                sum += m0[j] * vector[(k * 4 + 0) * 4 + j];
+                sum += m0[j] * vector[((k * 4 + 0) * 4 + j) * WORKSIZE + tid];
             }
             uint *m1 = (uint *)&buf1;
             for (int j = 0; j < 4; j++) {
-                sum += m1[j] * vector[(k * 4 + 1) * 4 + j];
+                sum += m1[j] * vector[((k * 4 + 1) * 4 + j) * WORKSIZE + tid];
             }
             uint *m2 = (uint *)&buf2;
             for (int j = 0; j < 4; j++) {
-                sum += m2[j] * vector[(k * 4 + 2) * 4 + j];
+                sum += m2[j] * vector[((k * 4 + 2) * 4 + j) * WORKSIZE + tid];
             }
             uint *m3 = (uint *)&buf3;
             for (int j = 0; j < 4; j++) {
-                sum += m3[j] * vector[(k * 4 + 3) * 4 + j];
+                sum += m3[j] * vector[((k * 4 + 3) * 4 + j) * WORKSIZE + tid];
             }
         }
-        product[i] = (sum >> 10);
+        product[(i)] = (sum >> 10);
     }
 
     for (int i = 0; i < 32; ++i) {
-        hash_second[i] = (product[2*i] << 4) | (product[2*i+1]);
+        hash_second[i] = (product[(2*i)] << 4) | (product[(2*i+1)]);
     }
 
     for (int i = 0; i < 32; ++i) {
