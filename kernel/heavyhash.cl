@@ -200,20 +200,27 @@ static void keccak_f1600_round(uint2* a, uint r)
 
 static void keccak_f1600_no_absorb(uint2* a)
 {
+	#pragma nounroll
     for (uint r = 0; r < 24;)
 	{
 		keccak_f1600_round(a, r++);
 	} 
 }
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search(__global uint *header, __constant uint* gmatrix, __global uint* output, const ulong target)
+__attribute__((reqd_work_group_size(64, 1, 1)))
+__kernel void search(__constant uint *header, __constant uchar* gmatrix, __global uint* output, const ulong target)
 {
     uint tid = get_local_id(0);
     uint gid = get_global_id(0);
-    hash_t hash;
+
+	__local ulong2 lmatrix[64 * 4];
+	#pragma unroll
+	for (int i = 0; i < 4; i++) {
+		lmatrix[tid * 4 + i] = ((__constant ulong2 *) gmatrix)[tid * 4 + i];
+	}
 
     uint pdata[50] = {0};
+
     for (int i = 0; i < 19; i++) {
         pdata[i] = header[i];
     }
@@ -223,7 +230,7 @@ __kernel void search(__global uint *header, __constant uint* gmatrix, __global u
     uchar hash_second[32];
     uchar hash_xored[32];
 
-    __local uint vector[64 * WORKSIZE];
+    uint vector[64];
     uint product[64];
 
     ((uchar *) pdata)[80] = 0x06;
@@ -234,37 +241,26 @@ __kernel void search(__global uint *header, __constant uint* gmatrix, __global u
     for (int i = 0; i < 4; i++) {
         ((ulong *)hash_first)[i] = ((ulong *) pdata)[i];
     }
+	#pragma unroll
     for (int i = 0; i < 32; ++i) {
-        vector[(2*i) * WORKSIZE + tid] = (hash_first[i] >> 4);
-        vector[(2*i+1) * WORKSIZE + tid] = hash_first[i] & 0xF;
+        vector[(2*i)] = (hash_first[i] >> 4);
+        vector[(2*i+1)] = hash_first[i] & 0xF;
     }
 
+    #pragma nounroll
     for (int i = 0; i < 64; ++i) {
         uint sum = 0;
-        for (int k = 0; k < 4; k++) {
-            ulong2 buf0 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 0];
-            ulong2 buf1 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 1];
-            ulong2 buf2 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 2];
-            ulong2 buf3 = ((__constant ulong2 *)gmatrix)[i * 16 + k * 4 + 3];
-            uint *m0 = (uint *)&buf0;
-            for (int j = 0; j < 4; j++) {
-                sum += m0[j] * vector[((k * 4 + 0) * 4 + j) * WORKSIZE + tid];
-            }
-            uint *m1 = (uint *)&buf1;
-            for (int j = 0; j < 4; j++) {
-                sum += m1[j] * vector[((k * 4 + 1) * 4 + j) * WORKSIZE + tid];
-            }
-            uint *m2 = (uint *)&buf2;
-            for (int j = 0; j < 4; j++) {
-                sum += m2[j] * vector[((k * 4 + 2) * 4 + j) * WORKSIZE + tid];
-            }
-            uint *m3 = (uint *)&buf3;
-            for (int j = 0; j < 4; j++) {
-                sum += m3[j] * vector[((k * 4 + 3) * 4 + j) * WORKSIZE + tid];
-            }
-        }
-        product[(i)] = (sum >> 10);
+		#pragma unroll
+		for (int j = 0; j < 4; j++) {
+			#pragma unroll
+			for (int k = 0; k < 16; k++) {
+				uint mv = ((__local uchar *)lmatrix)[(4 * i + j) * 16 + k];
+				sum += mv * vector[j * 16 + k];
+			}
+		}
+		product[(i)] = (sum >> 10);
     }
+
 
     for (int i = 0; i < 32; ++i) {
         hash_second[i] = (product[(2*i)] << 4) | (product[(2*i+1)]);
@@ -274,21 +270,20 @@ __kernel void search(__global uint *header, __constant uint* gmatrix, __global u
         hash_xored[i] = hash_first[i] ^ hash_second[i];
     }
 
-    uint tmp[50] = {0};
+    for (int i = 0; i < 50; i++) {
+		pdata[i] = 0;
+	}
+
     for (int i = 0; i < 32; i++) {
-        ((uchar *) tmp)[i] = hash_xored[i];
+        ((uchar *) pdata)[i] = hash_xored[i];
     }
 
-    ((uchar *)tmp)[32] = 0x06;
-    ((uchar *)tmp)[135] = 0x80;
+    ((uchar *)pdata)[32] = 0x06;
+    ((uchar *)pdata)[135] = 0x80;
 
-    keccak_f1600_no_absorb(tmp);
+    keccak_f1600_no_absorb(pdata);
 
-    for (int i = 0; i < 4; i++) {
-        hash.h8[i] = ((ulong *) tmp)[i];
-    }
-
-    bool result = ( hash.h8[3] <= target);
+    bool result = ( ((ulong *) pdata)[3] <= target);
     if (result) {
 		output[atomic_inc(output + 0xFF)] = SWAP4(gid);
 	}
