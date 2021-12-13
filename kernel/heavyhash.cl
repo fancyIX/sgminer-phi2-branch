@@ -207,16 +207,17 @@ static void keccak_f1600_no_absorb(uint2* a)
 	} 
 }
 
-__attribute__((reqd_work_group_size(64, 1, 1)))
+__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search(__constant uint *header, __constant uchar* gmatrix, __global uint* output, const ulong target)
 {
     uint tid = get_local_id(0);
     uint gid = get_global_id(0);
 
 	__local ulong2 lmatrix[64 * 4];
+	uint round = 256 / WORKSIZE;
 	#pragma unroll
-	for (int i = 0; i < 4; i++) {
-		lmatrix[tid * 4 + i] = ((__constant ulong2 *) gmatrix)[tid * 4 + i];
+	for (int i = 0; i < round; i++) {
+		lmatrix[tid * round + i] = ((__constant ulong2 *) gmatrix)[tid * round + i];
 	}
 
     uint pdata[50] = {0};
