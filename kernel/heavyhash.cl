@@ -226,57 +226,52 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
     }
     pdata[19] = gid;
 
-    uchar hash_first[32];
     uchar hash_second[32];
-    uchar hash_xored[32];
 
     uint vector[64];
-    uint product[64];
 
     ((uchar *) pdata)[80] = 0x06;
     ((uchar *) pdata)[135] = 0x80;
 
     keccak_f1600_no_absorb(pdata);
 
-    for (int i = 0; i < 4; i++) {
-        ((ulong *)hash_first)[i] = ((ulong *) pdata)[i];
-    }
 	#pragma unroll
     for (int i = 0; i < 32; ++i) {
-        vector[(2*i)] = (hash_first[i] >> 4);
-        vector[(2*i+1)] = hash_first[i] & 0xF;
+        vector[(2*i)] = (((uchar *) pdata)[i] >> 4);
+        vector[(2*i+1)] = ((uchar *) pdata)[i] & 0xF;
     }
 
-    #pragma nounroll
-    for (int i = 0; i < 64; ++i) {
-        uint sum = 0;
+	volatile uint sum = 0;
+	volatile uint sum2 = 0;
+    for (int i = 0; i < 32; ++i) {
+        sum = 0;
 		#pragma unroll
 		for (int j = 0; j < 4; j++) {
 			#pragma unroll
 			for (int k = 0; k < 16; k++) {
-				uint mv = ((__local uchar *)lmatrix)[(4 * i + j) * 16 + k];
+				uint mv = ((__local uchar *)lmatrix)[(4 * (i * 2) + j) * 16 + k];
 				sum += mv * vector[j * 16 + k];
 			}
 		}
-		product[(i)] = (sum >> 10);
+		sum2 = 0;
+		#pragma unroll
+		for (int j = 0; j < 4; j++) {
+			#pragma unroll
+			for (int k = 0; k < 16; k++) {
+				uint mv = ((__local uchar *)lmatrix)[(4 * (i * 2 + 1) + j) * 16 + k];
+				sum2 += mv * vector[j * 16 + k];
+			}
+		}
+		hash_second[i] = ((sum >> 10) << 4) | (sum2 >> 10);
     }
-
-
+    #pragma unroll
     for (int i = 0; i < 32; ++i) {
-        hash_second[i] = (product[(2*i)] << 4) | (product[(2*i+1)]);
+        ((uchar *) pdata)[i] = ((uchar *) pdata)[i] ^ hash_second[i];
     }
 
-    for (int i = 0; i < 32; ++i) {
-        hash_xored[i] = hash_first[i] ^ hash_second[i];
-    }
-
-    for (int i = 0; i < 50; i++) {
+    for (int i = 8; i < 50; i++) {
 		pdata[i] = 0;
 	}
-
-    for (int i = 0; i < 32; i++) {
-        ((uchar *) pdata)[i] = hash_xored[i];
-    }
 
     ((uchar *)pdata)[32] = 0x06;
     ((uchar *)pdata)[135] = 0x80;
