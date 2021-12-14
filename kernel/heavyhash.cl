@@ -242,7 +242,7 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
         vector[(2*i+1)] = ((uchar *) pdata)[i] & 0xF;
     }
 
-#ifdef __gfx803__
+#if defined(__gfx803__) || defined(__Ellesmere__) || defined(__Iceland__)
 	volatile uint sum = 0;
 	volatile uint sum2 = 0;
 #else
