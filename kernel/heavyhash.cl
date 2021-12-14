@@ -242,8 +242,13 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
         vector[(2*i+1)] = ((uchar *) pdata)[i] & 0xF;
     }
 
+#ifdef __gfx803__
 	volatile uint sum = 0;
 	volatile uint sum2 = 0;
+#else
+	uint sum = 0;
+	uint sum2 = 0;
+#endif
     for (int i = 0; i < 32; ++i) {
         sum = 0;
 		#pragma unroll
