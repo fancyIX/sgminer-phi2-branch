@@ -71,7 +71,7 @@ void set_base_compiler_options(build_kernel_data *data)
 
   if (data->opencl_version < 1.1)
     strcat(data->compiler_options, " -D OCL1");
-  else if (strstr(data->source_filename, "heavyhash") == NULL) {
+  else {
     strcat(data->compiler_options, " -cl-std=CL2.0");
   }
 }
