@@ -228,6 +228,10 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 
     pdata_t pdata;
 
+	for (int i = 8; i < 50; i++) {
+		pdata.h4[i] = 0;
+	}
+
     for (int i = 0; i < 19; i++) {
         pdata.h4[i] = header[i];
     }
@@ -237,8 +241,8 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 
     uint vector[64];
 
-   pdata.h1[80] = 0x06;
-   pdata.h1[135] = 0x80;
+   pdata.h4[20] = 0x06;
+    pdata.h4[33] = SWAP4(0x80);
 
     keccak_f1600_no_absorb(pdata.h4);
 
@@ -285,8 +289,8 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 		pdata.h4[i] = 0;
 	}
 
-    pdata.h1[32] = 0x06;
-    pdata.h1[135] = 0x80;
+    pdata.h4[8] = 0x06;
+    pdata.h4[33] = SWAP4(0x80);
 
     keccak_f1600_no_absorb(pdata.h4);
 
