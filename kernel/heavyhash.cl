@@ -207,12 +207,6 @@ static void keccak_f1600_no_absorb(uint2* a)
 	} 
 }
 
-typedef union {
-    uchar h1[200];
-    uint h4[50];
-    ulong h8[25];
-} pdata_t;
-
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
 __kernel void search(__constant uint *header, __constant uchar* gmatrix, __global uint* output, const ulong target)
 {
@@ -226,26 +220,26 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 		lmatrix[tid * round + i] = ((__constant ulong2 *) gmatrix)[tid * round + i];
 	}
 
-    pdata_t pdata;
+    uint pdata[50] = {0};
 
     for (int i = 0; i < 19; i++) {
-        pdata.h4[i] = header[i];
+        pdata[i] = header[i];
     }
-    pdata.h4[19] = gid;
+    pdata[19] = gid;
 
     uchar hash_second[32];
 
     uint vector[64];
 
-   pdata.h1[80] = 0x06;
-   pdata.h1[135] = 0x80;
+    ((uchar *) pdata)[80] = 0x06;
+    ((uchar *) pdata)[135] = 0x80;
 
-    keccak_f1600_no_absorb(pdata.h4);
+    keccak_f1600_no_absorb(pdata);
 
 	#pragma unroll
     for (int i = 0; i < 32; ++i) {
-        vector[(2*i)] = (pdata.h1[i] >> 4);
-        vector[(2*i+1)] = pdata.h1[i] & 0xF;
+        vector[(2*i)] = (((uchar *) pdata)[i] >> 4);
+        vector[(2*i+1)] = ((uchar *) pdata)[i] & 0xF;
     }
 
 #if defined(__gfx803__) || defined(__Ellesmere__) || defined(__Iceland__)
@@ -278,19 +272,19 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
     }
     #pragma unroll
     for (int i = 0; i < 32; ++i) {
-        pdata.h1[i] = pdata.h1[i] ^ hash_second[i];
+        ((uchar *) pdata)[i] = ((uchar *) pdata)[i] ^ hash_second[i];
     }
 
     for (int i = 8; i < 50; i++) {
-		pdata.h4[i] = 0;
+		pdata[i] = 0;
 	}
 
-    pdata.h1[32] = 0x06;
-    pdata.h1[135] = 0x80;
+    ((uchar *)pdata)[32] = 0x06;
+    ((uchar *)pdata)[135] = 0x80;
 
-    keccak_f1600_no_absorb(pdata.h4);
+    keccak_f1600_no_absorb(pdata);
 
-    bool result = ( pdata.h8[3] <= target);
+    bool result = ( ((ulong *) pdata)[3] <= target);
     if (result) {
 		output[atomic_inc(output + 0xFF)] = SWAP4(gid);
 	}
