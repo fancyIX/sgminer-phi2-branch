@@ -223,21 +223,21 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 	uint round = 1024 / WORKSIZE;
 	#pragma unroll
 	for (int i = 0; i < round; i++) {
-		lmatrix[tid * round + i] = ((__constant ulong2 *) gmatrix)[tid * round + i];
+		lmatrix[tid + i * WORKSIZE] = ((__constant ulong2 *) gmatrix)[tid + i * WORKSIZE];
 	}
 
     pdata_t pdata;
-
-#pragma unroll
-	for (int i = 8; i < 50; i++) {
-		pdata.h4[i] = 0;
-	}
 
 #pragma unroll
     for (int i = 0; i < 19; i++) {
         pdata.h4[i] = header[i];
     }
     pdata.h4[19] = gid;
+
+	#pragma unroll
+	for (int i = 20; i < 50; i++) {
+		pdata.h4[i] = 0;
+	}
 
     uchar hash_second[32];
 
