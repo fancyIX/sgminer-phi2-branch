@@ -1862,7 +1862,7 @@ static cl_int queue_heavyhash_kernel(_clState *clState, dev_blk_ctx *blk, __mayb
     uint32_t edata[20];
     uint32_t seed[8];
 
-    uint8_t matrix[64][64];
+    uint32_t matrix[64][64];
     struct xoshiro_state state;
 
     memcpy(edata, clState->cldata, 80);
@@ -1875,7 +1875,7 @@ static cl_int queue_heavyhash_kernel(_clState *clState, dev_blk_ctx *blk, __mayb
 
     generate_matrix(matrix, &state);
 
-    status = clEnqueueWriteBuffer(clState->commandQueue, clState->padbuffer8, true, 0, 64 * 64, matrix, 0, NULL, NULL);
+    status = clEnqueueWriteBuffer(clState->commandQueue, clState->padbuffer8, true, 0, 64 * 64 * 4, matrix, 0, NULL, NULL);
 
   CL_SET_ARG(clState->CLbuffer0);
   CL_SET_ARG(clState->padbuffer8);

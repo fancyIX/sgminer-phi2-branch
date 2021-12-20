@@ -60,7 +60,7 @@ __constant uint2 const Keccak_f1600_RC[24] = {
 };
 
 #if PLATFORM == OPENCL_PLATFORM_NVIDIA && COMPUTE >= 35
-static uint2 ROL2(const uint2 a, const int offset) {
+static inline uint2 ROL2(const uint2 a, const int offset) {
 	uint2 result;
 	if (offset >= 32) {
 		asm("shf.l.wrap.b32 %0, %1, %2, %3;" : "=r"(result.x) : "r"(a.x), "r"(a.y), "r"(offset));
@@ -74,7 +74,7 @@ static uint2 ROL2(const uint2 a, const int offset) {
 }
 #elif PLATFORM == OPENCL_PLATFORM_AMD
 #pragma OPENCL EXTENSION cl_amd_media_ops : enable
-static uint2 ROL2(const uint2 vv, const int r)
+static inline uint2 ROL2(const uint2 vv, const int r)
 {
 	if (r <= 32)
 	{
@@ -86,7 +86,7 @@ static uint2 ROL2(const uint2 vv, const int r)
 	}
 }
 #else
-static uint2 ROL2(const uint2 v, const int n)
+static inline uint2 ROL2(const uint2 v, const int n)
 {
 	uint2 result;
 	if (n <= 32)
@@ -103,7 +103,7 @@ static uint2 ROL2(const uint2 v, const int n)
 }
 #endif
 
-static void chi(uint2 * a, const uint n, const uint2 * t)
+static inline void chi(uint2 * a, const uint n, const uint2 * t)
 {
 	a[n+0] = bitselect(t[n + 0] ^ t[n + 2], t[n + 0], t[n + 1]);
 	a[n+1] = bitselect(t[n + 1] ^ t[n + 3], t[n + 1], t[n + 2]);
@@ -112,7 +112,7 @@ static void chi(uint2 * a, const uint n, const uint2 * t)
 	a[n+4] = bitselect(t[n + 4] ^ t[n + 1], t[n + 4], t[n + 0]);
 }
 
-static void keccak_f1600_round(uint2* a, uint r)
+static inline void keccak_f1600_round(uint2* a, uint r)
 {
 	uint2 t[25];
 	uint2 u;
@@ -198,7 +198,7 @@ static void keccak_f1600_round(uint2* a, uint r)
 	chi(a, 20, t);
 }
 
-static void keccak_f1600_no_absorb(uint2* a)
+static inline void keccak_f1600_no_absorb(uint2* a)
 {
 	#pragma nounroll
     for (uint r = 0; r < 24;)
@@ -219,8 +219,8 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
     uint tid = get_local_id(0);
     uint gid = get_global_id(0);
 
-	__local ulong2 lmatrix[64 * 4];
-	uint round = 256 / WORKSIZE;
+	__local ulong2 lmatrix[64 * 4 * 4];
+	uint round = 1024 / WORKSIZE;
 	#pragma unroll
 	for (int i = 0; i < round; i++) {
 		lmatrix[tid * round + i] = ((__constant ulong2 *) gmatrix)[tid * round + i];
@@ -228,10 +228,12 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 
     pdata_t pdata;
 
+#pragma unroll
 	for (int i = 8; i < 50; i++) {
 		pdata.h4[i] = 0;
 	}
 
+#pragma unroll
     for (int i = 0; i < 19; i++) {
         pdata.h4[i] = header[i];
     }
@@ -254,37 +256,33 @@ __kernel void search(__constant uint *header, __constant uchar* gmatrix, __globa
 
 #if defined(__gfx803__) || defined(__Ellesmere__) || defined(__Iceland__)
 	volatile uint sum = 0;
-	volatile uint sum2 = 0;
 #else
 	uint sum = 0;
-	uint sum2 = 0;
 #endif
-    for (int i = 0; i < 32; ++i) {
+
+    for (int i = 0; i < 64; ++i) {
         sum = 0;
 		#pragma unroll
 		for (int j = 0; j < 4; j++) {
 			#pragma unroll
 			for (int k = 0; k < 16; k++) {
-				uint mv = ((__local uchar *)lmatrix)[(4 * (i * 2) + j) * 16 + k];
-				sum += mv * vector[j * 16 + k];
+				uint mv = ((__local uint *)lmatrix)[(4 * (i) + j) * 16 + k];
+				sum = mad24(mv, vector[j * 16 + k], sum);
 			}
 		}
-		sum2 = 0;
-		#pragma unroll
-		for (int j = 0; j < 4; j++) {
-			#pragma unroll
-			for (int k = 0; k < 16; k++) {
-				uint mv = ((__local uchar *)lmatrix)[(4 * (i * 2 + 1) + j) * 16 + k];
-				sum2 += mv * vector[j * 16 + k];
-			}
+		if ((i & 1) == 0) {
+			hash_second[i >> 1] = ((sum >> 10) << 4);
 		}
-		hash_second[i] = ((sum >> 10) << 4) | (sum2 >> 10);
+		if ((i & 1) == 1) {
+			hash_second[i >> 1] = hash_second[i >> 1] | (sum >> 10);
+		}
     }
     #pragma unroll
     for (int i = 0; i < 32; ++i) {
         pdata.h1[i] = pdata.h1[i] ^ hash_second[i];
     }
 
+    #pragma unroll
     for (int i = 8; i < 50; i++) {
 		pdata.h4[i] = 0;
 	}
