@@ -318,14 +318,14 @@ inline uint __byte_perm(uint a, uint b, uint p) {
 }
 
 #define SHIFT64_16(hi, lo)    __byte_perm(lo, hi, 0x05040302)
-#define A(ret, r, v, u)             __shfl_sync(ret, r[v], u)
-#define S(ret, r, idx, l)            {uint a0; uint a1; A(a0, r, idx, (l+1)); A(a1, r, idx, l); ret = SHIFT64_16( a0, a1);}
+#define A_GR(ret, r, v, u)             __shfl_sync(ret, r[v], u)
+#define S_GR(ret, r, idx, l)            {uint a0; uint a1; A_GR(a0, r, idx, (l+1)); A_GR(a1, r, idx, l); ret = SHIFT64_16( a0, a1);}
 
-#define DOUBLE_ODD(ret, r, i, bc)        {uint s0; uint s1; S(s0, r, i, (bc)); A(s1, r, i, (bc) + 1); ret = ( s0 ^ s1 );}
-#define DOUBLE_EVEN(ret, r, i, bc)        {uint s0; uint s1; S(s0, r, i, (bc)); A(s1, r, i, (bc)    ); ret = ( s0 ^ s1 );}
+#define DOUBLE_ODD(ret, r, i, bc)        {uint s0; uint s1; S_GR(s0, r, i, (bc)); A_GR(s1, r, i, (bc) + 1); ret = ( s0 ^ s1 );}
+#define DOUBLE_EVEN(ret, r, i, bc)        {uint s0; uint s1; S_GR(s0, r, i, (bc)); A_GR(s1, r, i, (bc)    ); ret = ( s0 ^ s1 );}
 
-#define SINGLE_ODD(ret, r, i, bc)        { S(ret, r, i, (bc)) }
-#define SINGLE_EVEN(ret, r, i, bc)        { A(ret, r, i, (bc)) }
+#define SINGLE_ODD(ret, r, i, bc)        { S_GR(ret, r, i, (bc)) }
+#define SINGLE_EVEN(ret, r, i, bc)        { A_GR(ret, r, i, (bc)) }
 
 #define G256_MixFunction_quad(r) \
 { \
@@ -406,16 +406,16 @@ PRAGMA_UNROLL \
 
 
 
-#define merge8(z,x,y) { \
+#define merge8_GR(z,x,y) { \
 	z=__byte_perm(x, y, 0x05010400); \
 }
 
-#define SWAP8(x,y) { \
+#define SWAP8_GR(x,y) { \
 	x=__byte_perm(x, y, 0x05040100); \
 	y=__byte_perm(x, y, 0x07060302); \
 }
 
-#define SWAP4(x,y) { \
+#define SWAP4_GR(x,y) { \
 	t = (y<<4); \
 	t = (x ^ t); \
 	t = 0xf0f0f0f0UL & t; \
@@ -424,7 +424,7 @@ PRAGMA_UNROLL \
 	y=  y ^ t; \
 }
 
-#define SWAP2(x,y) { \
+#define SWAP2_GR(x,y) { \
 	t = (y<<2); \
 	t = (x ^ t); \
 	t = 0xccccccccUL & t; \
@@ -433,7 +433,7 @@ PRAGMA_UNROLL \
 	y=  y ^ t; \
 }
 
-#define SWAP1(x,y) { \
+#define SWAP1_GR(x,y) { \
 	t = (y+y); \
 	t = (x ^ t); \
 	t = 0xaaaaaaaaUL & t; \
@@ -472,29 +472,29 @@ PRAGMA_UNROLL \
 		} \
 	} \
  \
-	merge8(d[0], input[0], input[4]); \
-	merge8(d[1], other[0], other[4]); \
-	merge8(d[2], input[1], input[5]); \
-	merge8(d[3], other[1], other[5]); \
-	merge8(d[4], input[2], input[6]); \
-	merge8(d[5], other[2], other[6]); \
-	merge8(d[6], input[3], input[7]); \
-	merge8(d[7], other[3], other[7]); \
+	merge8_GR(d[0], input[0], input[4]); \
+	merge8_GR(d[1], other[0], other[4]); \
+	merge8_GR(d[2], input[1], input[5]); \
+	merge8_GR(d[3], other[1], other[5]); \
+	merge8_GR(d[4], input[2], input[6]); \
+	merge8_GR(d[5], other[2], other[6]); \
+	merge8_GR(d[6], input[3], input[7]); \
+	merge8_GR(d[7], other[3], other[7]); \
  \
-	SWAP1(d[0], d[1]); \
-	SWAP1(d[2], d[3]); \
-	SWAP1(d[4], d[5]); \
-	SWAP1(d[6], d[7]); \
+	SWAP1_GR(d[0], d[1]); \
+	SWAP1_GR(d[2], d[3]); \
+	SWAP1_GR(d[4], d[5]); \
+	SWAP1_GR(d[6], d[7]); \
  \
-	SWAP2(d[0], d[2]); \
-	SWAP2(d[1], d[3]); \
-	SWAP2(d[4], d[6]); \
-	SWAP2(d[5], d[7]); \
+	SWAP2_GR(d[0], d[2]); \
+	SWAP2_GR(d[1], d[3]); \
+	SWAP2_GR(d[4], d[6]); \
+	SWAP2_GR(d[5], d[7]); \
  \
-	SWAP4(d[0], d[4]); \
-	SWAP4(d[1], d[5]); \
-	SWAP4(d[2], d[6]); \
-	SWAP4(d[3], d[7]); \
+	SWAP4_GR(d[0], d[4]); \
+	SWAP4_GR(d[1], d[5]); \
+	SWAP4_GR(d[2], d[6]); \
+	SWAP4_GR(d[3], d[7]); \
  \
 	output[0] = d[0]; \
 	output[1] = d[1]; \
@@ -516,11 +516,11 @@ PRAGMA_UNROLL \
 	d[2] = __byte_perm(input[2], input[6], 0x07050301); \
 	d[3] = __byte_perm(input[3], input[7], 0x07050301); \
  \
-	SWAP1(d[0], d[1]); \
-	SWAP1(d[2], d[3]); \
+	SWAP1_GR(d[0], d[1]); \
+	SWAP1_GR(d[2], d[3]); \
  \
-	SWAP2(d[0], d[2]); \
-	SWAP2(d[1], d[3]); \
+	SWAP2_GR(d[0], d[2]); \
+	SWAP2_GR(d[1], d[3]); \
  \
 	t = __byte_perm(d[0], d[2], 0x05040100); \
 	d[2] = __byte_perm(d[0], d[2], 0x07060302); \
@@ -530,8 +530,8 @@ PRAGMA_UNROLL \
 	d[3] = __byte_perm(d[1], d[3], 0x07060302); \
 	d[1] = t; \
  \
-	SWAP4(d[0], d[2]); \
-	SWAP4(d[1], d[3]); \
+	SWAP4_GR(d[0], d[2]); \
+	SWAP4_GR(d[1], d[3]); \
  \
 	output[0] = d[0]; \
 	output[2] = d[1]; \

@@ -322,6 +322,7 @@
     <ClCompile Include="..\ccan\opt\parse.c" />
     <ClCompile Include="..\ccan\opt\usage.c" />
     <ClCompile Include="..\algorithm\darkcoin.c" />
+    <ClCompile Include="..\algorithm\chainox.c" />
     <ClCompile Include="..\config_parser.c" />
     <ClCompile Include="..\driver-opencl.c" />
     <ClCompile Include="..\events.c" />
@@ -445,6 +446,7 @@
     <ClInclude Include="..\c++defs.h" />
     <ClInclude Include="..\compat.h" />
     <ClInclude Include="..\algorithm\darkcoin.h" />
+    <ClInclude Include="..\algorithm\chainox.h" />
     <ClInclude Include="..\config_parser.h" />
     <ClInclude Include="..\driver-opencl.h" />
     <ClInclude Include="..\elist.h" />

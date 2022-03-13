@@ -1428,7 +1428,7 @@ static int64_t opencl_scanhash(struct thr_info *thr, struct work *work,
 
   status = thrdata->queue_kernel_parameters(clState, &work->blk, globalThreads[0]);
   if (unlikely(status != CL_SUCCESS)) {
-    applog(LOG_ERR, "Error: clSetKernelArg of all params failed.");
+    applog(LOG_ERR, "Error %d: clSetKernelArg of all params failed.", status);
     return -1;
   }
 
@@ -1594,6 +1594,15 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
       const size_t global3[] = { 4, throughput };
 	    const size_t local3[] = { 4, 8 };
 	    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, NULL, global3, local3, 0, NULL, NULL);
+    } else if (gpu->algorithm.type == ALGO_0X10 && i == 2) {
+      size_t globalThreads2[1];
+      size_t localThreads2[1];
+      size_t globalOffset2[1];
+      globalThreads2[0] = globalThreads[0] * 4;
+      localThreads2[0] = 32;
+      globalOffset2[0] = (*p_global_work_offset) * 4;
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, globalOffset2,
+        globalThreads2, localThreads2, 0, NULL, NULL);
     }
     else
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
