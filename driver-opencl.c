@@ -1603,6 +1603,15 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
       globalOffset2[0] = (*p_global_work_offset) * 4;
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, globalOffset2,
         globalThreads2, localThreads2, 0, NULL, NULL);
+    } else if (gpu->algorithm.type == ALGO_0X10 && i== 2 && clState->prebuilt) {
+       size_t globalThreads2[1];
+      size_t localThreads2[1];
+      size_t globalOffset2[1];
+      globalThreads2[0] = globalThreads[0] * 4;
+      localThreads2[0] = 64;
+      globalOffset2[0] = (*p_global_work_offset) * 4;
+      status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, globalOffset2,
+        globalThreads2, localThreads2, 0, NULL, NULL);
     }
     else
       status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 1, p_global_work_offset,
