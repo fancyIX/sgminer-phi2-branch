@@ -1594,7 +1594,7 @@ if (gpu->algorithm.type != ALGO_MTP && gpu->algorithm.type != ALGO_YESCRYPT_NAVI
       const size_t global3[] = { 4, throughput };
 	    const size_t local3[] = { 4, 8 };
 	    status = clEnqueueNDRangeKernel(clState->commandQueue, clState->extra_kernels[i], 2, NULL, global3, local3, 0, NULL, NULL);
-    } else if (gpu->algorithm.type == ALGO_0X10 && i == 2) {
+    } else if (gpu->algorithm.type == ALGO_0X10_NAVI && i == 2) {
       size_t globalThreads2[1];
       size_t localThreads2[1];
       size_t globalOffset2[1];

@@ -23,6 +23,7 @@ typedef enum {
   ALGO_PASCAL,
   ALGO_X11,
   ALGO_0X10,
+  ALGO_0X10_NAVI,
   ALGO_X13,
   ALGO_X14,
   ALGO_X15,

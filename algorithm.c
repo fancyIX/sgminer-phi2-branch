@@ -2622,6 +2622,7 @@ static algorithm_settings_t algos[] = {
 
   { "darkcoin-mod", ALGO_X11, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 8 * 16 * 4194304, 0, darkcoin_regenhash, NULL, NULL, queue_darkcoin_mod_kernel, gen_hash, append_x11_compiler_options },
   { "chainox", ALGO_0X10, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 8 * 16 * 4194304, 0, chainox_regenhash, NULL, NULL, queue_chainox_kernel, gen_hash, append_x11_compiler_options },
+  { "chainox_navi", ALGO_0X10_NAVI, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 8 * 16 * 4194304, 0, chainox_regenhash, NULL, NULL, queue_chainox_kernel, gen_hash, append_x11_compiler_options },
 
   { "sibcoin-mod", ALGO_X11, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 11, 2 * 16 * 4194304, 0, sibcoin_regenhash, NULL, NULL, queue_sibcoin_mod_kernel, gen_hash, append_x11_compiler_options },
   
@@ -2748,6 +2749,7 @@ static const char *lookup_algorithm_alias(const char *lookup_alias, uint8_t *nfa
   ALGO_ALIAS("x11mod", "darkcoin-mod");
   ALGO_ALIAS("x11", "darkcoin-mod");
   ALGO_ALIAS("0x10", "chainox");
+  ALGO_ALIAS("0x10_navi", "chainox_navi");
   ALGO_ALIAS("x11-gost", "sibcoin-mod");
   ALGO_ALIAS("x13mod", "marucoin-mod");
   ALGO_ALIAS("x13", "marucoin-mod");

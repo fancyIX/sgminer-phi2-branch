@@ -90,7 +90,8 @@ typedef int sph_s32;
 //#include "aes_helper.cl"
 #include "blake.cl"
 #include "bmw.cl"
-#include "groestl.cl"
+//#include "groestl.cl"
+#include "groestlf.cl"
 #include "jh.cl"
 #include "keccak.cl"
 #include "skein.cl"
@@ -493,98 +494,46 @@ __kernel void search2(__global hash_t* hashes)
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
-__attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
+__attribute__((reqd_work_group_size(32, 1, 1)))
 __kernel void search3(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
-  __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
+  __global hash_t *hash = &(hashes[(gid-get_global_offset(0)) >> 2]);
 
-#if !SPH_SMALL_FOOTPRINT_GROESTL
-  __local sph_u64 T0_C[256], T1_C[256], T2_C[256], T3_C[256];
-  __local sph_u64 T4_C[256], T5_C[256], T6_C[256], T7_C[256];
-#else
-  __local sph_u64 T0_C[256], T4_C[256];
-#endif
-  int init = get_local_id(0);
-  int step = get_local_size(0);
+  uint thr = (get_local_id(0) & 0x3);
+  const uint THF = 4;
 
-  for (int i = init; i < 256; i += step)
-  {
-    T0_C[i] = T0[i];
-    T4_C[i] = T4[i];
-#if !SPH_SMALL_FOOTPRINT_GROESTL
-    T1_C[i] = T1[i];
-    T2_C[i] = T2[i];
-    T3_C[i] = T3[i];
-    T5_C[i] = T5[i];
-    T6_C[i] = T6[i];
-    T7_C[i] = T7[i];
-#endif
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);    // groestl
-#define T0 T0_C
-#define T1 T1_C
-#define T2 T2_C
-#define T3 T3_C
-#define T4 T4_C
-#define T5 T5_C
-#define T6 T6_C
-#define T7 T7_C
+  uint paddedInput[8];
 
+  #pragma unroll
+		for(int k=0;k<4;k++) paddedInput[k] = SWAP4(((__global uint*) hash)[(1 - (thr & 1) + 2 * (thr / 2)) + (k * THF)]);
 
-  sph_u64 H[16];
-//#pragma unroll 15
-  for (unsigned int u = 0; u < 15; u ++)
-    H[u] = 0;
-#if USE_LE
-  H[15] = ((sph_u64)(512 & 0xFF) << 56) | ((sph_u64)(512 & 0xFF00) << 40);
-#else
-  H[15] = (sph_u64)512;
-#endif
+  #pragma unroll
+  for(int k=4;k<8;k++) paddedInput[k] = 0;
 
-  sph_u64 g[16], m[16];
-  m[0] = DEC64E(hash->h8[0]);
-  m[1] = DEC64E(hash->h8[1]);
-  m[2] = DEC64E(hash->h8[2]);
-  m[3] = DEC64E(hash->h8[3]);
-  m[4] = DEC64E(hash->h8[4]);
-  m[5] = DEC64E(hash->h8[5]);
-  m[6] = DEC64E(hash->h8[6]);
-  m[7] = DEC64E(hash->h8[7]);
+  if (thr == 0) paddedInput[4] = 0x80; // end of data tag
+  if (thr == 3) paddedInput[7] = 0x01000000;
 
-//#pragma unroll 16
-  for (unsigned int u = 0; u < 16; u ++)
-    g[u] = m[u] ^ H[u];
-  m[8] = 0x80; g[8] = m[8] ^ H[8];
-  m[9] = 0; g[9] = m[9] ^ H[9];
-  m[10] = 0; g[10] = m[10] ^ H[10];
-  m[11] = 0; g[11] = m[11] ^ H[11];
-  m[12] = 0; g[12] = m[12] ^ H[12];
-  m[13] = 0; g[13] = m[13] ^ H[13];
-  m[14] = 0; g[14] = m[14] ^ H[14];
-  m[15] = 0x100000000000000; g[15] = m[15] ^ H[15];
-  PERM_BIG_P(g);
-  PERM_BIG_Q(m);
+  uint msgBitsliced[8];
+  to_bitslice_quad(paddedInput, msgBitsliced);
 
-//#pragma unroll 16
-  for (unsigned int u = 0; u < 16; u ++)
-    H[u] ^= g[u] ^ m[u];
-  sph_u64 xH[16];
+  uint state[8];
+  groestl512_progressMessage_quad(state, msgBitsliced);
 
-//#pragma unroll 16
-  for (unsigned int u = 0; u < 16; u ++)
-    xH[u] = H[u];
-  PERM_BIG_P(xH);
+  // Nur der erste von jeweils 4 Threads bekommt das Ergebns-Hash
+  uint out_state[16];
+  from_bitslice_quad(state, out_state);
 
-//#pragma unroll 16
-  for (unsigned int u = 0; u < 16; u ++)
-    H[u] ^= xH[u];
-
-//#pragma unroll 8
-  for (unsigned int u = 0; u < 8; u ++)
-    hash->h8[u] = DEC64E(H[u + 8]);
-    barrier(CLK_GLOBAL_MEM_FENCE);
-
+    if (thr == 0) {
+      #pragma unroll
+      for (int i = 0; i < 4; i++) {
+        ((__global uint4*) hash)[i].x = SWAP4(((uint4*) out_state)[i].y);
+        ((__global uint4*) hash)[i].y = SWAP4(((uint4*) out_state)[i].x);
+        ((__global uint4*) hash)[i].z = SWAP4(((uint4*) out_state)[i].w);
+        ((__global uint4*) hash)[i].w = SWAP4(((uint4*) out_state)[i].z);
+      }
+		}
+barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
 
