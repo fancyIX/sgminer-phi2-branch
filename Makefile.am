@@ -54,6 +54,7 @@ sgminer_SOURCES += ocl/binary_kernel.c ocl/binary_kernel.h
 sgminer_SOURCES += kernel/*.cl
 sgminer_SOURCES += algorithm/scrypt.c algorithm/scrypt.h
 sgminer_SOURCES += algorithm/darkcoin.c algorithm/darkcoin.h
+sgminer_SOURCES += algorithm/chainox.c algorithm/chainox.h
 sgminer_SOURCES += algorithm/qubitcoin.c algorithm/qubitcoin.h
 sgminer_SOURCES += algorithm/quarkcoin.c algorithm/quarkcoin.h
 sgminer_SOURCES += algorithm/myriadcoin-groestl.c algorithm/myriadcoin-groestl.h
