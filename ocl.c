@@ -1032,6 +1032,11 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
     bufsize = (size_t)algorithm->rw_buffer_size;
     applog(LOG_DEBUG, "Buffer sizes: %lu RW, %lu R", (unsigned long)bufsize, (unsigned long)readbufsize);
   }
+  if (algorithm->type == ALGO_0X10_NAVI) {
+    buf1size = bufsize * 16;
+    buf2size = bufsize * 2;
+    applog(LOG_DEBUG, "0x10 buffer sizes: %lu RW, %lu RW", (unsigned long)bufsize, (unsigned long)bufsize);
+  }
 
   clState->padbuffer8 = NULL;
   clState->buffer1 = NULL;
@@ -1108,6 +1113,19 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
+        return NULL;
+      }
+    }
+    else if (algorithm->type == ALGO_0X10_NAVI) {
+      // need additionnal buffers
+      clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer1) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer1), decrease TC or increase LG", status);
+        return NULL;
+      }
+      clState->buffer2 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf2size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer1) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer2), decrease TC or increase LG", status);
         return NULL;
       }
     }

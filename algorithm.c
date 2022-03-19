@@ -773,6 +773,71 @@ static cl_int queue_chainox_kernel(struct __clState *clState, struct _dev_blk_ct
   return status;
 }
 
+static cl_int queue_chainox_navi_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+  cl_kernel *kernel;
+  unsigned int num;
+  cl_ulong le_target;
+  cl_int status = 0;
+
+  le_target = *(cl_ulong *)(blk->work->device_target + 24);
+  flip80(clState->cldata, blk->work->data);
+  status = clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, true, 0, 80, clState->cldata, 0, NULL, NULL);
+
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: write buffer failed.", status);
+  // blake - search
+  kernel = &clState->kernel;
+  num = 0;
+  CL_SET_ARG(clState->CLbuffer0);
+  CL_SET_ARG(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search arg failed.", status);
+  // skein - search1
+  kernel = clState->extra_kernels;
+  CL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search1 arg failed.", status);
+  // bmw - search2
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search2 arg failed.", status);
+  // groestl - search3
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search3 arg failed.", status);
+  // jh - search4
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search4 arg failed.", status);
+  // luffa - search5
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search5 arg failed.", status);
+  // keccak - search6
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search6 arg failed.", status);
+  // cubehash - search7
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search7 arg failed.", status);
+  // simd - search8
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->buffer1);
+  // simd - search9
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->buffer1);
+  CL_SET_ARG_N(2, clState->buffer2);
+  // simd - search10
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  CL_SET_ARG_N(1, clState->buffer1);
+  CL_SET_ARG_N(2, clState->buffer2);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search8 arg failed.", status);
+  // shavite - search11
+  CL_NEXTKERNEL_SET_ARG_0(clState->padbuffer8);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search9 arg failed.", status);
+  // echo - search12
+  num = 0;
+  CL_NEXTKERNEL_SET_ARG(clState->padbuffer8);
+  CL_SET_ARG(clState->outputBuffer);
+  CL_SET_ARG(le_target);
+  if (status != CL_SUCCESS) applog(LOG_ERR, "Error %d: search10 arg failed.", status);
+
+  return status;
+}
+
 static cl_int queue_allium_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
 {
   cl_kernel *kernel;
@@ -2622,7 +2687,7 @@ static algorithm_settings_t algos[] = {
 
   { "darkcoin-mod", ALGO_X11, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 8 * 16 * 4194304, 0, darkcoin_regenhash, NULL, NULL, queue_darkcoin_mod_kernel, gen_hash, append_x11_compiler_options },
   { "chainox", ALGO_0X10, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 8 * 16 * 4194304, 0, chainox_regenhash, NULL, NULL, queue_chainox_kernel, gen_hash, append_x11_compiler_options },
-  { "chainox_navi", ALGO_0X10_NAVI, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 10, 8 * 16 * 4194304, 0, chainox_regenhash, NULL, NULL, queue_chainox_kernel, gen_hash, append_x11_compiler_options },
+  { "chainox_navi", ALGO_0X10_NAVI, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 12, 8 * 16 * 4194304, 0, chainox_regenhash, NULL, NULL, queue_chainox_navi_kernel, gen_hash, append_x11_compiler_options },
 
   { "sibcoin-mod", ALGO_X11, "", 1, 1, 1, 0, 0, 0xFF, 0xFFFFULL, 0x0000ffffUL, 11, 2 * 16 * 4194304, 0, sibcoin_regenhash, NULL, NULL, queue_sibcoin_mod_kernel, gen_hash, append_x11_compiler_options },
   
