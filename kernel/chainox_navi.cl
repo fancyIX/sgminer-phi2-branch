@@ -804,28 +804,18 @@ __kernel void search8(__global uint* g_hash, __global uint4 *g_temp4)
 }
 
 __attribute__((reqd_work_group_size(128, 1, 1)))
-__kernel void search9(__global uint* g_hash, __global uint4 *g_fft4, __global uint *g_state)
+__kernel void search9(__global uint* g_hash, __global uint4 *g_fft4)
 {
   uint gid = get_global_id(0);
-  uint thread = gid - get_global_offset(0);
+  int threadBloc = (gid-get_global_offset(0)) / 8;
+  int hashPosition = threadBloc * 16;
+  __global uint *Hash = &g_hash[hashPosition];
 
-  __global uint *Hash = &g_hash[thread * 16];
-  Compression1(Hash, thread, g_fft4, g_state);
-  Compression2(thread, g_fft4, g_state);
-}
-
-__attribute__((reqd_work_group_size(128, 1, 1)))
-__kernel void search10(__global uint* g_hash, __global uint4 *g_fft4, __global uint *g_state)
-{
-  uint gid = get_global_id(0);
-  uint thread = gid - get_global_offset(0);
-
-  __global uint *Hash = &g_hash[thread * 16];
-  Final(Hash, thread, g_fft4, g_state);
+x11_simd512_gpu_compress_64(Hash, g_fft4);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search11(__global hash_t* hashes)
+__kernel void search10(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -907,7 +897,7 @@ __kernel void search11(__global hash_t* hashes)
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search12(__global hash_t* hashes, __global uint* output, const ulong target)
+__kernel void search11(__global hash_t* hashes, __global uint* output, const ulong target)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
