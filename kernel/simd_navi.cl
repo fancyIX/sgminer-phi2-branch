@@ -518,7 +518,7 @@ void inline FFT_256_halfzero(int *y)
      p1 = expanded[12]; __shfl_right1(p2, expanded[14]); p = even ? p1 : p2;
      q1 = expanded[28]; __shfl_right1(q2, expanded[30]); q = even ? q1 : q2;
      __shfl_cperm0(vec0.w, (int)__byte_perm(mul_185(p),  mul_185(q), 0x05040100));
-     g_temp4[(get_local_id(0)&7) * 4 + idx] = vec0;
+     g_temp4[(get_local_id(0)&7) + 64 * idx] = vec0;
  
  //  1   9   5  13   3  11   7  15      17  25  21  29  19  27  23  31         6 6 6 6 6 6 6 6     6 6 6 6 6 6 6 6
  //  1   9   5  13   3  11   7  15      17  25  21  29  19  27  23  31         2 2 2 2 2 2 2 2     2 2 2 2 2 2 2 2
@@ -539,7 +539,7 @@ void inline FFT_256_halfzero(int *y)
      p1 = expanded[13]; __shfl_right1(p2, expanded[15]); p = even ? p1 : p2;
      q1 = expanded[29]; __shfl_right1(q2, expanded[31]); q = even ? q1 : q2;
      __shfl_cperm1(vec0.w, (int)__byte_perm(mul_185(p),  mul_185(q), 0x05040100));
-     g_temp4[(8+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(8+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  //  1   9   5  13   3  11   7  15      17  25  21  29  19  27  23  31         7 7 7 7 7 7 7 7     7 7 7 7 7 7 7 7
  //  1   9   5  13   3  11   7  15      17  25  21  29  19  27  23  31         5 5 5 5 5 5 5 5     5 5 5 5 5 5 5 5
@@ -562,7 +562,7 @@ void inline FFT_256_halfzero(int *y)
      p1 = hi?expanded[13]:expanded[12]; __shfl_left1(p2, hi?expanded[15]:expanded[14]); p = !even ? p1 : p2;
      q1 = hi?expanded[29]:expanded[28]; __shfl_left1(q2, hi?expanded[31]:expanded[30]); q = !even ? q1 : q2;
      __shfl_cperm2(vec0.w, (int)__byte_perm(mul_185(p),  mul_185(q), 0x05040100));
-     g_temp4[(16+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(16+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  //  1   9   5  13   3  11   7  15      17  25  21  29  19  27  23  31         1 1 1 1 1 1 1 1     1 1 1 1 1 1 1 1
  //  1   9   5  13   3  11   7  15      17  25  21  29  19  27  23  31         3 3 3 3 3 3 3 3     3 3 3 3 3 3 3 3
@@ -585,7 +585,7 @@ void inline FFT_256_halfzero(int *y)
      p1 = lo?expanded[13]:expanded[12]; __shfl_left1(p2, lo?expanded[15]:expanded[14]); p = !even ? p1 : p2;
      q1 = lo?expanded[29]:expanded[28]; __shfl_left1(q2, lo?expanded[31]:expanded[30]); q = !even ? q1 : q2;
      __shfl_cperm3(vec0.w, (int)__byte_perm(mul_185(p),  mul_185(q) , 0x05040100));
-     g_temp4[(24+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(24+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  //  1   9   5  13   3  11   7  15       1   9   5  13   3  11   7  15         0 0 0 0 0 0 0 0     1 1 1 1 1 1 1 1
  //  0   8   4  12   2  10   6  14       0   8   4  12   2  10   6  14         4 4 4 4 4 4 4 4     5 5 5 5 5 5 5 5
@@ -615,7 +615,7 @@ void inline FFT_256_halfzero(int *y)
      q2 = sel?expanded[14]:expanded[15]; __shfl_xor1(p2, q2);
      p = even? p1 : p2; q = even? q1 : q2;
      __shfl_cperm4(vec0.w, (int)__byte_perm(mul_233(p),  mul_233(q) , 0x05040100));
-     g_temp4[(32+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(32+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  //  0   8   4  12   2  10   6  14       0   8   4  12   2  10   6  14         6 6 6 6 6 6 6 6     7 7 7 7 7 7 7 7
  //  1   9   5  13   3  11   7  15       1   9   5  13   3  11   7  15         2 2 2 2 2 2 2 2     3 3 3 3 3 3 3 3
@@ -638,7 +638,7 @@ void inline FFT_256_halfzero(int *y)
      q2 = sel?expanded[15]:expanded[14]; __shfl_xor1(p2, q2);
      p = even? p1 : p2; q = even? q1 : q2;
      __shfl_cperm5(vec0.w, (int)__byte_perm(mul_233(p),  mul_233(q) , 0x05040100));
-     g_temp4[(40+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(40+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  // 16  24  20  28  18  26  22  30      16  24  20  28  18  26  22  30         6 6 6 6 6 6 6 6     7 7 7 7 7 7 7 7
  // 16  24  20  28  18  26  22  30      16  24  20  28  18  26  22  30         0 0 0 0 0 0 0 0     1 1 1 1 1 1 1 1
@@ -664,7 +664,7 @@ void inline FFT_256_halfzero(int *y)
      __shfl_left4(t, expanded[31]); q2 = sel?t:expanded[30]; __shfl_xor1(p2, q2);
      p = even? p1 : p2; q = even? q1 : q2;
      __shfl_cperm6(vec0.w, (int)__byte_perm(mul_233(p),  mul_233(q) , 0x05040100));
-     g_temp4[(48+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(48+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  // 17  25  21  29  19  27  23  31      17  25  21  29  19  27  23  31         4 4 4 4 4 4 4 4     5 5 5 5 5 5 5 5
  // 17  25  21  29  19  27  23  31      17  25  21  29  19  27  23  31         2 2 2 2 2 2 2 2     3 3 3 3 3 3 3 3
@@ -689,7 +689,7 @@ void inline FFT_256_halfzero(int *y)
      __shfl_left4(t, expanded[30]); q2 = sel?expanded[31]:t; __shfl_xor1(p2, q2);
      p = even? p1 : p2; q = even? q1 : q2;
      __shfl_cperm7(vec0.w, (int)__byte_perm(mul_233(p),  mul_233(q) , 0x05040100));
-     g_temp4[(56+(get_local_id(0)&7)) * 4 + idx] = vec0;
+     g_temp4[(56+(get_local_id(0)&7)) + 64 * idx] = vec0;
  
  #undef mul_185
  #undef mul_233
@@ -867,7 +867,7 @@ static inline void Round8_3_final(uint*const  A, const uint r, const  uint s, co
 	STEP8_MAJ_G(d_cw[3][7], 31, u, r, &A[8], &A[16], &A[24], A);
 }
 
-#define expanded_vector(x) g_fft4[(x) * 4 + (get_local_id(0) >> 3)]
+#define expanded_vector(x) g_fft4[(x) + 64 * (get_local_id(0) >> 3)]
 //static __device__ __forceinline__ void expanded_vector(uint* w, const uint4* ptr){
 ////	asm volatile ("ld.global.nc.v4.u32 {%0,%1,%2,%3}, [%4];"  : "=r"(w[0]), "=r"(w[1]), "=r"(w[2]), "=r"(w[3]) : __LDG_PTR(ptr));
 //}
