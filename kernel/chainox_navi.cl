@@ -783,9 +783,11 @@ __kernel void search7(__global hash_t* hashes)
   barrier(CLK_GLOBAL_MEM_FENCE);
 }
 
-__attribute__((reqd_work_group_size(128, 1, 1)))
-__kernel void search8(__global uint* g_hash, __global uint4 *g_temp4)
+__attribute__((reqd_work_group_size(32, 1, 1)))
+__kernel void search8(__global uint* g_hash)
 {
+  __local uint4 g_temp4[4 * 64];
+
   uint gid = get_global_id(0);
   int threadBloc = (gid-get_global_offset(0)) / 8;
   int hashPosition = threadBloc * 16;
@@ -797,25 +799,12 @@ __kernel void search8(__global uint* g_hash, __global uint4 *g_temp4)
   Hash[0] = inpHash[ndx];
   Hash[1] = inpHash[ndx + 8];
 
-  // Puffer für expandierte Nachricht
-  __global uint4 *temp4 = &g_temp4[hashPosition * 4];
-
-  Expansion(Hash, temp4);
-}
-
-__attribute__((reqd_work_group_size(128, 1, 1)))
-__kernel void search9(__global uint* g_hash, __global uint4 *g_fft4)
-{
-  uint gid = get_global_id(0);
-  int threadBloc = (gid-get_global_offset(0)) / 8;
-  int hashPosition = threadBloc * 16;
-  __global uint *Hash = &g_hash[hashPosition];
-
-x11_simd512_gpu_compress_64(Hash, g_fft4);
+  Expansion(Hash, g_temp4);
+  x11_simd512_gpu_compress_64(inpHash, g_temp4);
 }
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search10(__global hash_t* hashes)
+__kernel void search9(__global hash_t* hashes)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
@@ -897,7 +886,7 @@ __kernel void search10(__global hash_t* hashes)
 
 
 __attribute__((reqd_work_group_size(WORKSIZE, 1, 1)))
-__kernel void search11(__global hash_t* hashes, __global uint* output, const ulong target)
+__kernel void search10(__global hash_t* hashes, __global uint* output, const ulong target)
 {
   uint gid = get_global_id(0);
   __global hash_t *hash = &(hashes[gid-get_global_offset(0)]);
