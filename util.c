@@ -3026,9 +3026,11 @@ retry:
       }
       if (selret < 0 && interrupted())
         goto retry;
-      CLOSESOCKET(sockd);
-      applog(LOG_DEBUG, "Select timeout/failed connect");
-      continue;
+      if (pool->algorithm.type != ALGO_YESCRYPTR16_NAVI) {
+        CLOSESOCKET(sockd);
+        applog(LOG_DEBUG, "Select timeout/failed connect");
+        continue;
+      }
     }
     applog(LOG_WARNING, "Succeeded immediate connect");
     block_socket(sockd);
