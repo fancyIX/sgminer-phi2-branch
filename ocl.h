@@ -24,6 +24,10 @@ typedef struct __clState {
 	cl_kernel yescrypt_gpu_hash_k2c1_r8;
 	cl_kernel yescrypt_gpu_hash_k5;
 
+  // yescryptr16 kernels
+	cl_kernel yescrypt_gpu_hash_k2c_r16;
+	cl_kernel yescrypt_gpu_hash_k2c1_r16;
+
   // neoscrypt kernels
   	cl_kernel neoscrypt_gpu_hash_start;
 		cl_kernel neoscrypt_gpu_hash_salsa1;

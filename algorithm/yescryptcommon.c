@@ -368,3 +368,9 @@ void yescrypt_hash(const unsigned char *input, unsigned char *output)
 
    yescrypt_bsty((const uint8_t *)input, 80, (const uint8_t *) input, 80, 2048, 8, 1, (uint8_t *)output, 32);
 }
+
+void yescryptr16_hash(const unsigned char *input, unsigned char *output)
+{
+
+   yescrypt_bsty((const uint8_t *)input, 80, (const uint8_t *) input, 80, 4096, 16, 1, (uint8_t *)output, 32);
+}

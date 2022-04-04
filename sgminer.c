@@ -7764,6 +7764,7 @@ bool test_nonce(struct work *work, uint32_t nonce)
       work->pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI || work->pool->algorithm.type == ALGO_PLUCK
     || work->pool->algorithm.type == ALGO_YESCRYPT || work->pool->algorithm.type == ALGO_YESCRYPT_MULTI
     || work->pool->algorithm.type == ALGO_YESCRYPT_NAVI
+    || work->pool->algorithm.type == ALGO_YESCRYPTR16_NAVI
     || work->pool->algorithm.type == ALGO_ARGON2D) {
     diff1targ = ((uint32_t *)work->target)[7];
   }
