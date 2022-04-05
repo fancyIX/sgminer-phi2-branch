@@ -3026,7 +3026,7 @@ retry:
       }
       if (selret < 0 && interrupted())
         goto retry;
-      if (pool->algorithm.type != ALGO_YESCRYPTR16_NAVI) {
+      if (pool->algorithm.type != ALGO_YESCRYPTR16_NAVI && pool->algorithm.type != ALGO_YESCRYPTR16) {
         CLOSESOCKET(sockd);
         applog(LOG_DEBUG, "Select timeout/failed connect");
         continue;

@@ -2713,6 +2713,11 @@ static algorithm_settings_t algos[] = {
   A_YESCRYPT_NAVI("yescrypt_navi"),
 #undef A_YESCRYPT_NAVI
 
+#define A_YESCRYPTR16(a) \
+  { a, ALGO_YESCRYPTR16, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, yescryptr16_regenhash, NULL, NULL, queue_yescryptr16_navikernel, gen_hash, append_neoscrypt_compiler_options}
+  A_YESCRYPTR16("yescryptr16"),
+#undef A_YESCRYPTR16
+
 #define A_YESCRYPTR16_NAVI(a) \
   { a, ALGO_YESCRYPTR16_NAVI, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0,-1,CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE , yescryptr16_regenhash, NULL, NULL, queue_yescryptr16_navikernel, gen_hash, append_neoscrypt_compiler_options}
   A_YESCRYPTR16_NAVI("yescryptr16_navi"),
