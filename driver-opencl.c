@@ -1690,8 +1690,16 @@ if (gpu->algorithm.type == ALGO_YESCRYPTR16_NAVI) {
 	size_t block[1] = {tpb};
 	size_t block2[2] = {4U, tpb >> 2};
 	size_t block3[2] = {16U, tpb >> 4};
+      size_t offset[1];
+		offset[0] = *p_global_work_offset;
+		size_t offset2[2];
+		offset2[0] = (*p_global_work_offset) / 8;
+		offset2[1] = 0;
+    size_t offset3[2];
+		offset3[0] = (*p_global_work_offset) / 2;
+		offset3[1] = 0;
 
-status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k0, 1, NULL, grid, block, 0, NULL, NULL);
+status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k0, 1, offset, grid, block, 0, NULL, NULL);
 
 	for (uint32_t i = 0; i < 4; i++) {
 		uint32_t offset = i * (worksize >> 2);
@@ -1737,7 +1745,7 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
 		}
 	}
 
-	status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k5, 1, NULL, grid, block, 0, NULL, NULL);
+	status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k5, 1, offset, grid, block, 0, NULL, NULL);
 }
 if (gpu->algorithm.type == ALGO_YESCRYPT) {
   cl_uint threads = globalThreads[0];
@@ -1829,7 +1837,7 @@ status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_
 	for (uint32_t i = 0; i < 4; i++) {
 		uint32_t offset = i * (worksize >> 2);
 clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
-		status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k1, 2, offset2, grid2, block2, 0, NULL, NULL);
+		status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k1, 2, NULL, grid2, block2, 0, NULL, NULL);
     if (unlikely(status != CL_SUCCESS)) {
       applog(LOG_ERR, "Error %d: Enqueueing kernel yescrypt_gpu_hash_k1 onto command queue. (clEnqueueNDRangeKernel)", status);
       return -1;
@@ -1844,7 +1852,7 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
 			  clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 4, sizeof(uint32_t), &offset2);
         clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 5, sizeof(uint32_t), &start);
         clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 6, sizeof(uint32_t), &end);
-			  status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c_r16, 2, offset3, grid3, block3, 0, NULL, NULL);
+			  status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c_r16, 2, NULL, grid3, block3, 0, NULL, NULL);
       }
       uint32_t start = 4096 / loop_count * (loop_count - 1);
       uint32_t end = 4096;
@@ -1852,7 +1860,7 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
 			clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 4, sizeof(uint32_t), &offset2);
       clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 5, sizeof(uint32_t), &start);
       clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 6, sizeof(uint32_t), &end);
-			status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c_r16, 2, offset3, grid3, block3, 0, NULL, NULL);
+			status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c_r16, 2, NULL, grid3, block3, 0, NULL, NULL);
 
       for (uint32_t k = 0; k < loop_count - 1; k++) {
         uint32_t start = (Nw / loop_count) * k;
@@ -1861,7 +1869,7 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
 			  clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 4, sizeof(uint32_t), &offset2);
         clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 5, sizeof(uint32_t), &start);
         clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 6, sizeof(uint32_t), &end);
-			  status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c1_r16, 2, offset3, grid3, block3, 0, NULL, NULL);
+			  status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c1_r16, 2, NULL, grid3, block3, 0, NULL, NULL);
       }
       uint32_t start1 = (Nw / loop_count) * (loop_count - 1);
       uint32_t end1 = Nw;
@@ -1869,7 +1877,7 @@ clSetKernelArg(clState->yescrypt_gpu_hash_k1, 2, sizeof(uint32_t), &offset);
 			clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 4, sizeof(uint32_t), &offset2);
       clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 5, sizeof(uint32_t), &start1);
       clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 6, sizeof(uint32_t), &end1);
-			status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c1_r16, 2, offset3, grid3, block3, 0, NULL, NULL);
+			status=clEnqueueNDRangeKernel(clState->commandQueue, clState->yescrypt_gpu_hash_k2c1_r16, 2, NULL, grid3, block3, 0, NULL, NULL);
 		}
 	}
 

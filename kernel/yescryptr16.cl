@@ -161,11 +161,11 @@ static inline void sha256_round_body(uint *in, uint *state)
 __attribute__((reqd_work_group_size(64, 1, 1)))
 __kernel void yescrypt_gpu_hash_k0(__global const uint * restrict cpu_h, __global const uint* restrict input, __global uint* B, __global uint* sha256, const uint threads)
 {
-    int thread = get_global_id(0) % MAX_GLOBAL_THREADS;
+    int thread = (get_global_id(0) - get_global_offset(0)) % MAX_GLOBAL_THREADS;
     int r = 16;
     int p = 1;
 
-    uint nonce = thread;
+    uint nonce = get_global_id(0);
     uint in[16];
     uint result[16];
     uint state1[8], state2[8];
@@ -256,7 +256,7 @@ __kernel void yescrypt_gpu_hash_k0(__global const uint * restrict cpu_h, __globa
 __attribute__((reqd_work_group_size(64, 1, 1)))
 __kernel void yescrypt_gpu_hash_k5(__global const uint* restrict input, __global uint* B, __global uint* sha256, __global uint* restrict output, const uint target, const uint threads)
 {
-	int thread = get_global_id(0) % MAX_GLOBAL_THREADS;
+	int thread = (get_global_id(0) - get_global_offset(0)) % MAX_GLOBAL_THREADS;
     int r = 16;
     int p = 1;
 
