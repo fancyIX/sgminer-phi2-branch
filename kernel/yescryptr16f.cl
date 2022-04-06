@@ -514,11 +514,15 @@ __kernel void yescrypt_gpu_hash_k1(__global uint* B, __global uint* S, const uin
 #undef Bdev
 #undef Sdev
 
+
 #define Vdev(a, b) v[((a) * (r * 2) + (b)) * 32]
 #define Bdev(a) B[((a) * threads + thread) * 16 + get_local_id(0)]
 #define Sdev(a) S[(thread_part_4 * 128 + (a)) * 16 + get_local_id(0)]
 #define Shared(a) *(__local uint2*)&shared_mem[(4096 * YES_GID) + (YES_TID * 512 + (a)) * 4 + (get_local_id(0) & 2)]
 
+__attribute__((amdgpu_waves_per_eu(1,1)))
+__attribute__((amdgpu_num_vgpr(256)))
+__attribute__((amdgpu_num_sgpr(100)))
 __attribute__((reqd_work_group_size(16, 4, 1)))
 __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __global uint* V, const uint offset1, const uint offset2, const uint start, const uint end, const uint threads)
 {
@@ -535,22 +539,37 @@ __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __gl
     uint n, i, j, k;
     uint x0, x1, x2, x3;
     uint2 buf;
-    uint x[r * 2];
+    uint xa[8];
+    uint xb[8];
+    uint xc[8];
+    uint xd[8];
 
     for (k = 0; k < 128; k++)
         shared_mem[(4096 * YES_GID) + (YES_TID * 128 + k) * 16 + get_local_id(0)] = Sdev(k);
 
-#pragma unroll
-    for (k = 0; k < r * 2; k++) {
-        x3 = Bdev(k);
-        x[k] = x3;
+#pragma unroll 8
+    for (k = 0; k < 8; k++) {
+        x3 = Bdev(4*k + 0);
+        xa[k] = x3;
+        x3 = Bdev(4*k + 1);
+        xb[k] = x3;
+        x3 = Bdev(4*k + 2);
+        xc[k] = x3;
+        x3 = Bdev(4*k + 3);
+        xd[k] = x3;
     }
 
     for (n = p2floor(start), i = start; i < end; i++) {
-#pragma unroll
-        for (k = 0; k < r * 2; k++) {
-            x3 = x[k];
-            Vdev(i, k) = x3;
+#pragma unroll 8
+        for (k = 0; k < 8; k++) {
+            x3 = xa[k];
+            Vdev(i, 4*k + 0) = x3;
+            x3 = xb[k];
+            Vdev(i, 4*k + 1) = x3;
+            x3 = xc[k];
+            Vdev(i, 4*k + 2) = x3;
+            x3 = xd[k];
+            Vdev(i, 4*k + 3) = x3;
         }
 
         if (i > 1) {
@@ -562,16 +581,22 @@ __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __gl
 		      : [a] "v" (x3));
             j &= (n - 1);
             j += i - n;
-
-            for (k = 0; k < r * 2; k++) {
-                x3 = x[k] ^ Vdev(j, k);
-                x[k] = x3;
+#pragma unroll 8
+            for (k = 0; k < 8; k++) {
+                x3 = xa[k] ^ Vdev(j, 4*k + 0);
+                xa[k] = x3;
+                x3 = xb[k] ^ Vdev(j, 4*k + 1);
+                xb[k] = x3;
+                x3 = xc[k] ^ Vdev(j, 4*k + 2);
+                xc[k] = x3;
+                x3 = xd[k] ^ Vdev(j, 4*k + 3);
+                xd[k] = x3;
             }
         }
 
-#pragma unroll
-        for (k = 0; k < r * 2; k++) {
-            x3 ^= x[k];
+#pragma unroll 8
+        for (k = 0; k < 8; k++) {
+            x3 ^= xa[k];
             __asm (
 	            "s_nop 0\n"
                 "s_nop 0\n"
@@ -588,12 +613,14 @@ __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __gl
                 __asm (
 	                "s_nop 0\n"
                     "s_nop 0\n"
+                    "s_nop 0\n"
 		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
                     "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
                     "s_nop 0\n"
+                    "s_nop 0\n"
 		            "s_nop 0"
-                    : [d0] "=v" (x0),
-                      [d1] "=v" (x1)
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
                     : [a0] "v" (buf.x),
                       [a1] "v" (buf.y));
                 x0 = ((x0 >> 4) & 255) + 0;
@@ -604,7 +631,118 @@ __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __gl
             if (get_local_id(0) & 1) x3 = buf.y;
             else x3 = buf.x;
 
-            x[k] = x3;
+            xa[k] = x3;
+
+                        x3 ^= xb[k];
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
+#pragma unroll
+            for (j = 0; j < 6; j++) {
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
+                x0 = ((x0 >> 4) & 255) + 0;
+                x1 = ((x1 >> 4) & 255) + 256;
+                buf = mad64(buf.x, buf.y, Shared(x0));
+                buf ^= Shared(x1);
+            }
+            if (get_local_id(0) & 1) x3 = buf.y;
+            else x3 = buf.x;
+
+            xb[k] = x3;
+
+                        x3 ^= xc[k];
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
+#pragma unroll
+            for (j = 0; j < 6; j++) {
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
+                x0 = ((x0 >> 4) & 255) + 0;
+                x1 = ((x1 >> 4) & 255) + 256;
+                buf = mad64(buf.x, buf.y, Shared(x0));
+                buf ^= Shared(x1);
+            }
+            if (get_local_id(0) & 1) x3 = buf.y;
+            else x3 = buf.x;
+
+            xc[k] = x3;
+
+                        x3 ^= xd[k];
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
+#pragma unroll
+            for (j = 0; j < 6; j++) {
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
+                x0 = ((x0 >> 4) & 255) + 0;
+                x1 = ((x1 >> 4) & 255) + 256;
+                buf = mad64(buf.x, buf.y, Shared(x0));
+                buf ^= Shared(x1);
+            }
+            if (get_local_id(0) & 1) x3 = buf.y;
+            else x3 = buf.x;
+
+            xd[k] = x3;
         }
         uint l0 = ((0 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 3)) * 4) & 255;
         uint l1 = ((4 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 3)) * 4) & 255;
@@ -633,14 +771,22 @@ __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __gl
         else if (get_local_id(0) < 8) x3 = x1;
         else if (get_local_id(0) < 12) x3 = x2;
 
-        x[r * 2 - 1] = x3;
+        xd[7] = x3;
     }
 
-#pragma unroll
-    for (k = 0; k < r * 2; k++)
-        Bdev(k) = x[k];
+#pragma unroll 8
+    for (k = 0; k < 8; k++) {
+        Bdev(4*k + 0) = xa[k];
+        Bdev(4*k + 1) = xb[k];
+        Bdev(4*k + 2) = xc[k];
+        Bdev(4*k + 3) = xd[k];
+    }
+        
 }
 
+__attribute__((amdgpu_waves_per_eu(1,1)))
+__attribute__((amdgpu_num_vgpr(256)))
+__attribute__((amdgpu_num_sgpr(100)))
 __attribute__((reqd_work_group_size(16, 4, 1)))
 __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __global uint* V, const uint offset1, const uint offset2, const uint start, const uint end, const uint threads)
 {
@@ -657,15 +803,24 @@ __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __g
     uint j, k;
     uint x0, x1, x2, x3;
     uint2 buf;
-    uint x[r * 2];
+    uint xa[8];
+    uint xb[8];
+    uint xc[8];
+    uint xd[8];
 
     for (k = 0; k < 128; k++)
         shared_mem[(4096 * YES_GID) + (YES_TID * 128 + k) * 16 + get_local_id(0)] = Sdev(k);
 
-#pragma unroll
-    for (k = 0; k < r * 2; k++) {
-		x3 = Bdev(k);
-		x[k] = x3;
+#pragma unroll 8
+    for (k = 0; k < 8; k++) {
+		x3 = Bdev(4*k + 0);
+		xa[k] = x3;
+        x3 = Bdev(4*k + 1);
+		xb[k] = x3;
+        x3 = Bdev(4*k + 2);
+		xc[k] = x3;
+        x3 = Bdev(4*k + 3);
+		xd[k] = x3;
 	}
 
     for (uint z = start; z < end; z++)
@@ -674,22 +829,33 @@ __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __g
 		  "ds_swizzle_b32  %[d], %[a] offset:0x0010\n"
 		  "s_waitcnt lgkmcnt(0)"
 		  : [d] "=&v" (j)
-		  : [a] "v" (x[r * 2 - 1]));
+		  : [a] "v" (xd[7]));
         j &= (N - 1);
 
-#pragma unroll
-        for (k = 0; k < r * 2; k++)
-            x[k] ^= Vdev(j, k);
+#pragma unroll 8
+        for (k = 0; k < 8; k++) {
+            xa[k] ^= Vdev(j, 4*k + 0);
+            xb[k] ^= Vdev(j, 4*k + 1);
+            xc[k] ^= Vdev(j, 4*k + 2);
+            xd[k] ^= Vdev(j, 4*k + 3);
+        }
+            
 
-#pragma unroll
-        for (k = 0; k < r * 2; k++) {
-            x3 = x[k];
-            Vdev(j, k) = x3;
+#pragma unroll 8
+        for (k = 0; k < 8; k++) {
+            x3 = xa[k];
+            Vdev(j, 4*k + 0) = x3;
+            x3 = xb[k];
+            Vdev(j, 4*k + 1) = x3;
+            x3 = xc[k];
+            Vdev(j, 4*k + 2) = x3;
+            x3 = xd[k];
+            Vdev(j, 4*k + 3) = x3;
         }
 
-#pragma unroll
-        for (k = 0; k < r * 2; k++) {
-            x3 ^= x[k];
+#pragma unroll 8
+        for (k = 0; k < 8; k++) {
+            x3 ^= xa[k];
             __asm (
 	            "s_nop 0\n"
                 "s_nop 0\n"
@@ -710,8 +876,8 @@ __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __g
                     "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
                     "s_nop 0\n"
 		            "s_nop 0"
-                    : [d0] "=v" (x0),
-                      [d1] "=v" (x1)
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
                     : [a0] "v" (buf.x),
                       [a1] "v" (buf.y));
                 x0 = ((x0 >> 4) & 255) + 0;
@@ -722,7 +888,112 @@ __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __g
             if (get_local_id(0) & 1) x3 = buf.y;
             else x3 = buf.x;
 
-            x[k] = x3;
+            xa[k] = x3;
+
+                        x3 ^= xb[k];
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
+#pragma unroll
+            for (j = 0; j < 6; j++) {
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
+                x0 = ((x0 >> 4) & 255) + 0;
+                x1 = ((x1 >> 4) & 255) + 256;
+                buf = mad64(buf.x, buf.y, Shared(x0));
+                buf ^= Shared(x1);
+            }
+            if (get_local_id(0) & 1) x3 = buf.y;
+            else x3 = buf.x;
+
+            xb[k] = x3;
+
+                        x3 ^= xc[k];
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
+#pragma unroll
+            for (j = 0; j < 6; j++) {
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
+                x0 = ((x0 >> 4) & 255) + 0;
+                x1 = ((x1 >> 4) & 255) + 256;
+                buf = mad64(buf.x, buf.y, Shared(x0));
+                buf ^= Shared(x1);
+            }
+            if (get_local_id(0) & 1) x3 = buf.y;
+            else x3 = buf.x;
+
+            xc[k] = x3;
+
+                        x3 ^= xd[k];
+            __asm (
+	            "s_nop 0\n"
+                "s_nop 0\n"
+		        "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,2,2]\n"
+                "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[1,1,3,3]\n"
+                "s_nop 0\n"
+		        "s_nop 0"
+                : [d0] "=&v" (buf.x),
+                  [d1] "=&v" (buf.y)
+                : [a0] "v" (x3),
+                  [a1] "v" (x3));
+#pragma unroll
+            for (j = 0; j < 6; j++) {
+                __asm (
+	                "s_nop 0\n"
+                    "s_nop 0\n"
+		            "v_mov_b32_dpp  %[d0], %[a0] quad_perm:[0,0,0,0]\n"
+                    "v_mov_b32_dpp  %[d1], %[a1] quad_perm:[0,0,0,0]\n"
+                    "s_nop 0\n"
+		            "s_nop 0"
+                    : [d0] "=&v" (x0),
+                      [d1] "=&v" (x1)
+                    : [a0] "v" (buf.x),
+                      [a1] "v" (buf.y));
+                x0 = ((x0 >> 4) & 255) + 0;
+                x1 = ((x1 >> 4) & 255) + 256;
+                buf = mad64(buf.x, buf.y, Shared(x0));
+                buf ^= Shared(x1);
+            }
+            if (get_local_id(0) & 1) x3 = buf.y;
+            else x3 = buf.x;
+
+            xd[k] = x3;
         }
         uint l0 = ((0 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 3)) * 4) & 255;
         uint l1 = ((4 + (get_local_id(0) & 3) + 16 * (get_local_id(1) & 3)) * 4) & 255;
@@ -751,12 +1022,17 @@ __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __g
         else if (get_local_id(0) < 8) x3 = x1;
         else if (get_local_id(0) < 12) x3 = x2;
 
-        x[r * 2 - 1] = x3;
+        xd[7] = x3;
     }
 
-#pragma unroll
-    for (k = 0; k < r * 2; k++)
-        Bdev(k) = x[k];
+#pragma unroll 8
+    for (k = 0; k < 8; k++) {
+        Bdev(4*k + 0) = xa[k];
+        Bdev(4*k + 1) = xb[k];
+        Bdev(4*k + 2) = xc[k];
+        Bdev(4*k + 3) = xd[k];
+    }
+        
 }
 
 #undef Vdev

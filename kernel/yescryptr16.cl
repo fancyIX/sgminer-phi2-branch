@@ -570,7 +570,7 @@ __kernel void yescrypt_gpu_hash_k1(__global uint* B, __global uint* S, const uin
 #undef Bdev
 #undef Sdev
 
-#define Vdev(a, b) v[((a) * (r * 2) + (b)) * 32]
+#define Vdev(a, b) v[((a) * (32) + (b)) * 32]
 #define Bdev(a) B[((a) * threads + thread) * 16 + get_local_id(0)]
 #define Sdev(a) S[(thread_part_4 * 128 + (a)) * 16 + get_local_id(0)]
 #define Shared(a) *(__local uint2*)&shared_mem[(4096 * YES_GID) + (YES_TID * 512 + (a)) * 4 + (get_local_id(0) & 2)]
@@ -591,7 +591,7 @@ __kernel void yescrypt_gpu_hash_k2c_r16(__global uint* B, __global uint* S, __gl
     uint n, i, j, k;
     uint x0, x1, x2, x3;
     uint2 buf;
-    uint x[r * 2];
+    uint x[32];
 
     for (k = 0; k < 128; k++)
         shared_mem[(4096 * YES_GID) + (YES_TID * 128 + k) * 16 + get_local_id(0)] = Sdev(k);
@@ -668,7 +668,7 @@ __kernel void yescrypt_gpu_hash_k2c1_r16(__global uint* B, __global uint* S, __g
     uint j, k;
     uint x0, x1, x2, x3;
     uint2 buf;
-    uint x[r * 2];
+    uint x[32];
 
     for (k = 0; k < 128; k++)
         shared_mem[(4096 * YES_GID) + (YES_TID * 128 + k) * 16 + get_local_id(0)] = Sdev(k);
