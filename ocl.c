@@ -517,10 +517,13 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 
   // Yescrypt TC
   else if ((cgpu->algorithm.type == ALGO_YESCRYPT ||
+            cgpu->algorithm.type == ALGO_YESCRYPTR16 ||
             algorithm->type == ALGO_YESCRYPT_MULTI ||
-            algorithm->type == ALGO_YESCRYPT_NAVI) && !cgpu->opt_tc) {
+            algorithm->type == ALGO_YESCRYPT_NAVI ||
+            algorithm->type == ALGO_YESCRYPTR16_NAVI) && !cgpu->opt_tc) {
               size_t max_pad_size = YESCRYPT_SCRATCHBUF_SIZE;
               if (algorithm->type == ALGO_YESCRYPT_NAVI || cgpu->algorithm.type == ALGO_YESCRYPT) max_pad_size = YESCRYPT_NAVI_SCRATCHBUF_SIZE;
+              if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPTR16) max_pad_size = YESCRYPTR16_NAVI_SCRATCHBUF_SIZE;
     size_t glob_thread_count;
     long max_int;
     unsigned char type = 0;
@@ -838,6 +841,32 @@ if (algorithm->type == ALGO_MTP) {
 		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c_r8\" from program. (clCreateKernel)", status);
 		  return NULL;
 	  }
+  } else if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPTR16) {
+    clState->yescrypt_gpu_hash_k0 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k0", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k0\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k1 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k1", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k1\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k5 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k5", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k5\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k2c1_r16 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k2c1_r16", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c1_r16\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
+    clState->yescrypt_gpu_hash_k2c_r16 = clCreateKernel(clState->program, "yescrypt_gpu_hash_k2c_r16", &status);
+	  if (status != CL_SUCCESS) {
+		  applog(LOG_ERR, "Error %d: Creating Kernel \"yescrypt_gpu_hash_k2c_r16\" from program. (clCreateKernel)", status);
+		  return NULL;
+	  }
   } else if (algorithm->type == ALGO_NEOSCRYPT || algorithm->type == ALGO_NEOSCRYPT_XAYA || algorithm->type == ALGO_NEOSCRYPT_NAVI || algorithm->type == ALGO_NEOSCRYPT_XAYA_NAVI) {
     clState->neoscrypt_gpu_hash_start=clCreateKernel(clState->program, "neoscrypt_gpu_hash_start", &status);
     if (status != CL_SUCCESS) {
@@ -913,6 +942,17 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
       size_t hash1_sz = 2 * 16 * 8 * 1 * sizeof(uint32_t);	// B
 	    size_t hash2_sz = 512 * sizeof(uint32_t);				// S(4way)
 	    size_t hash3_sz = 2 * 2048 * 8 * sizeof(uint32_t);			// V(16way)
+	    size_t hash4_sz = 8 * sizeof(uint32_t);					// sha256
+      bufsize = 32;
+      buf1size = hash1_sz * cgpu->thread_concurrency;
+      buf2size = hash2_sz * cgpu->thread_concurrency;
+      buf3size = hash3_sz * cgpu->thread_concurrency;
+      buf4size = hash4_sz * cgpu->thread_concurrency;
+    }
+if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPTR16) {
+      size_t hash1_sz = 2 * 16 * 16 * 1 * sizeof(uint32_t);	// B
+	    size_t hash2_sz = 512 * sizeof(uint32_t);				// S(4way)
+	    size_t hash3_sz = 2 * 4096 * 16 * sizeof(uint32_t);			// V(16way)
 	    size_t hash4_sz = 8 * sizeof(uint32_t);					// sha256
       bufsize = 32;
       buf1size = hash1_sz * cgpu->thread_concurrency;
@@ -1069,7 +1109,7 @@ if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI) {
         return NULL;
       }
     }
-    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI || algorithm->type == ALGO_NEOSCRYPT || algorithm->type == ALGO_NEOSCRYPT_XAYA
+    else if (algorithm->type == ALGO_YESCRYPT || algorithm->type == ALGO_YESCRYPT_NAVI || algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPTR16 || algorithm->type == ALGO_NEOSCRYPT || algorithm->type == ALGO_NEOSCRYPT_XAYA
              || algorithm->type == ALGO_NEOSCRYPT_NAVI || algorithm->type == ALGO_NEOSCRYPT_XAYA_NAVI) {
       clState->buffer1 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf1size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer1) {

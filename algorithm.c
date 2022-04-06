@@ -599,12 +599,70 @@ threads = worksize;
 	
 	clSetKernelArg(clState->yescrypt_gpu_hash_k5, 5, sizeof(threads), &threads);
   clSetKernelArg(clState->yescrypt_gpu_hash_k5, 4, sizeof(uint32_t), &le_target);
+}
 
-    
+static cl_int queue_yescryptr16_navikernel(_clState *clState, dev_blk_ctx *blk, __maybe_unused cl_uint threads)
+{
+  cl_uint le_target;
+  cl_int status = 0;
 
+  le_target = (cl_uint)le32toh(((uint32_t *)blk->work->/*device_*/target)[7]);
+  flip80(clState->cldata, blk->work->data);
+  uint32_t h[8], data[32];
 
+	h[0] = 0x6A09E667; h[1] = 0xBB67AE85; h[2] = 0x3C6EF372; h[3] = 0xA54FF53A;
+	h[4] = 0x510E527F; h[5] = 0x9B05688C; h[6] = 0x1F83D9AB; h[7] = 0x5BE0CD19;
+	data[0] = ((uint32_t*)(clState->cldata))[0]; data[1] = ((uint32_t*)(clState->cldata))[1];
+	data[2] = ((uint32_t*)(clState->cldata))[2]; data[3] = ((uint32_t*)(clState->cldata))[3];
+	data[4] = ((uint32_t*)(clState->cldata))[4]; data[5] = ((uint32_t*)(clState->cldata))[5];
+	data[6] = ((uint32_t*)(clState->cldata))[6]; data[7] = ((uint32_t*)(clState->cldata))[7];
+	data[8] = ((uint32_t*)(clState->cldata))[8]; data[9] = ((uint32_t*)(clState->cldata))[9];
+	data[10] = ((uint32_t*)(clState->cldata))[10]; data[11] = ((uint32_t*)(clState->cldata))[11];
+	data[12] = ((uint32_t*)(clState->cldata))[12]; data[13] = ((uint32_t*)(clState->cldata))[13];
+	data[14] = ((uint32_t*)(clState->cldata))[14]; data[15] = ((uint32_t*)(clState->cldata))[15];
+	for (int i = 0; i<20; i++) { data[i] = htobe32(data[i]); }
+	sha256_round_body_host(data, h);
 
+size_t worksize = blk->work->thr->cgpu->thread_concurrency;
+threads = worksize;
 
+    status=clEnqueueWriteBuffer(clState->commandQueue, clState->padbuffer8, CL_TRUE, 0, 32, h, 0, NULL, NULL);
+    status=clEnqueueWriteBuffer(clState->commandQueue, clState->CLbuffer0, CL_TRUE, 0, 80, clState->cldata, 0, NULL, NULL);
+	if (status != CL_SUCCESS) {
+      printf("status %d: clEnqueueWriteBuffer\n", status);
+      exit(1);
+	}
+
+    clSetKernelArg(clState->yescrypt_gpu_hash_k0, 0, sizeof(clState->padbuffer8), &(clState->padbuffer8));
+    clSetKernelArg(clState->yescrypt_gpu_hash_k0, 1, sizeof(clState->CLbuffer0), &(clState->CLbuffer0));
+	clSetKernelArg(clState->yescrypt_gpu_hash_k0, 2, sizeof(clState->buffer1), &(clState->buffer1));
+	clSetKernelArg(clState->yescrypt_gpu_hash_k0, 3, sizeof(clState->buffer4), &(clState->buffer4));
+	clSetKernelArg(clState->yescrypt_gpu_hash_k0, 4, sizeof(threads), &threads);
+
+		clSetKernelArg(clState->yescrypt_gpu_hash_k1, 0, sizeof(clState->buffer1), &(clState->buffer1));
+	    clSetKernelArg(clState->yescrypt_gpu_hash_k1, 1, sizeof(clState->buffer2), &(clState->buffer2));
+		
+		clSetKernelArg(clState->yescrypt_gpu_hash_k1, 3, sizeof(threads), &threads);
+
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 0, sizeof(clState->buffer1), &(clState->buffer1));
+	        clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 1, sizeof(clState->buffer2), &(clState->buffer2));
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 2, sizeof(clState->buffer3), &(clState->buffer3));
+
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c_r16, 7, sizeof(threads), &threads);
+
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 0, sizeof(clState->buffer1), &(clState->buffer1));
+	        clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 1, sizeof(clState->buffer2), &(clState->buffer2));
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 2, sizeof(clState->buffer3), &(clState->buffer3));
+
+			clSetKernelArg(clState->yescrypt_gpu_hash_k2c1_r16, 7, sizeof(threads), &threads);
+
+    clSetKernelArg(clState->yescrypt_gpu_hash_k5, 0, sizeof(clState->CLbuffer0), &(clState->CLbuffer0));
+	clSetKernelArg(clState->yescrypt_gpu_hash_k5, 1, sizeof(clState->buffer1), &(clState->buffer1));
+	clSetKernelArg(clState->yescrypt_gpu_hash_k5, 2, sizeof(clState->buffer4), &(clState->buffer4));
+	clSetKernelArg(clState->yescrypt_gpu_hash_k5, 3, sizeof(clState->outputBuffer), &(clState->outputBuffer));
+	
+	clSetKernelArg(clState->yescrypt_gpu_hash_k5, 5, sizeof(threads), &threads);
+  clSetKernelArg(clState->yescrypt_gpu_hash_k5, 4, sizeof(uint32_t), &le_target);
 }
 
 static cl_int queue_maxcoin_kernel(struct __clState *clState, struct _dev_blk_ctx *blk, __maybe_unused cl_uint threads)
@@ -2654,6 +2712,16 @@ static algorithm_settings_t algos[] = {
   { a, ALGO_YESCRYPT_NAVI, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0,-1,CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE , yescrypt_regenhash, NULL, NULL, queue_yescrypt_navikernel, gen_hash, append_neoscrypt_compiler_options}
   A_YESCRYPT_NAVI("yescrypt_navi"),
 #undef A_YESCRYPT_NAVI
+
+#define A_YESCRYPTR16(a) \
+  { a, ALGO_YESCRYPTR16, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0, -1, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, yescryptr16_regenhash, NULL, NULL, queue_yescryptr16_navikernel, gen_hash, append_neoscrypt_compiler_options}
+  A_YESCRYPTR16("yescryptr16"),
+#undef A_YESCRYPTR16
+
+#define A_YESCRYPTR16_NAVI(a) \
+  { a, ALGO_YESCRYPTR16_NAVI, "", 1, 65536, 65536, 0, 0, 0xFF, 0xFFFF000000000000ULL, 0x0000ffffUL, 0,-1,CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE , yescryptr16_regenhash, NULL, NULL, queue_yescryptr16_navikernel, gen_hash, append_neoscrypt_compiler_options}
+  A_YESCRYPTR16_NAVI("yescryptr16_navi"),
+#undef A_YESCRYPTR16_NAVI
 
   // kernels starting from this will have difficulty calculated by using quarkcoin algorithm
 #define A_QUARK(a, b) \
