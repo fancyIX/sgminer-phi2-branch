@@ -109,6 +109,11 @@ void yescryptr16_regenhash(struct work *work)
         data[19] = htobe32(*nonce);	
 
 		yescryptr16_hash((unsigned char*)data, (unsigned char*)ohash);
+#ifdef WIN32 // ugly hack for windows
+        memcpy(work->hash, work->target, 32);
+		work->hash[0] = 0;
+		work->hash[1] = 0;
+#endif
         
 }
 
