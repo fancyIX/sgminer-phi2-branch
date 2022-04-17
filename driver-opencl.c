@@ -2040,6 +2040,8 @@ static void opencl_thread_shutdown(struct thr_info *thr)
 	clReleaseMemObject(clState->buffer3);
   if (clState->buffer4)
 	clReleaseMemObject(clState->buffer4);
+  if (clState->buffer5)
+	clReleaseMemObject(clState->buffer5);
   if (clState->MidstateBuf)
 	clReleaseMemObject(clState->MidstateBuf);
   if (clState->MatrixBuf)
