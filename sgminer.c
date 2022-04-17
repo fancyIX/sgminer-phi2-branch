@@ -3512,7 +3512,8 @@ static void calc_diff(struct work *work, double known)
     applog(LOG_DEBUG, "calc_diff() algorithm = %s", work->pool->algorithm.name);
     // Neoscrypt
     if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA ||
-        work->pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI) {
+        work->pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI ||
+        work->pool->algorithm.type == ALGO_YESCRYPTR16 || work->pool->algorithm.type == ALGO_YESCRYPTR16_NAVI) {
       dcut64 = (double)*((uint64_t *)(work->target + 22));
     }
     else {
@@ -6796,7 +6797,8 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 
   // For Neoscrypt use set_target_neoscrypt() function
   if (pool->algorithm.type == ALGO_NEOSCRYPT || pool->algorithm.type == ALGO_NEOSCRYPT_XAYA ||
-      pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI) {
+      pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI ||
+      pool->algorithm.type == ALGO_YESCRYPTR16 || pool->algorithm.type == ALGO_YESCRYPTR16_NAVI) {
     set_target_neoscrypt(work->target, work->sdiff, work->thr_id);
   } else if (pool->algorithm.type == ALGO_MTP){
 	  memcpy(work->target, pool->Target, 32);
@@ -7926,7 +7928,8 @@ static void hash_sole_work(struct thr_info *mythr)
       drv->working_diff = work->work_difficulty;
 
     if (work->pool->algorithm.type == ALGO_NEOSCRYPT || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA ||
-        work->pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI) {
+        work->pool->algorithm.type == ALGO_NEOSCRYPT_NAVI || work->pool->algorithm.type == ALGO_NEOSCRYPT_XAYA_NAVI ||
+        work->pool->algorithm.type == ALGO_YESCRYPTR16 || work->pool->algorithm.type == ALGO_YESCRYPTR16_NAVI) {
       set_target_neoscrypt(work->device_target, work->device_diff, work->thr_id);
     } else {
       if (work->pool->algorithm.type == ALGO_ETHASH)

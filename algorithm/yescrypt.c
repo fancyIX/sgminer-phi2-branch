@@ -109,7 +109,7 @@ void yescryptr16_regenhash(struct work *work)
         data[19] = htobe32(*nonce);	
 
 		yescryptr16_hash((unsigned char*)data, (unsigned char*)ohash);
-#ifdef WIN32 // ugly hack for windows
+#if 1
         memcpy(work->hash, work->target, 32);
 		work->hash[0] = 0;
 		work->hash[1] = 0;
@@ -161,7 +161,7 @@ bool scanhash_yescrypt(struct thr_info *thr, const unsigned char __maybe_unused 
 }
 
 #define SPH_T32(x) (x)
-#define ROTR(x, n)      ((x >> n) | (x << (32 - n)))
+#define ROTR32(x, n)      ((x >> n) | (x << (32 - n)))
 
 static const uint32_t cpu_K[64] = {
 	0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5, 0x3956C25B, 0x59F111F1, 0x923F82A4, 0xAB1C5ED5,
@@ -180,8 +180,8 @@ static void sha256_step1_host(uint32_t a, uint32_t b, uint32_t c, uint32_t *pd,
 {
 	uint32_t t1, t2;
 	uint32_t vxandx = (((f) ^ (g)) & (e)) ^ (g); // xandx(e, f, g);
-	uint32_t bsg21 = ROTR(e, 6) ^ ROTR(e, 11) ^ ROTR(e, 25); // bsg2_1(e);
-	uint32_t bsg20 = ROTR(a, 2) ^ ROTR(a, 13) ^ ROTR(a, 22); //bsg2_0(a);
+	uint32_t bsg21 = ROTR32(e, 6) ^ ROTR32(e, 11) ^ ROTR32(e, 25); // bsg2_1(e);
+	uint32_t bsg20 = ROTR32(a, 2) ^ ROTR32(a, 13) ^ ROTR32(a, 22); //bsg2_0(a);
 	uint32_t andorv = ((b) & (c)) | (((b) | (c)) & (a)); //andor32(a,b,c);
 
 	t1 = *ph + bsg21 + vxandx + Kshared + in;
@@ -205,11 +205,11 @@ static void sha256_step2_host(uint32_t a, uint32_t b, uint32_t c, uint32_t *pd,
 	uint32_t inx2 = in[pcidx2];
 	uint32_t inx3 = in[pcidx3];
 
-	uint32_t ssg21 = ROTR(inx1, 17) ^ ROTR(inx1, 19) ^ SPH_T32((inx1) >> 10); //ssg2_1(inx1);
-	uint32_t ssg20 = ROTR(inx3, 7) ^ ROTR(inx3, 18) ^ SPH_T32((inx3) >> 3); //ssg2_0(inx3);
+	uint32_t ssg21 = ROTR32(inx1, 17) ^ ROTR32(inx1, 19) ^ SPH_T32((inx1) >> 10); //ssg2_1(inx1);
+	uint32_t ssg20 = ROTR32(inx3, 7) ^ ROTR32(inx3, 18) ^ SPH_T32((inx3) >> 3); //ssg2_0(inx3);
 	uint32_t vxandx = (((f) ^ (g)) & (e)) ^ (g); // xandx(e, f, g);
-	uint32_t bsg21 = ROTR(e, 6) ^ ROTR(e, 11) ^ ROTR(e, 25); // bsg2_1(e);
-	uint32_t bsg20 = ROTR(a, 2) ^ ROTR(a, 13) ^ ROTR(a, 22); //bsg2_0(a);
+	uint32_t bsg21 = ROTR32(e, 6) ^ ROTR32(e, 11) ^ ROTR32(e, 25); // bsg2_1(e);
+	uint32_t bsg20 = ROTR32(a, 2) ^ ROTR32(a, 13) ^ ROTR32(a, 22); //bsg2_0(a);
 	uint32_t andorv = ((b) & (c)) | (((b) | (c)) & (a)); //andor32(a,b,c);
 
 	in[pc] = ssg21 + inx2 + ssg20 + inx0;

@@ -959,6 +959,7 @@ if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPT
       buf2size = hash2_sz * cgpu->thread_concurrency;
       buf3size = hash3_sz * cgpu->thread_concurrency;
       buf4size = hash4_sz * cgpu->thread_concurrency;
+      buf5size = 32 * 4;
     }
 
   if (algorithm->rw_buffer_size < 0) {
@@ -1132,6 +1133,11 @@ if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPT
       clState->buffer4 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf4size, NULL, &status);
       if (status != CL_SUCCESS && !clState->buffer4) {
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer4), decrease TC or increase LG", status);
+        return NULL;
+      }
+      clState->buffer5 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf5size, NULL, &status);
+      if (status != CL_SUCCESS && !clState->buffer5) {
+        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer5), decrease TC or increase LG", status);
         return NULL;
       }
     }

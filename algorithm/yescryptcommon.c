@@ -371,6 +371,11 @@ void yescrypt_hash(const unsigned char *input, unsigned char *output)
 
 void yescryptr16_hash(const unsigned char *input, unsigned char *output)
 {
-
+	/*
+	if (client_key_len == 0xff)
+	{
+		client_key = "Client Key";
+		client_key_len = 10;
+	}*/
    yescrypt_bsty((const uint8_t *)input, 80, (const uint8_t *) input, 80, 4096, 16, 1, (uint8_t *)output, 32);
 }
