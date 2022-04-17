@@ -159,13 +159,13 @@ static inline void sha256_round_body(uint *in, uint *state)
 #define Bdev(a, b) B[((a) * threads + thread) * 16 + (b)]
 
 __attribute__((reqd_work_group_size(64, 1, 1)))
-__kernel void yescrypt_gpu_hash_k0(__global const uint * restrict cpu_h, __global const uint* restrict input, __global uint* B, __global uint* sha256, const uint threads)
+__kernel void yescrypt_gpu_hash_k0(__global const uint * restrict cpu_h, __global const uint* restrict input, __global uint* B, __global uint* sha256, const uint threads, const uint startNonce)
 {
     int thread = (get_global_id(0) - get_global_offset(0)) % MAX_GLOBAL_THREADS;
     int r = 16;
     int p = 1;
 
-    uint nonce = get_global_id(0);
+    uint nonce = (get_global_id(0) + startNonce);
     uint in[16];
     uint result[16];
     uint state1[8], state2[8];
@@ -174,7 +174,7 @@ __kernel void yescrypt_gpu_hash_k0(__global const uint * restrict cpu_h, __globa
 
     ((uint16 *)c_data)[0] = ((__global const uint16 *)input)[0];
 	((uint4  *)c_data)[4] = ((__global const uint4  *)input)[4];
-    for (int i = 0; i<20; i++) { c_data[i] = SWAP32(c_data[i]); }
+    //for (int i = 0; i<20; i++) { c_data[i] = SWAP32(c_data[i]); }
     in[0] = c_data[16]; in[1] = c_data[17]; in[2] = c_data[18]; in[3] = nonce;
     in[5] = in[6] = in[7] = in[8] = in[9] = in[10] = in[11] = in[12] = in[13] = in[14] = 0x00000000;
     in[4] = 0x80000000; in[15] = 0x00000280;
@@ -254,13 +254,13 @@ __kernel void yescrypt_gpu_hash_k0(__global const uint * restrict cpu_h, __globa
 }
 
 __attribute__((reqd_work_group_size(64, 1, 1)))
-__kernel void yescrypt_gpu_hash_k5(__global const uint* restrict input, __global uint* B, __global uint* sha256, __global uint* restrict output, const uint target, const uint threads)
+__kernel void yescrypt_gpu_hash_k5(__global const uint* restrict input, __global uint* B, __global uint* sha256, __global uint* restrict output, const uint target, const uint threads, const uint startNonce)
 {
 	int thread = (get_global_id(0) - get_global_offset(0)) % MAX_GLOBAL_THREADS;
     int r = 16;
     int p = 1;
 
-    const uint nonce = get_global_id(0);
+    const uint nonce = (get_global_id(0) + startNonce);
 
     uint in[16];
     uint buf[8];
@@ -268,11 +268,11 @@ __kernel void yescrypt_gpu_hash_k5(__global const uint* restrict input, __global
     uint state1[8];
     uint state2[8];
 
-    uint  c_data[20];
+    uint  client_key[32];
 
-    ((uint16 *)c_data)[0] = ((__global const uint16 *)input)[0];
-	((uint4  *)c_data)[4] = ((__global const uint4  *)input)[4];
-    for (int i = 0; i<20; i++) { c_data[i] = SWAP32(c_data[i]); }
+    ((uint16 *)client_key)[0] = ((__global const uint16 *)input)[0];
+	((uint16 *)client_key)[1] = ((__global const uint16 *)input)[1];
+    //for (int i = 0; i<20; i++) { c_data[i] = SWAP32(c_data[i]); }
 
     state1[0] = state2[0] = sha256dev(0);
     state1[1] = state2[1] = sha256dev(1);
@@ -353,16 +353,11 @@ __kernel void yescrypt_gpu_hash_k5(__global const uint* restrict input, __global
     in[8] = in[9] = in[10] = in[11] = in[12] = in[13] = in[14] = in[15] = 0x5c5c5c5c;
     sha256_round_body(in, state2);	// outer 64byte
 
-    in[0] = c_data[0]; in[1] = c_data[1]; in[2] = c_data[2]; in[3] = c_data[3];
-    in[4] = c_data[4]; in[5] = c_data[5]; in[6] = c_data[6]; in[7] = c_data[7];
-    in[8] = c_data[8]; in[9] = c_data[9]; in[10] = c_data[10]; in[11] = c_data[11];
-    in[12] = c_data[12]; in[13] = c_data[13]; in[14] = c_data[14]; in[15] = c_data[15];
+    in[0] = client_key[0]; in[1] = client_key[1]; in[2] = client_key[2]; in[3] = client_key[3];
+    in[4] = client_key[4]; in[5] = client_key[5]; in[6] = client_key[6]; in[7] = client_key[7];
+    in[8] = client_key[8]; in[9] = client_key[9]; in[10] = client_key[10]; in[11] = client_key[11];
+    in[12] = client_key[12]; in[13] = client_key[13]; in[14] = client_key[14]; in[15] = client_key[15];
     sha256_round_body(in, state1);	// inner length = 74 * 8 = 592 = 0x250
-
-    in[0] = c_data[16]; in[1] = c_data[17]; in[2] = c_data[18]; in[3] = nonce;
-    in[5] = in[6] = in[7] = in[8] = in[9] = in[10] = in[11] = in[12] = in[13] = in[14] = 0x00000000;
-    in[4] = 0x80000000; in[15] = 0x00000480;
-    sha256_round_body(in, state1);	// length = 80 * 8 = 640 = 0x280
 
     in[0] = state1[0]; in[1] = state1[1]; in[2] = state1[2]; in[3] = state1[3];
     in[4] = state1[4]; in[5] = state1[5]; in[6] = state1[6]; in[7] = state1[7];
