@@ -1135,10 +1135,12 @@ if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPT
         applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer4), decrease TC or increase LG", status);
         return NULL;
       }
-      clState->buffer5 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf5size, NULL, &status);
-      if (status != CL_SUCCESS && !clState->buffer5) {
-        applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer5), decrease TC or increase LG", status);
-        return NULL;
+      if (algorithm->type == ALGO_YESCRYPTR16_NAVI || algorithm->type == ALGO_YESCRYPTR16) {
+        clState->buffer5 = clCreateBuffer(clState->context, CL_MEM_READ_WRITE, buf5size, NULL, &status);
+        if (status != CL_SUCCESS && !clState->buffer5) {
+          applog(LOG_DEBUG, "Error %d: clCreateBuffer (buffer5), decrease TC or increase LG", status);
+          return NULL;
+        }
       }
     }
     else if (algorithm->type == ALGO_LYRA2REV2 || algorithm->type == ALGO_LYRA2REV3) {
