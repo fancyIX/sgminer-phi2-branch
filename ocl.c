@@ -244,6 +244,15 @@ _clState *initCl(unsigned int gpu, char *name, size_t nameSize, algorithm_t *alg
 	
 	applog(LOG_INFO, "Selected %d: %s", gpu, pbuff[gpu]);
   strncpy(name, pbuff[gpu], nameSize);
+
+  if (strstr(name, "gfx10") != NULL) {
+    if (strstr(cgpu->algorithm.name, "_navi") == NULL) {
+      char newname[20] = {0};
+      strncpy(newname, cgpu->algorithm.name, strlen(cgpu->algorithm.name));
+      strcat(newname, "_navi");
+      set_algorithm(&cgpu->algorithm, newname);
+    }
+  }
   
   status = create_opencl_context(&clState->context, &platform);
   if (status != CL_SUCCESS) {
